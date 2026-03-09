@@ -10,6 +10,7 @@ import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import BlankPage from "@/components/BlankPage";
+import Prospect from "@/pages/Prospect";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,7 +38,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedPage title="Dashboard" description="Overview of your logistics operations" />} />
             <Route path="/administration" element={<ProtectedPage title="Administration" description="System administration and settings" />} />
             <Route path="/sales/strategy" element={<ProtectedPage title="Sales Strategy" description="Define and manage sales strategies" />} />
-            <Route path="/sales/prospect" element={<ProtectedPage title="Prospect" description="Manage prospective clients" />} />
+            <Route path="/sales/prospect" element={<ProtectedRoute><AppLayout><Prospect /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/leads" element={<ProtectedPage title="Leads" description="Track and manage sales leads" />} />
             <Route path="/sales/opportunity" element={<ProtectedPage title="Opportunity" description="Manage sales opportunities" />} />
             <Route path="/sales/rate-requests" element={<ProtectedPage title="Rate Requests" description="Handle rate request submissions" />} />
