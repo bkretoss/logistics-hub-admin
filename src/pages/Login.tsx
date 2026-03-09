@@ -49,7 +49,7 @@ const Login: React.FC = () => {
             <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center mb-4">
               <Ship className="w-8 h-8 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Logistics Portal</h1>
+            <h1 className="text-2xl font-bold text-foreground">Relay Logistics</h1>
             <p className="text-muted-foreground text-sm mt-1">Sign in to your account</p>
           </div>
 
