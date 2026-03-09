@@ -10,6 +10,7 @@ import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import BlankPage from "@/components/BlankPage";
+import Prospect from "@/pages/Prospect";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
