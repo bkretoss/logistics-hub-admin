@@ -1,12 +1,27 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useState } from "react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  LayoutDashboard, Shield, TrendingUp, Target, Users, Lightbulb,
-  FileText, BarChart3, Settings, Truck, Database, ShoppingCart,
-  Calendar, DollarSign, ChevronDown, ChevronRight, Ship, LogOut,
-  Menu, X, UserCircle
-} from 'lucide-react';
+  LayoutDashboard,
+  Shield,
+  TrendingUp,
+  Target,
+  Users,
+  Lightbulb,
+  FileText,
+  BarChart3,
+  Settings,
+  Truck,
+  Database,
+  ShoppingCart,
+  Calendar,
+  DollarSign,
+  ChevronDown,
+  LogOut,
+  Menu,
+  X,
+  Bell,
+} from "lucide-react";
 
 interface MenuItem {
   title: string;
@@ -16,42 +31,46 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  { title: 'Administration', icon: Shield, path: '/administration' },
+  { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+  { title: "Administration", icon: Shield, path: "/administration" },
   {
-    title: 'Sales & CRM', icon: TrendingUp, children: [
-      { title: 'Sales Strategy', icon: Target, path: '/sales/strategy' },
+    title: "Sales & CRM",
+    icon: TrendingUp,
+    children: [
+      { title: "Sales Strategy", icon: Target, path: "/sales/strategy" },
       {
-        title: 'Sales', icon: Users, children: [
-          { title: 'Prospect', icon: Lightbulb, path: '/sales/prospect' },
-          { title: 'Leads', icon: Users, path: '/sales/leads' },
-          { title: 'Opportunity', icon: Target, path: '/sales/opportunity' },
-          { title: 'Rate Requests', icon: FileText, path: '/sales/rate-requests' },
-          { title: 'Quotes', icon: FileText, path: '/sales/quotes' },
-        ]
+        title: "Sales",
+        icon: Users,
+        children: [
+          { title: "Prospect", icon: Lightbulb, path: "/sales/prospect" },
+          { title: "Leads", icon: Users, path: "/sales/leads" },
+          { title: "Opportunity", icon: Target, path: "/sales/opportunity" },
+          { title: "Rate Requests", icon: FileText, path: "/sales/rate-requests" },
+          { title: "Quotes", icon: FileText, path: "/sales/quotes" },
+        ],
       },
-      { title: 'Reports', icon: BarChart3, path: '/sales/reports' },
-      { title: 'Configurations', icon: Settings, path: '/sales/configurations' },
-    ]
+      { title: "Reports", icon: BarChart3, path: "/sales/reports" },
+      { title: "Configurations", icon: Settings, path: "/sales/configurations" },
+    ],
   },
-  { title: 'Operations', icon: Truck, path: '/operations' },
-  { title: 'RMS', icon: Database, path: '/rms' },
-  { title: 'Procurement', icon: ShoppingCart, path: '/procurement' },
-  { title: 'Schedules', icon: Calendar, path: '/schedules' },
-  { title: 'Accounting', icon: DollarSign, path: '/accounting' },
+  { title: "Operations", icon: Truck, path: "/operations" },
+  { title: "RMS", icon: Database, path: "/rms" },
+  { title: "Procurement", icon: ShoppingCart, path: "/procurement" },
+  { title: "Schedules", icon: Calendar, path: "/schedules" },
+  { title: "Accounting", icon: DollarSign, path: "/accounting" },
 ];
 
 const SidebarItem: React.FC<{ item: MenuItem; depth?: number }> = ({ item, depth = 0 }) => {
   const location = useLocation();
   const [open, setOpen] = useState(() => {
     const checkActive = (i: MenuItem): boolean => {
-      if (i.path && location.pathname === i.path) return true;
+      if (i.path && location.pathname.startsWith(i.path)) return true;
       return i.children?.some(checkActive) ?? false;
     };
     return checkActive(item);
   });
 
-  const isActive = item.path === location.pathname;
+  const isActive = item.path ? location.pathname.startsWith(item.path) : false;
   const hasChildren = item.children && item.children.length > 0;
   const Icon = item.icon;
 
@@ -60,16 +79,15 @@ const SidebarItem: React.FC<{ item: MenuItem; depth?: number }> = ({ item, depth
       <div>
         <button
           onClick={() => setOpen(!open)}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground`}
-          style={{ paddingLeft: `${12 + depth * 12}px` }}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/50`}
+          style={{ paddingLeft: `${12 + depth * 16}px` }}
         >
-          <Icon className="w-4 h-4 shrink-0" />
-          <span className="flex-1 text-left">{item.title}</span>
-          {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          <span className="flex-1 text-left font-medium">{item.title}</span>
+          <ChevronDown className={`w-4 h-4 transition-transform ${open ? '' : '-rotate-90'}`} />
         </button>
         {open && (
-          <div className="mt-0.5">
-            {item.children!.map(child => (
+          <div className="mt-1 space-y-0.5">
+            {item.children!.map((child) => (
               <SidebarItem key={child.title} item={child} depth={depth + 1} />
             ))}
           </div>
@@ -81,15 +99,15 @@ const SidebarItem: React.FC<{ item: MenuItem; depth?: number }> = ({ item, depth
   return (
     <Link
       to={item.path!}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
         isActive
-          ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+          ? "bg-sidebar-primary/20 text-sidebar-primary border-l-4 border-sidebar-primary"
+          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 border-l-4 border-transparent"
       }`}
-      style={{ paddingLeft: `${12 + depth * 12}px` }}
+      style={{ paddingLeft: `${8 + depth * 16}px` }}
     >
-      <Icon className="w-4 h-4 shrink-0" />
-      <span>{item.title}</span>
+      {depth > 0 && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50 shrink-0"></span>}
+      <span className="font-medium">{item.title}</span>
     </Link>
   );
 };
@@ -99,25 +117,45 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [companyOpen, setCompanyOpen] = useState(false);
+
+  const companies = [
+    { id: 1, name: "Relay Logistics LLC", checked: false },
+    { id: 2, name: "Relay Lines Canada INC", checked: false },
+    { id: 3, name: "Relay Lines UK ltd", checked: false },
+    { id: 4, name: "Relay Logistics Private Limited", checked: true },
+  ];
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-sidebar">
-      <div className="flex items-center gap-3 px-5 h-16 border-b border-sidebar-border">
-        <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
-          <Ship className="w-5 h-5 text-sidebar-primary-foreground" />
-        </div>
-        <span className="text-base font-bold text-sidebar-primary-foreground tracking-tight">Relay Logistics</span>
+      <div className="flex items-center justify-center px-5 h-16 border-b border-sidebar-border">
+        <img src="/src/assets/company_logo.png" alt="Relay Logistics" className="h-22 w-auto max-w-full" />
       </div>
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {menuItems.map(item => (
+      <div className="px-3 pt-4 pb-3">
+        <p className="text-[10px] text-sidebar-foreground/40 font-semibold tracking-wider px-3 mb-3">MAIN MENU</p>
+      </div>
+      <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
+        {menuItems.map((item) => (
           <SidebarItem key={item.title} item={item} />
         ))}
       </nav>
+      <div className="border-t border-sidebar-border p-4">
+        <div className="flex items-center gap-3 relative">
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold relative">
+            {user?.name?.charAt(0) || "B"}
+            <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-sidebar absolute bottom-0 right-0"></div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name || "bkretoss"}</p>
+            <p className="text-xs text-sidebar-foreground/50 truncate">Admin</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -125,59 +163,86 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     <div className="min-h-screen flex w-full">
       {/* Desktop sidebar */}
       <aside className="hidden lg:block w-64 shrink-0">
-        <div className="fixed top-0 left-0 w-64 h-full z-30">
-          {sidebarContent}
-        </div>
+        <div className="fixed top-0 left-0 w-64 h-full z-30">{sidebarContent}</div>
       </aside>
 
       {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-foreground/40" onClick={() => setMobileOpen(false)} />
-          <div className="relative w-64 h-full">
-            {sidebarContent}
-          </div>
+          <div className="relative w-64 h-full">{sidebarContent}</div>
         </div>
       )}
 
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 lg:px-6 material-shadow-1 sticky top-0 z-20">
+        <header className="h-16 bg-card border-b border-border flex items-center justify-end px-4 lg:px-6 material-shadow-1 sticky top-0 z-20">
           <button
-            className="lg:hidden p-2 rounded-lg hover:bg-muted text-foreground"
+            className="lg:hidden p-2 rounded-lg hover:bg-muted text-foreground mr-auto"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-          <div className="flex-1" />
-          <div className="relative">
-            <button
-              onClick={() => setProfileOpen(!profileOpen)}
-              className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted"
-            >
-              <UserCircle className="w-7 h-7 text-muted-foreground" />
-              <span className="hidden sm:block text-sm font-medium text-foreground">{user?.name || 'User'}</span>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          <div className="flex items-center gap-3">
+            <button className="relative p-2 rounded-lg hover:bg-muted">
+              <Bell className="w-5 h-5 text-muted-foreground" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full"></span>
             </button>
-            {profileOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg material-shadow-3 border border-border py-1 z-50">
-                <div className="px-4 py-3 border-b border-border">
-                  <p className="text-sm font-medium text-foreground">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <button className="p-2 rounded-lg hover:bg-muted">
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => setCompanyOpen(!companyOpen)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted border border-border"
+              >
+                <span className="text-sm font-medium">Relay Logistics Private Limited</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              {companyOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-card rounded-lg material-shadow-3 border border-border py-2 z-50">
+                  <div className="max-h-64 overflow-y-auto">
+                    {companies.map((company) => (
+                      <label key={company.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer">
+                        <input type="checkbox" defaultChecked={company.checked} className="w-4 h-4" />
+                        <span className="text-sm">{company.name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted"
-                >
-                  <LogOut className="w-4 h-4" /> Sign Out
-                </button>
-              </div>
-            )}
+              )}
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted"
+              >
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-sm">
+                  {user?.name?.charAt(0) || "B"}
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-sm font-medium text-foreground">{user?.name || "bkretoss"}</p>
+                  <p className="text-xs text-muted-foreground">Admin</p>
+                </div>
+              </button>
+              {profileOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg material-shadow-3 border border-border py-1 z-50">
+                  <div className="px-4 py-3 border-b border-border">
+                    <p className="text-sm font-medium text-foreground">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted"
+                  >
+                    <LogOut className="w-4 h-4" /> Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
-        <main className="flex-1 p-4 lg:p-6">
-          {children}
-        </main>
+        <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
     </div>
   );

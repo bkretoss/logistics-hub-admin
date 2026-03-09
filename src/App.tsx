@@ -11,6 +11,13 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import BlankPage from "@/components/BlankPage";
 import Prospect from "@/pages/Prospect";
+import NewProspect from "@/pages/NewProspect";
+import Leads from "@/pages/Leads";
+import NewLead from "@/pages/NewLead";
+import Opportunity from "@/pages/Opportunity";
+import NewOpportunity from "@/pages/NewOpportunity";
+import Quotes from "@/pages/Quotes";
+import NewQuote from "@/pages/NewQuote";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,14 +42,18 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/dashboard" element={<ProtectedPage title="Dashboard" description="Overview of your logistics operations" />} />
+            <Route path="/dashboard" element={<ProtectedPage title="Dashboard" description="Your central hub for logistics operations and analytics." />} />
             <Route path="/administration" element={<ProtectedPage title="Administration" description="System administration and settings" />} />
             <Route path="/sales/strategy" element={<ProtectedPage title="Sales Strategy" description="Define and manage sales strategies" />} />
             <Route path="/sales/prospect" element={<ProtectedRoute><AppLayout><Prospect /></AppLayout></ProtectedRoute>} />
-            <Route path="/sales/leads" element={<ProtectedPage title="Leads" description="Track and manage sales leads" />} />
-            <Route path="/sales/opportunity" element={<ProtectedPage title="Opportunity" description="Manage sales opportunities" />} />
+            <Route path="/sales/prospect/new" element={<ProtectedRoute><AppLayout><NewProspect /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/leads" element={<ProtectedRoute><AppLayout><Leads /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/leads/new" element={<ProtectedRoute><AppLayout><NewLead /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/opportunity" element={<ProtectedRoute><AppLayout><Opportunity /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/opportunity/new" element={<ProtectedRoute><AppLayout><NewOpportunity /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/rate-requests" element={<ProtectedPage title="Rate Requests" description="Handle rate request submissions" />} />
-            <Route path="/sales/quotes" element={<ProtectedPage title="Quotes" description="Create and manage quotes" />} />
+            <Route path="/sales/quotes" element={<ProtectedRoute><AppLayout><Quotes /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/quotes/new" element={<ProtectedRoute><AppLayout><NewQuote /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/reports" element={<ProtectedPage title="Reports" description="Sales reports and analytics" />} />
             <Route path="/sales/configurations" element={<ProtectedPage title="Configurations" description="Sales module configurations" />} />
             <Route path="/operations" element={<ProtectedPage title="Operations" description="Manage logistics operations" />} />
