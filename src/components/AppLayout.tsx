@@ -111,7 +111,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
           <Ship className="w-5 h-5 text-sidebar-primary-foreground" />
         </div>
-        <span className="text-base font-bold text-sidebar-primary-foreground tracking-tight">LogiPort</span>
+        <span className="text-base font-bold text-sidebar-primary-foreground tracking-tight">Relay Logistics</span>
       </div>
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {menuItems.map(item => (
