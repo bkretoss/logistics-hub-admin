@@ -50,6 +50,8 @@
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+
+    --gold-light: 45 93% 58%;
   }
 }
 
@@ -97,5 +99,14 @@
   .material-input {
     @apply rounded-lg border-0 bg-muted/50 transition-all duration-200;
     @apply focus:bg-background focus:ring-2 focus:ring-primary/20;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }

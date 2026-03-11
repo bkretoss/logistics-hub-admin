@@ -1,5 +1,5 @@
-import React from 'react';
-import { Store, ArrowRight } from 'lucide-react';
+import React from "react";
+import { Store, ArrowRight } from "lucide-react";
 
 interface BlankPageProps {
   title: string;
@@ -17,7 +17,8 @@ const BlankPage: React.FC<BlankPageProps> = ({ title, description }) => {
         </div>
         <h2 className="text-2xl font-bold text-foreground mb-3">Coming Soon</h2>
         <p className="text-muted-foreground text-base max-w-md mb-8">
-          The <span className="font-semibold">{title}</span> module is currently under development. We're working hard to bring you this feature.
+          The <span className="font-semibold">{title}</span> module is currently under development. We're working hard
+          to bring you this feature.
         </p>
         <div className="flex gap-3">
           <button className="px-6 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-muted transition-colors">

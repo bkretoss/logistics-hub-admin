@@ -83,7 +83,7 @@ const SidebarItem: React.FC<{ item: MenuItem; depth?: number }> = ({ item, depth
           style={{ paddingLeft: `${12 + depth * 16}px` }}
         >
           <span className="flex-1 text-left font-medium">{item.title}</span>
-          <ChevronDown className={`w-4 h-4 transition-transform ${open ? '' : '-rotate-90'}`} />
+          <ChevronDown className={`w-4 h-4 transition-transform ${open ? "" : "-rotate-90"}`} />
         </button>
         {open && (
           <div className="mt-1 space-y-0.5">
@@ -134,12 +134,12 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const sidebarContent = (
     <div className="flex flex-col h-full bg-sidebar">
       <div className="flex items-center justify-center px-5 h-16 border-b border-sidebar-border">
-        <img src="/src/assets/company_logo.png" alt="Relay Logistics" className="h-22 w-auto max-w-full" />
+        <img src="/company_logo.png" alt="Relay Logistics" className="h-22 w-auto max-w-full" />
       </div>
       <div className="px-3 pt-4 pb-3">
         <p className="text-[10px] text-sidebar-foreground/40 font-semibold tracking-wider px-3 mb-3">MAIN MENU</p>
       </div>
-      <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-1 scrollbar-hide">
         {menuItems.map((item) => (
           <SidebarItem key={item.title} item={item} />
         ))}
@@ -203,7 +203,10 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <div className="absolute right-0 mt-2 w-64 bg-card rounded-lg material-shadow-3 border border-border py-2 z-50">
                   <div className="max-h-64 overflow-y-auto">
                     {companies.map((company) => (
-                      <label key={company.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer">
+                      <label
+                        key={company.id}
+                        className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer"
+                      >
                         <input type="checkbox" defaultChecked={company.checked} className="w-4 h-4" />
                         <span className="text-sm">{company.name}</span>
                       </label>

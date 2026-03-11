@@ -72,6 +72,7 @@ const NewOpportunity = () => {
     e.preventDefault();
     console.log("Form submitted:", formData);
     navigate("/sales/quotes/new");
+    window.scrollTo(0, 0);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -92,27 +93,58 @@ const NewOpportunity = () => {
 
       {/* Status Buttons */}
       <div className="flex items-center gap-3">
-        <Button className="bg-primary text-white">Change Status</Button>
-        <Button className="bg-primary text-white">Create Quote</Button>
-        <Button className="bg-primary text-white">Rate Request</Button>
+        <Button className="bg-primary text-black">Change Status</Button>
+        <Button className="bg-primary text-black">Create Quote</Button>
+        <Button className="bg-primary text-black">Rate Request</Button>
         <div className="flex items-center gap-2 ml-auto">
-          <div className="px-4 py-2 bg-primary text-white font-medium rounded-lg">Open</div>
-          <div className="px-4 py-2 bg-muted text-muted-foreground font-medium rounded-lg">Active</div>
-          <div className="px-4 py-2 bg-muted text-muted-foreground font-medium rounded-lg">Created</div>
-          <div className="px-4 py-2 bg-muted text-muted-foreground font-medium rounded-lg">Closed</div>
-          <div className="px-4 py-2 bg-muted text-muted-foreground font-medium rounded-lg">On Hold</div>
+          <div className="px-4 py-2 bg-primary text-black font-medium rounded-lg">Open</div>
+          <div className="px-4 py-2 bg-muted text-black font-medium rounded-lg">Active</div>
+          <div className="px-4 py-2 bg-muted text-black font-medium rounded-lg">Created</div>
+          <div className="px-4 py-2 bg-muted text-black font-medium rounded-lg">Closed</div>
+          <div className="px-4 py-2 bg-muted text-black font-medium rounded-lg">On Hold</div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="material-card material-elevation-1 p-6 space-y-8">
           {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2">
               <Label htmlFor="date" className="text-sm font-semibold">
                 Date
               </Label>
               <Input id="date" name="date" type="date" defaultValue="2026-03-09" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="location" className="text-sm font-semibold">
+                Location
+              </Label>
+              <select id="location" name="location" className="w-full px-3 py-2 border border-input rounded-lg">
+                <option value="">Select</option>
+                <option>New York</option>
+                <option>Los Angeles</option>
+                <option>Chicago</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lead" className="text-sm font-semibold">
+                Lead
+              </Label>
+              <select id="lead" name="lead" className="w-full px-3 py-2 border border-input rounded-lg">
+                <option value="">Select</option>
+                <option>Lead 1</option>
+                <option>Lead 2</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="salesTeam" className="text-sm font-semibold">
+                Sales Team
+              </Label>
+              <select id="salesTeam" name="salesTeam" className="w-full px-3 py-2 border border-input rounded-lg">
+                <option value="">Select</option>
+                <option>Team A</option>
+                <option>Team B</option>
+              </select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Opportunity Source</Label>
@@ -128,17 +160,6 @@ const NewOpportunity = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="location" className="text-sm font-semibold">
-                Location
-              </Label>
-              <select id="location" name="location" className="w-full px-3 py-2 border border-input rounded-lg">
-                <option value="">Select</option>
-                <option>New York</option>
-                <option>Los Angeles</option>
-                <option>Chicago</option>
-              </select>
-            </div>
-            <div className="space-y-2">
               <Label className="text-sm font-semibold">Opportunity Type</Label>
               <div className="flex gap-4 pt-2">
                 <label className="flex items-center gap-2">
@@ -150,16 +171,6 @@ const NewOpportunity = () => {
                   <span className="text-sm">Existing Client</span>
                 </label>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lead" className="text-sm font-semibold">
-                Lead
-              </Label>
-              <select id="lead" name="lead" className="w-full px-3 py-2 border border-input rounded-lg">
-                <option value="">Select</option>
-                <option>Lead 1</option>
-                <option>Lead 2</option>
-              </select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Type</Label>
@@ -175,16 +186,6 @@ const NewOpportunity = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="salesTeam" className="text-sm font-semibold">
-                Sales Team
-              </Label>
-              <select id="salesTeam" name="salesTeam" className="w-full px-3 py-2 border border-input rounded-lg">
-                <option value="">Select</option>
-                <option>Team A</option>
-                <option>Team B</option>
-              </select>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="salesAgent" className="text-sm font-semibold">
                 Sales Agent
               </Label>
@@ -194,7 +195,7 @@ const NewOpportunity = () => {
                 <option>Agent 2</option>
               </select>
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="company" className="text-sm font-semibold">
                 Company
               </Label>
@@ -231,7 +232,7 @@ const NewOpportunity = () => {
           {/* Shipment Details */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Shipment Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="transportMode" className="text-sm font-semibold">
                   Transport Mode
@@ -388,7 +389,7 @@ const NewOpportunity = () => {
           {/* Party Details */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Party Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="customer" className="text-sm font-semibold">
                   Customer
@@ -406,6 +407,12 @@ const NewOpportunity = () => {
                 <Input id="contactPerson" name="contactPerson" />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="designation" className="text-sm font-semibold">
+                  Designation
+                </Label>
+                <Input id="designation" name="designation" />
+              </div>
+              <div className="space-y-2">
                 <Label className="text-sm font-semibold">Customer Type</Label>
                 <div className="flex gap-4 pt-2">
                   <label className="flex items-center gap-2">
@@ -421,12 +428,6 @@ const NewOpportunity = () => {
                     <span className="text-sm">Agent</span>
                   </label>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="designation" className="text-sm font-semibold">
-                  Designation
-                </Label>
-                <Input id="designation" name="designation" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="customerSelect" className="text-sm font-semibold">
@@ -448,13 +449,15 @@ const NewOpportunity = () => {
                 </Label>
                 <Input id="department" name="department" />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2 md:col-span-3">
                 <Label htmlFor="addressStreet1" className="text-sm font-semibold">
                   Address
                 </Label>
-                <Input id="addressStreet1" name="addressStreet1" placeholder="Street 1..." className="mb-2" />
-                <Input id="addressStreet2" name="addressStreet2" placeholder="Street 2..." className="mb-2" />
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <Input id="addressStreet1" name="addressStreet1" placeholder="Street 1..." />
+                  <Input id="addressStreet2" name="addressStreet2" placeholder="Street 2..." />
+                </div>
+                <div className="grid grid-cols-4 gap-2">
                   <select className="px-3 py-2 border border-input rounded-lg">
                     <option>State</option>
                   </select>
@@ -462,12 +465,12 @@ const NewOpportunity = () => {
                     <option>City</option>
                   </select>
                   <Input placeholder="ZIP" />
+                  <select className="px-3 py-2 border border-input rounded-lg">
+                    <option>Country</option>
+                    <option>United States</option>
+                    <option>India</option>
+                  </select>
                 </div>
-                <select className="w-full px-3 py-2 border border-input rounded-lg mt-2">
-                  <option>Country</option>
-                  <option>United States</option>
-                  <option>India</option>
-                </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-semibold">
@@ -481,7 +484,7 @@ const NewOpportunity = () => {
                 </Label>
                 <Input id="telephoneNo" name="telephoneNo" />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label htmlFor="mobileNo" className="text-sm font-semibold">
                   Mobile No
                 </Label>
@@ -558,7 +561,7 @@ const NewOpportunity = () => {
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Additional Services</h2>
             <div className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-2 md:w-1/3">
                 <select className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select Service</option>
                   <option>Packaging</option>
@@ -608,10 +611,10 @@ const NewOpportunity = () => {
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => navigate("/sales/opportunity")}>
+            <Button type="button" className="bg-red-400 text-black hover:bg-red-350" onClick={() => navigate("/sales/opportunity")}>
               Cancel
             </Button>
-            <Button type="submit" className="material-button">
+            <Button type="submit" className="material-button text-black">
               Save Opportunity
             </Button>
           </div>
@@ -629,7 +632,7 @@ const NewOpportunity = () => {
               </button>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Date & Time</Label>
                   <div className="flex gap-2">
@@ -692,8 +695,8 @@ const NewOpportunity = () => {
               </div>
             </div>
             <div className="flex items-center justify-start gap-3 p-6 border-t border-border">
-              <Button type="button" className="bg-primary text-white" onClick={() => setShowVisitDialog(false)}>Save & Close</Button>
-              <Button type="button" className="bg-primary text-white" onClick={() => setShowVisitDialog(false)}>Save & New</Button>
+              <Button type="button" className="bg-primary text-black" onClick={() => setShowVisitDialog(false)}>Save & Close</Button>
+              <Button type="button" className="bg-primary text-black" onClick={() => setShowVisitDialog(false)}>Save & New</Button>
               <Button type="button" variant="outline" onClick={() => setShowVisitDialog(false)}>Discard</Button>
             </div>
           </div>

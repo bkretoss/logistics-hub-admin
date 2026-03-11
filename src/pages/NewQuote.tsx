@@ -4,11 +4,15 @@ import { ArrowLeft, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 const NewQuote = () => {
   const navigate = useNavigate();
   const [showAllIncl, setShowAllIncl] = useState(false);
   const [activeTab, setActiveTab] = useState("terms");
+  const [courierShipment, setCourierShipment] = useState(false);
+  const [multiCarrier, setMultiCarrier] = useState(false);
+  const [hazDetails, setHazDetails] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,41 +25,28 @@ const NewQuote = () => {
         <Button variant="outline" size="icon" onClick={() => navigate("/sales/quotes")}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        {/* <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">New Quotation</h1>
-          <p className="text-muted-foreground text-sm mt-1">Create a new quote</p>
-        </div> */}
-        <div className="py-4">
+        <div className="py-4 flex-1">
           <p className="text-sm text-muted-foreground">Quotation Number</p>
           <h2 className="text-2xl font-bold text-foreground">New Quotation</h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-muted-foreground" />
+            <span className="text-sm font-medium">0 Documents</span>
+          </div>
+          <Button type="button" variant="outline" className="gap-2">
+            <span>Customer Preview</span>
+          </Button>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="material-card material-elevation-1 p-6 space-y-8">
-          {/* Header Actions */}
-          <div className="flex items-center justify-between border-b border-border pb-4">
-            <div className="flex items-center gap-3"></div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-muted-foreground" />
-                <span className="text-sm font-medium">0 Documents</span>
-              </div>
-              <Button type="button" variant="outline" className="gap-2">
-                <span>Customer Preview</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* <div className="text-center py-4">
-            <p className="text-sm text-muted-foreground">Quotation Number</p>
-            <h2 className="text-2xl font-bold text-foreground">New Quotation</h2>
-          </div> */}
 
           {/* Customer Section */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Customer</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="customer" className="text-sm font-semibold">
                   Customer <span className="text-destructive">*</span>
@@ -107,30 +98,12 @@ const NewQuote = () => {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">Courier Shipment</Label>
-                <div className="flex items-center gap-2 pt-2">
-                  <input type="checkbox" id="courierShipment" className="w-4 h-4" />
-                  <Label htmlFor="courierShipment" className="text-sm font-normal cursor-pointer">
-                    Enable
-                  </Label>
-                </div>
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="company" className="text-sm font-semibold">
                   Company
                 </Label>
                 <select id="company" className="w-full px-3 py-2 border border-input rounded-lg">
                   <option>Relay Logistics Private Limited</option>
                 </select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Multi Carrier Quote</Label>
-                <div className="flex items-center gap-2 pt-2">
-                  <input type="checkbox" id="multiCarrier" className="w-4 h-4" />
-                  <Label htmlFor="multiCarrier" className="text-sm font-normal cursor-pointer">
-                    Enable
-                  </Label>
-                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="salesTeam" className="text-sm font-semibold">
@@ -141,6 +114,24 @@ const NewQuote = () => {
                   <option>Team A</option>
                   <option>Team B</option>
                 </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Courier Shipment</Label>
+                <div className="flex items-center gap-2 pt-2">
+                  <Switch id="courierShipment" checked={courierShipment} onCheckedChange={setCourierShipment} />
+                  <Label htmlFor="courierShipment" className="text-sm font-normal cursor-pointer">
+                    {courierShipment ? "Enabled" : "Disabled"}
+                  </Label>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Multi Carrier Quote</Label>
+                <div className="flex items-center gap-2 pt-2">
+                  <Switch id="multiCarrier" checked={multiCarrier} onCheckedChange={setMultiCarrier} />
+                  <Label htmlFor="multiCarrier" className="text-sm font-normal cursor-pointer">
+                    {multiCarrier ? "Enabled" : "Disabled"}
+                  </Label>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Quote For</Label>
@@ -174,7 +165,7 @@ const NewQuote = () => {
           {/* Mode of Shipment */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Mode of Shipment</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="transportMode" className="text-sm font-semibold">
                   Transport Mode <span className="text-destructive">*</span>
@@ -242,7 +233,7 @@ const NewQuote = () => {
           {/* General Information */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">General Information</h2>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-4 gap-6">
               <div className="space-y-2"><Label>Service Mode</Label><select className="w-full px-3 py-2 border border-input rounded-lg"><option value="">Select</option></select></div>
               <div className="space-y-2"><Label>Reference Number</Label><Input /></div>
               <div className="space-y-2"><Label>Estimated Pickup</Label><select className="w-full px-3 py-2 border border-input rounded-lg"><option value="">Select</option></select></div>
@@ -257,7 +248,7 @@ const NewQuote = () => {
           {/* Additional Info */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Additional Info</h2>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-3 gap-6">
               <div className="space-y-2"><Label>Additional Services</Label><select className="w-full px-3 py-2 border border-input rounded-lg"><option value="">Select</option></select></div>
               <div className="space-y-2"><Label>Free Day</Label><Input /></div>
             </div>
@@ -284,13 +275,19 @@ const NewQuote = () => {
           {/* HAZ Details */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">HAZ Details</h2>
-            <div className="space-y-2"><Label>HAZ?</Label><div className="pt-2"><input type="checkbox" className="w-4 h-4 rounded" /></div></div>
+            <div className="flex items-center gap-2">
+              <Label>HAZ?</Label>
+              <Switch id="hazDetails" checked={hazDetails} onCheckedChange={setHazDetails} />
+              <Label htmlFor="hazDetails" className="text-sm font-normal cursor-pointer">
+                {hazDetails ? "Yes" : "No"}
+              </Label>
+            </div>
           </div>
 
           {/* Monetary Details */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Monetary Details</h2>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label>Goods Value</Label>
                 <div className="flex gap-2">
@@ -311,7 +308,7 @@ const NewQuote = () => {
           {/* Declared Weight & Volume */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Declared Weight & Volume</h2>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label>Packs</Label>
                 <div className="flex gap-2">
@@ -383,8 +380,8 @@ const NewQuote = () => {
             <h2 className="text-lg font-bold text-primary mb-4">Charges</h2>
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="showAllIncl" className="w-4 h-4" checked={showAllIncl} onChange={(e) => setShowAllIncl(e.target.checked)} />
                 <Label htmlFor="showAllIncl" className="text-sm font-normal cursor-pointer">Show All Incl. in Single line</Label>
+                <Switch id="showAllIncl" checked={showAllIncl} onCheckedChange={setShowAllIncl} />
               </div>
               <div className="border border-border rounded-lg overflow-hidden">
                 <table className="w-full">
@@ -417,7 +414,7 @@ const NewQuote = () => {
           {/* Charges Summary */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Charges Summary</h2>
-            <div className="grid grid-cols-2 gap-x-12 gap-y-4">
+            <div className="grid grid-cols-4 gap-x-12 gap-y-4">
               <div className="flex justify-between">
                 <span className="text-sm">Estimated Total Cost</span>
                 <span className="text-sm text-destructive">₹ 0.00</span>
@@ -448,16 +445,16 @@ const NewQuote = () => {
             </div>
             <div className="space-y-4">
               {activeTab === "terms" && (
-                <>
+                <div className="grid grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <Label>Template</Label>
                     <select className="w-full px-3 py-2 border border-input rounded-lg"><option value="">Select</option></select>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 col-span-2">
                     <Label>Terms and conditions</Label>
                     <textarea className="w-full px-3 py-2 border border-input rounded-lg min-h-[100px]" placeholder="Enter terms and conditions"></textarea>
                   </div>
-                </>
+                </div>
               )}
               {activeTab === "remarks" && (
                 <div className="space-y-2">
@@ -469,10 +466,10 @@ const NewQuote = () => {
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => navigate("/sales/quotes")}>
+            <Button type="button" className="bg-red-400 text-black hover:bg-red-350" onClick={() => navigate("/sales/quotes")}>
               Cancel
             </Button>
-            <Button type="submit" className="material-button">
+            <Button type="submit" className="material-button text-black">
               Save Quote
             </Button>
           </div>
