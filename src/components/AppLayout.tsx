@@ -42,11 +42,8 @@ const menuItems: MenuItem[] = [
         title: "Sales",
         icon: Users,
         children: [
-          { title: "Prospect", icon: Lightbulb, path: "/sales/prospect" },
           { title: "Leads", icon: Users, path: "/sales/leads" },
-          { title: "Opportunity", icon: Target, path: "/sales/opportunity" },
-          { title: "Rate Requests", icon: FileText, path: "/sales/rate-requests" },
-          { title: "Quotes", icon: FileText, path: "/sales/quotes" },
+          { title: "Rate Requests", icon: Target, path: "/sales/opportunity" },
         ],
       },
       { title: "Reports", icon: BarChart3, path: "/sales/reports" },

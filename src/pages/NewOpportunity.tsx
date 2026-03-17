@@ -16,7 +16,7 @@ const NewOpportunity = () => {
     account: "",
     type: "",
     leadSource: "",
-    // Opportunity Record
+    // Rate Request Record
     opportunityOwner: "",
     opportunityType: "",
     type2: "",
@@ -71,7 +71,7 @@ const NewOpportunity = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Form submitted:", formData);
-    navigate("/sales/quotes/new");
+    navigate("/sales/opportunity");
     window.scrollTo(0, 0);
   };
 
@@ -86,8 +86,8 @@ const NewOpportunity = () => {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">New Opportunity</h1>
-          <p className="text-muted-foreground text-sm mt-1">Create a new opportunity entry</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">New Rate Request</h1>
+          <p className="text-muted-foreground text-sm mt-1">Create a new rate request entry</p>
         </div>
       </div>
 
@@ -147,7 +147,7 @@ const NewOpportunity = () => {
               </select>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Opportunity Source</Label>
+              <Label className="text-sm font-semibold">Rate Request Source</Label>
               <div className="flex gap-4 pt-2">
                 <label className="flex items-center gap-2">
                   <input type="radio" name="opportunitySource" value="Online" defaultChecked />
@@ -160,7 +160,7 @@ const NewOpportunity = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Opportunity Type</Label>
+              <Label className="text-sm font-semibold">Rate Request Type</Label>
               <div className="flex gap-4 pt-2">
                 <label className="flex items-center gap-2">
                   <input type="radio" name="opportunityType" value="New Client" defaultChecked />
@@ -615,7 +615,7 @@ const NewOpportunity = () => {
               Cancel
             </Button>
             <Button type="submit" className="material-button text-black">
-              Save Opportunity
+              Save Rate Request
             </Button>
           </div>
         </div>

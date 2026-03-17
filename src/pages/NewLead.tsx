@@ -5,6 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const prospects = [
+  { id: 1, company: "Atlas Freight Inc.", contact: "John Miller" },
+  { id: 2, company: "BlueLine Shipping", contact: "Sarah Chen" },
+  { id: 3, company: "CargoMax Solutions", contact: "David Park" },
+  { id: 4, company: "Express Haulers", contact: "Maria Garcia" },
+  { id: 5, company: "FastTrack Logistics", contact: "James Wilson" },
+  { id: 6, company: "Harbor Transport", contact: "Lisa Wang" },
+];
 
 const NewLead = () => {
   const navigate = useNavigate();
@@ -84,7 +94,7 @@ const NewLead = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2">
               <Label htmlFor="customer" className="text-sm font-semibold">Customer <span className="text-destructive">*</span></Label>
-              <Input id="customer" name="customer" value={formData.customer} onChange={handleChange} required />
+              <Input id="customer" name="customer" value={formData.customer} onChange={handleChange} placeholder="Enter customer name" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="date" className="text-sm font-semibold">Date</Label>
@@ -108,7 +118,10 @@ const NewLead = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="salesTeam" className="text-sm font-semibold">Sales Team</Label>
-              <Input id="salesTeam" name="salesTeam" value={formData.salesTeam} onChange={handleChange} />
+              <select id="salesTeam" name="salesTeam" value={formData.salesTeam} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <option value="">Select</option>
+                <option value="North America">North America</option>
+              </select>
             </div>
           </div>
 

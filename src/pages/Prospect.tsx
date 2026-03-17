@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Grid3x3, List, ArrowUpDown, Mail, Phone, MapPin, DollarSign, Clock, ChevronDown, Eye, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Grid3x3, List, ArrowUpDown, Mail, Phone, MapPin, DollarSign, Clock, ChevronDown, Eye, Edit, Trash2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
@@ -42,6 +42,7 @@ const prospects = [
     avatarBg: "bg-blue-100",
     avatarText: "text-blue-600",
     contactName: "John Miller",
+    rating: 0,
     street: "123 Main St",
     city: "New York",
     state: "NY",
@@ -74,6 +75,7 @@ const prospects = [
     avatarBg: "bg-orange-100",
     avatarText: "text-orange-600",
     contactName: "Sarah Chen",
+    rating: 3,
     street: "456 Commerce Ave",
     city: "Los Angeles",
     state: "CA",
@@ -106,6 +108,7 @@ const prospects = [
     avatarBg: "bg-green-100",
     avatarText: "text-green-600",
     contactName: "David Park",
+    rating: 2,
     street: "789 Industrial Blvd",
     city: "Chicago",
     state: "IL",
@@ -138,6 +141,7 @@ const prospects = [
     avatarBg: "bg-cyan-100",
     avatarText: "text-cyan-600",
     contactName: "Maria Garcia",
+    rating: 0,
     street: "321 Transport Way",
     city: "Houston",
     state: "TX",
@@ -170,6 +174,7 @@ const prospects = [
     avatarBg: "bg-blue-100",
     avatarText: "text-blue-600",
     contactName: "James Wilson",
+    rating: 1,
     street: "654 Logistics Ln",
     city: "Seattle",
     state: "WA",
@@ -202,6 +207,7 @@ const prospects = [
     avatarBg: "bg-green-100",
     avatarText: "text-green-600",
     contactName: "Lisa Wang",
+    rating: 3,
     street: "987 Harbor Dr",
     city: "Miami",
     state: "FL",
@@ -259,28 +265,12 @@ const Prospect = () => {
       iconColor: "text-blue-600",
     },
     {
-      label: "PIPELINE VALUE",
-      value: "$442K",
-      icon: "💵",
-      bg: "bg-green-50",
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600",
-    },
-    {
       label: "QUALIFIED",
       value: "2",
       icon: "⭐",
       bg: "bg-yellow-50",
       iconBg: "bg-yellow-100",
       iconColor: "text-yellow-600",
-    },
-    {
-      label: "AVG SCORE",
-      value: "76",
-      icon: "📈",
-      bg: "bg-cyan-50",
-      iconBg: "bg-cyan-100",
-      iconColor: "text-cyan-600",
     },
   ];
 
@@ -320,7 +310,7 @@ const Prospect = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {stats.map((stat, idx) => (
           <div
             key={idx}
@@ -363,7 +353,7 @@ const Prospect = () => {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search by company or contact..."
+                placeholder="Search by company or contact name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-80 pl-12 pr-4 py-3 material-input text-sm"
@@ -426,18 +416,11 @@ const Prospect = () => {
                   <MapPin className="w-4 h-4 flex-shrink-0" />
                   <span>{prospect.location}</span>
                 </div>
-              </div>
-
-              <div className="mb-5">
-                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-2">
-                  <span className="tracking-wide">LEAD SCORE</span>
-                  <span className="text-foreground text-sm">{prospect.score}%</span>
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-semibold">Designation:</span> {prospect.designation}
                 </div>
-                <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${prospect.scoreColor} transition-all duration-500 rounded-full`}
-                    style={{ width: `${prospect.score}%` }}
-                  ></div>
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-semibold">Department:</span> {prospect.department}
                 </div>
               </div>
 
@@ -466,9 +449,13 @@ const Prospect = () => {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                  <DollarSign className="w-4 h-4 text-muted-foreground" />
-                  {prospect.value}
+                <div className="flex items-center gap-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${i < prospect.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                    />
+                  ))}
                 </div>
               </div>
 
@@ -487,7 +474,7 @@ const Prospect = () => {
                 >
                   {prospect.avatar}
                 </div>
-                <div className="flex-1 grid grid-cols-5 gap-4 items-center">
+                <div className="flex-1 grid grid-cols-7 gap-4 items-center">
                   <div>
                     <h3 className="font-semibold text-foreground">{prospect.company}</h3>
                     <p className="text-sm text-muted-foreground">{prospect.contact}</p>
@@ -499,6 +486,12 @@ const Prospect = () => {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="w-4 h-4" />
                     <span>{prospect.phone}</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {prospect.designation}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {prospect.department}
                   </div>
                   <div>
                     <DropdownMenu>
@@ -525,16 +518,16 @@ const Prospect = () => {
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    <div className="flex items-center gap-0.5 mt-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${i < prospect.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                        />
+                      ))}
+                    </div>
                   </div>
                   <div className="flex items-center justify-end gap-4">
-                    <div className="text-right">
-                      <div className="text-xs text-muted-foreground mb-1">Score</div>
-                      <div className="font-semibold">{prospect.score}%</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-muted-foreground mb-1">Value</div>
-                      <div className="font-semibold">{prospect.value}</div>
-                    </div>
                     <div className="flex items-center gap-2">
                       <button 
                         className="p-1.5 hover:bg-muted rounded-lg transition-colors" 
@@ -623,6 +616,10 @@ const Prospect = () => {
                     <p className="text-sm font-medium mt-1">{selectedProspect.designation}</p>
                   </div>
                   <div>
+                    <label className="text-xs font-semibold text-muted-foreground">CONTACT PERSON</label>
+                    <p className="text-sm font-medium mt-1">{selectedProspect.contact}</p>
+                  </div>
+                  <div>
                     <label className="text-xs font-semibold text-muted-foreground">DEPARTMENT</label>
                     <p className="text-sm font-medium mt-1">{selectedProspect.department}</p>
                   </div>
@@ -656,16 +653,7 @@ const Prospect = () => {
               </div>
 
               <div>
-                <h3 className="text-sm font-bold text-primary mb-3">Prospect Summary</h3>
                 <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground">LEAD SCORE</label>
-                    <p className="text-sm font-medium mt-1">{selectedProspect.score}%</p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground">VALUE</label>
-                    <p className="text-sm font-medium mt-1">{selectedProspect.value}</p>
-                  </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">STATUS</label>
                     <p className="text-sm font-medium mt-1">

@@ -16,6 +16,7 @@ import {
   Eye,
   Edit,
   Trash2,
+  Star,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ const leads = [
     id: 1,
     customer: "Acme Corporation",
     target: "John Smith",
+    rating: 0,
     source: "Website",
     date: "08/12/2024",
     owner: "Sarah Johnson",
@@ -73,6 +75,7 @@ const leads = [
     id: 2,
     customer: "Global Shipping Ltd",
     target: "Emily Davis",
+    rating: 3,
     source: "Referral",
     date: "07/12/2024",
     owner: "Mike Chen",
@@ -109,6 +112,7 @@ const leads = [
     id: 3,
     customer: "Pacific Freight Co",
     target: "Robert Wilson",
+    rating: 2,
     source: "Cold Call",
     date: "06/12/2024",
     owner: "Lisa Wang",
@@ -291,7 +295,15 @@ const Leads = () => {
             <div key={lead.id} className="material-card p-6 cursor-pointer">
               <div className="mb-4">
                 <h3 className="font-semibold text-foreground text-lg mb-1">{lead.customer}</h3>
-                <p className="text-sm text-muted-foreground">{lead.target}</p>
+                <p className="text-sm text-muted-foreground mb-1">{lead.target}</p>
+                <div className="flex items-center gap-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-3.5 h-3.5 ${i < lead.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                    />
+                  ))}
+                </div>
               </div>
               <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between text-sm">
@@ -345,10 +357,10 @@ const Leads = () => {
               <table className="w-full">
                 <thead className="border-b border-border">
                   <tr>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">DATE</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">
                       CUSTOMER
                     </th>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">DATE</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">TARGET</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">
                       LEAD SOURCE
@@ -370,9 +382,21 @@ const Leads = () => {
                       key={lead.id}
                       className="border-b border-border hover:bg-muted/50 transition-colors cursor-pointer"
                     >
-                      <td className="p-4 font-medium text-foreground">{lead.customer}</td>
                       <td className="p-4 text-muted-foreground">{lead.date}</td>
-                      <td className="p-4 text-muted-foreground">{lead.target}</td>
+                      <td className="p-4 font-medium text-foreground">{lead.customer}</td>
+                      <td className="p-4 text-muted-foreground">
+                        <div>
+                          <div>{lead.target}</div>
+                          <div className="flex items-center gap-0.5 mt-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3.5 h-3.5 ${i < lead.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </td>
                       <td className="p-4 text-muted-foreground">{lead.source}</td>
                       <td className="p-4 text-muted-foreground">{lead.owner}</td>
                       <td className="p-4 text-muted-foreground">{lead.company}</td>
@@ -451,6 +475,14 @@ const Leads = () => {
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">TARGET</label>
                     <p className="text-sm font-medium mt-1">{selectedLead.target}</p>
+                    <div className="flex items-center gap-0.5 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${i < selectedLead.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                        />
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">LEAD OWNER</label>

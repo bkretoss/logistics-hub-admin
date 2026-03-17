@@ -76,7 +76,12 @@ const NewProspect = () => {
     e.preventDefault();
     if (validateForm()) {
       console.log('Form submitted:', formData);
-      navigate('/sales/leads/new');
+      navigate('/sales/leads/new', { 
+        state: { 
+          prospectCompany: formData.company || 'Relay Logistics Private Limited',
+          prospectContactName: formData.contactName 
+        } 
+      });
       window.scrollTo(0, 0);
     }
   };

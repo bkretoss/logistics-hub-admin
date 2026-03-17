@@ -202,7 +202,7 @@ const Opportunity = () => {
   };
 
   const stats = [
-    { label: "TOTAL OPPORTUNITIES", value: "3", icon: Target, iconColor: "text-blue-500", bg: "bg-blue-50" },
+    { label: "TOTAL RATE REQUESTS", value: "3", icon: Target, iconColor: "text-blue-500", bg: "bg-blue-50" },
     { label: "TOTAL VALUE", value: "$750K", icon: DollarSign, iconColor: "text-green-500", bg: "bg-green-50" },
     { label: "AVG PROBABILITY", value: "58%", icon: TrendingUp, iconColor: "text-yellow-500", bg: "bg-yellow-50" },
     { label: "CLOSING THIS MONTH", value: "2", icon: Calendar, iconColor: "text-cyan-500", bg: "bg-cyan-50" },
@@ -227,15 +227,15 @@ const Opportunity = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Opportunities</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage and track your sales opportunities</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Rate Requests</h1>
+          <p className="text-muted-foreground text-sm mt-1">Manage and track your rate requests</p>
         </div>
         <Button
           className="gap-2 material-button material-elevation-2 hover:material-elevation-3 text-black"
           onClick={() => navigate("/sales/opportunity/new")}
         >
           <Plus className="w-4 h-4" />
-          New Opportunity
+          New Rate Request
         </Button>
       </div>
 
@@ -375,10 +375,10 @@ const Opportunity = () => {
               <table className="w-full">
                 <thead className="border-b border-border">
                   <tr>
-                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">NAME</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">
                       CLOSE DATE
                     </th>
+                    <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">NAME</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">ACCOUNT</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">STAGE</th>
                     <th className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide">AMOUNT</th>
@@ -395,8 +395,8 @@ const Opportunity = () => {
                       key={opp.id}
                       className="border-b border-border hover:bg-muted/50 transition-colors cursor-pointer"
                     >
-                      <td className="p-4 font-medium text-foreground">{opp.name}</td>
                       <td className="p-4 text-muted-foreground">{opp.closeDate}</td>
+                      <td className="p-4 font-medium text-foreground">{opp.name}</td>
                       <td className="p-4 text-muted-foreground">{opp.account}</td>
                       <td className="p-4">
                         <DropdownMenu>
@@ -456,7 +456,7 @@ const Opportunity = () => {
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Opportunity Details</DialogTitle>
+            <DialogTitle>Rate Request Details</DialogTitle>
           </DialogHeader>
           {selectedOpportunity && (
             <div className="space-y-6">
@@ -469,7 +469,7 @@ const Opportunity = () => {
                     <p className="text-sm font-medium mt-1">{selectedOpportunity.date}</p>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground">OPPORTUNITY SOURCE</label>
+                    <label className="text-xs font-semibold text-muted-foreground">RATE REQUEST SOURCE</label>
                     <p className="text-sm font-medium mt-1">{selectedOpportunity.opportunitySource}</p>
                   </div>
                   <div>
@@ -477,7 +477,7 @@ const Opportunity = () => {
                     <p className="text-sm font-medium mt-1">{selectedOpportunity.location}</p>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground">OPPORTUNITY TYPE</label>
+                    <label className="text-xs font-semibold text-muted-foreground">RATE REQUEST TYPE</label>
                     <p className="text-sm font-medium mt-1">{selectedOpportunity.opportunityType}</p>
                   </div>
                   <div>
@@ -628,9 +628,9 @@ const Opportunity = () => {
                 </div>
               </div>
 
-              {/* Opportunity Summary */}
+              {/* Rate Request Summary */}
               <div>
-                <h3 className="text-sm font-bold text-primary mb-3">Opportunity Summary</h3>
+                <h3 className="text-sm font-bold text-primary mb-3">Rate Request Summary</h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">NAME</label>
