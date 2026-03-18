@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -167,8 +167,16 @@ const initialSubledger: SubledgerForm = {
 
 const NewOperation = () => {
   const navigate = useNavigate();
-  const { addOperation } = useOperations();
-  const [formData, setFormData]         = useState<OperationFormData>(initialForm);
+  const { id } = useParams<{ id: string }>();
+  const { addOperation, updateOperation, operations } = useOperations();
+  const editOp = id ? operations.find(o => o.id === Number(id)) : undefined;
+  const isEdit = !!editOp;
+
+  const [formData, setFormData] = useState<OperationFormData>(editOp ?? initialForm);
+
+  useEffect(() => {
+    if (editOp) setFormData(editOp);
+  }, [id]);
   const [errors, setErrors]             = useState<Partial<Record<keyof OperationFormData, string>>>({});
   const [subledgerOpen, setSubledgerOpen] = useState(false);
   const [subledger, setSubledger]       = useState<SubledgerForm>(initialSubledger);
@@ -199,13 +207,17 @@ const NewOperation = () => {
 
   const handleSave = () => {
     if (!validate()) return;
-    addOperation({
-      ...formData,
-      id: Date.now(),
-      status: 'Created',
-      statusColor: 'text-blue-500',
-      statusBgColor: 'bg-blue-500/10',
-    });
+    if (isEdit && editOp) {
+      updateOperation(editOp.id, formData);
+    } else {
+      addOperation({
+        ...formData,
+        id: Date.now(),
+        status: 'Created',
+        statusColor: 'text-blue-500',
+        statusBgColor: 'bg-blue-500/10',
+      });
+    }
     navigate('/operations');
     window.scrollTo(0, 0);
   };
@@ -252,8 +264,8 @@ const NewOperation = () => {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">New Operation</h1>
-          <p className="text-muted-foreground text-sm mt-1">Create a new logistics operation</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">{isEdit ? 'Edit Operation' : 'New Operation'}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{isEdit ? `Editing ${editOp?.jobNo || 'operation'}` : 'Create a new logistics operation'}</p>
         </div>
       </div>
 
@@ -270,14 +282,12 @@ const NewOperation = () => {
               <Label className="text-sm font-semibold w-40 shrink-0">Document</Label>
               <div className="flex-1">
                 <select id="document" name="document" value={formData.document} onChange={e => {
-                  setFormData(prev => ({
-                    ...prev,
+                  setFormData({
+                    ...initialForm,
                     document: e.target.value,
-                    customer: '', customerAddress: '',
-                    shipper: '', shipperAddress: '',
-                    carrier: '', carrierAddress: '',
-                    consignee: '', consigneeAddress: '',
-                  }));
+                    jobDate: formData.jobDate,
+                  });
+                  setErrors({});
                 }} className={sel()}>
                   {['Air Export','Air Import','FCL Export','FCL Import','Land Export','Land Import','LCL Export','LCL Import'].map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
@@ -744,7 +754,7 @@ const NewOperation = () => {
           Cancel
         </Button>
         <Button type="button" className="material-button text-black" onClick={handleSave}>
-          Save
+          {isEdit ? 'Update' : 'Save'}
         </Button>
       </div>
     </div>

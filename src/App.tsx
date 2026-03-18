@@ -62,6 +62,7 @@ const App = () => (
             <Route path="/sales/configurations" element={<ProtectedPage title="Configurations" description="Sales module configurations" />} />
             <Route path="/operations" element={<ProtectedRoute><AppLayout><Operations /></AppLayout></ProtectedRoute>} />
             <Route path="/operations/new" element={<ProtectedRoute><AppLayout><NewOperation /></AppLayout></ProtectedRoute>} />
+            <Route path="/operations/edit/:id" element={<ProtectedRoute><AppLayout><NewOperation /></AppLayout></ProtectedRoute>} />
             <Route path="/rms" element={<ProtectedPage title="RMS" description="Revenue Management System" />} />
             <Route path="/procurement" element={<ProtectedPage title="Procurement" description="Procurement management" />} />
             <Route path="/schedules" element={<ProtectedPage title="Schedules" description="Manage schedules and timelines" />} />

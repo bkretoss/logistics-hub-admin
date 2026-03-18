@@ -3,18 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Grid3x3, List,
   Truck, Clock, CheckCircle, AlertCircle, RotateCcw,
-  ChevronDown, Eye, Trash2, ChevronLeft, ChevronRight,
+  ChevronDown, Eye, Trash2, ChevronLeft, ChevronRight, Pencil,
+  Columns3, Filter, Database, Palette, BarChart2, Rows3,
+  BookOpen, Download, Mail, HelpCircle, TableProperties,
+  ArrowUpDown, Sigma, Calculator, History,
+  SplitSquareVertical, Highlighter, LayoutList,
+  FileText, FileBarChart, FilePieChart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { useOperations, type Operation } from './OperationsContext';
-
-const PAGE_SIZE = 10;
 
 const statusOptions = [
   { label: 'Created',   color: 'text-blue-500',   bgColor: 'bg-blue-500/10'   },
@@ -44,10 +48,17 @@ const Operations = () => {
   const [docFilter, setDocFilter]       = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [pageSize, setPageSize]         = useState(5);
   const [page, setPage]                 = useState(1);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selected, setSelected]         = useState<Operation | null>(null);
   const [deleteId, setDeleteId]         = useState<number | null>(null);
+  const [filterOpen, setFilterOpen]     = useState(false);
+  const [filterType, setFilterType]     = useState<'column' | 'row'>('column');
+  const [filterCol, setFilterCol]       = useState('jobNo');
+  const [filterOp, setFilterOp]         = useState('=');
+  const [filterExpr, setFilterExpr]     = useState('');
+  const [activeFilter, setActiveFilter] = useState<{ col: string; op: string; expr: string } | null>(null);
 
   const handleView = (op: Operation) => { setSelected(op); setViewDialogOpen(true); };
   const handleDeleteConfirm = () => { if (deleteId !== null) { deleteOperation(deleteId); setDeleteId(null); } };
@@ -63,6 +74,57 @@ const Operations = () => {
     { label: 'CANCELLED', value: operations.filter(o => o.status === 'Cancelled').length,  icon: Trash2,      iconColor: 'text-red-500',    bg: 'bg-red-50'    },
     { label: 'REOPENED',  value: operations.filter(o => o.status === 'Reopened').length,   icon: RotateCcw,   iconColor: 'text-purple-500', bg: 'bg-purple-50' },
   ];
+
+  const FILTER_COLUMNS = [
+    { label: 'JOB No#',              key: 'jobNo' },
+    { label: 'Date',                 key: 'jobDate' },
+    { label: 'Status',               key: 'status' },
+    { label: 'PP/CC',                key: 'freightPpCc' },
+    { label: 'Customer',             key: 'customer' },
+    { label: 'Place of Receipt',     key: 'placeOfReceipt' },
+    { label: 'POL',                  key: 'pol' },
+    { label: 'POD',                  key: 'pod' },
+    { label: 'Place of Delivery',    key: 'placeOfDelivery' },
+    { label: 'ETD',                  key: 'polEtd' },
+    { label: 'ETA',                  key: 'podEta' },
+    { label: 'Vessel/Flight Name',   key: 'flightName' },
+    { label: 'Vessel/Flight No',     key: 'flightNumber' },
+    { label: 'BL Service Type',      key: 'blServiceType' },
+    { label: 'BL No',                key: 'blNo' },
+    { label: 'MBL No',               key: 'mblNo' },
+    { label: 'Sales Person',         key: 'salesPerson' },
+    { label: 'Shipper',              key: 'shipper' },
+    { label: 'Consignee',            key: 'consignee' },
+    { label: 'Carrier',              key: 'carrier' },
+    { label: 'Delivery Agent Name',  key: 'deliveryAgentName' },
+    { label: 'Notify1',              key: 'notify1' },
+    { label: 'Delivery Agent',       key: 'deliveryAgent' },
+    { label: 'Delivery Status',      key: 'deliveryStatus' },
+    { label: 'Delivery Date',        key: 'deliveryDate' },
+    { label: 'Notes',                key: 'note' },
+  ];
+  const OPERATORS = ['=', '!=', 'contains', 'not contains', 'starts with', 'ends with', '>', '<', '>=', '<='];
+
+  const applyColumnFilter = (op: typeof operations, f: typeof activeFilter) => {
+    if (!f || !f.expr.trim()) return op;
+    return op.filter(row => {
+      const val = String((row as Record<string, unknown>)[f.col] ?? '').toLowerCase();
+      const expr = f.expr.toLowerCase();
+      switch (f.op) {
+        case '=':            return val === expr;
+        case '!=':           return val !== expr;
+        case 'contains':     return val.includes(expr);
+        case 'not contains': return !val.includes(expr);
+        case 'starts with':  return val.startsWith(expr);
+        case 'ends with':    return val.endsWith(expr);
+        case '>':            return val > expr;
+        case '<':            return val < expr;
+        case '>=':           return val >= expr;
+        case '<=':           return val <= expr;
+        default:             return true;
+      }
+    });
+  };
 
   const DOC_TYPES     = ['Air Export','Air Import','FCL Export','FCL Import','Land Export','Land Import','LCL Export','LCL Import'];
   const STATUS_TYPES  = ['Created','Process','Closed','Cancelled','Reopened'];
@@ -88,10 +150,13 @@ const Operations = () => {
     return matchDoc && matchCustomer && matchStatus && matchFrom && matchTo && matchSearch;
   });
 
-  const resetFilters = () => { setFromDate(''); setToDate(''); setDocFilter(''); setCustomerFilter(''); setStatusFilter(''); setSearchTerm(''); setPage(1); };
+  const fullyFiltered = applyColumnFilter(filtered, activeFilter);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const resetFilters = () => { setFromDate(''); setToDate(''); setDocFilter(''); setCustomerFilter(''); setStatusFilter(''); setSearchTerm(''); setActiveFilter(null); setPage(1); };
+
+  const effectivePageSize = pageSize === 0 ? fullyFiltered.length || 1 : pageSize;
+  const totalPages = Math.max(1, Math.ceil(fullyFiltered.length / effectivePageSize));
+  const paginated  = fullyFiltered.slice((page - 1) * effectivePageSize, page * effectivePageSize);
 
   const handleSearch = (v: string) => { setSearchTerm(v); setPage(1); };
 
@@ -193,10 +258,68 @@ const Operations = () => {
               {STATUS_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          {/* Search + Reset */}
-          <div className="flex gap-2">
+          {/* Actions + Reset */}
+          <div className="flex items-end gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 px-4 h-[38px] rounded-lg">
+                  Actions <ChevronDown className="w-3.5 h-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem className="gap-2"><Columns3 className="w-4 h-4" /> Columns</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2" onClick={() => setFilterOpen(true)}><Filter className="w-4 h-4" /> Filter</DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2"><Database className="w-4 h-4" /> Data</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem className="gap-2"><ArrowUpDown className="w-4 h-4" /> Sort</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2"><Sigma className="w-4 h-4" /> Aggregate</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2"><Calculator className="w-4 h-4" /> Compute</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2"><History className="w-4 h-4" /> Flashback</DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2"><Palette className="w-4 h-4" /> Format</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem className="gap-2"><SplitSquareVertical className="w-4 h-4" /> Control Break</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2"><Highlighter className="w-4 h-4" /> Highlight</DropdownMenuItem>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="gap-2"><LayoutList className="w-4 h-4" /> Rows Per Page</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {[1, 5, 10, 15, 20, 25, 50, 100, 1000].map(n => (
+                          <DropdownMenuItem key={n} className="gap-2 justify-between"
+                            onClick={() => { setPageSize(n); setPage(1); }}>
+                            {n}
+                            {pageSize === n && <span className="w-2 h-2 rounded-full bg-primary" />}
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuItem className="gap-2 justify-between"
+                          onClick={() => { setPageSize(0); setPage(1); }}>
+                          All
+                          {pageSize === 0 && <span className="w-2 h-2 rounded-full bg-primary" />}
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuItem className="gap-2"><BarChart2 className="w-4 h-4" /> Chart</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2"><Rows3 className="w-4 h-4" /> Group By</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2"><TableProperties className="w-4 h-4" /> Pivot</DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2"><BookOpen className="w-4 h-4" /> Report</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem className="gap-2"><FileText className="w-4 h-4" /> Summary</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2"><FileBarChart className="w-4 h-4" /> Detailed</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2"><FilePieChart className="w-4 h-4" /> Analytics</DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuItem className="gap-2"><Download className="w-4 h-4" /> Download</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2"><Mail className="w-4 h-4" /> Subscription</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2"><HelpCircle className="w-4 h-4" /> Help</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button onClick={resetFilters} title="Reset filters"
-              className="px-3 py-2 border border-input rounded-lg text-sm text-muted-foreground hover:bg-muted transition-colors">
+              className="px-3 py-2 border border-input rounded-lg text-sm text-muted-foreground hover:bg-muted transition-colors h-[38px]">
               ✕
             </button>
           </div>
@@ -216,6 +339,15 @@ const Operations = () => {
             <Button variant="outline" size="sm" className="gap-2 rounded-xl px-4">
               <span className="text-base">↕</span> Sort
             </Button>
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground border border-input rounded-xl px-3 py-1.5">
+              Rows
+              <select value={pageSize === 0 ? 'All' : pageSize}
+                onChange={e => { setPageSize(e.target.value === 'All' ? 0 : Number(e.target.value)); setPage(1); }}
+                className="bg-transparent font-semibold text-foreground outline-none cursor-pointer">
+                {[1,5,10,15,20,25,50,100,1000].map(n => <option key={n} value={n}>{n}</option>)}
+                <option value="All">All</option>
+              </select>
+            </span>
             <div className="flex bg-muted rounded-xl p-1">
               <button onClick={() => setViewMode('grid')}
                 className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === 'grid' ? 'bg-primary text-white' : 'hover:bg-background'}`}>
@@ -262,6 +394,9 @@ const Operations = () => {
                 <div className="flex items-center gap-1">
                   <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" onClick={() => handleView(op)}>
                     <Eye className="w-4 h-4 text-blue-500" />
+                  </button>
+                  <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" onClick={() => navigate(`/operations/edit/${op.id}`)}>
+                    <Pencil className="w-4 h-4 text-green-500" />
                   </button>
                   <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" onClick={() => setDeleteId(op.id)}>
                     <Trash2 className="w-4 h-4 text-red-500" />
@@ -324,6 +459,9 @@ const Operations = () => {
                         <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="View" onClick={() => handleView(op)}>
                           <Eye className="w-4 h-4 text-blue-500" />
                         </button>
+                        <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Edit" onClick={() => navigate(`/operations/edit/${op.id}`)}>
+                          <Pencil className="w-4 h-4 text-green-500" />
+                        </button>
                         <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Delete" onClick={() => setDeleteId(op.id)}>
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
@@ -343,7 +481,7 @@ const Operations = () => {
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
             <p className="text-sm text-muted-foreground">
-              Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} records
+              Showing {fullyFiltered.length === 0 ? 0 : (page - 1) * effectivePageSize + 1}–{Math.min(page * effectivePageSize, fullyFiltered.length)} of {fullyFiltered.length} records
             </p>
             <div className="flex items-center gap-1">
               <button
@@ -372,6 +510,67 @@ const Operations = () => {
           </div>
         </div>
       )}
+
+      {/* Filter Dialog */}
+      <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="bg-[#00BCD4] px-6 py-4 flex flex-row items-center justify-between">
+            <DialogTitle className="text-white text-lg font-semibold">Filter</DialogTitle>
+            <div className="w-8 h-8 rounded-full bg-white" />
+          </DialogHeader>
+          <div className="p-6 space-y-6">
+            {/* Filter Type */}
+            <div className="flex items-center gap-6">
+              <span className="text-sm font-semibold w-24">Filter Type</span>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="filterType" checked={filterType === 'column'}
+                  onChange={() => setFilterType('column')}
+                  className="accent-[#00BCD4]" />
+                <span className="text-sm">Column</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="filterType" checked={filterType === 'row'}
+                  onChange={() => setFilterType('row')}
+                  className="accent-[#00BCD4]" />
+                <span className="text-sm">Row</span>
+              </label>
+            </div>
+
+            {/* Column / Operator / Expression */}
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Column</label>
+                <select value={filterCol} onChange={e => setFilterCol(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background">
+                  {FILTER_COLUMNS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Operator</label>
+                <select value={filterOp} onChange={e => setFilterOp(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background">
+                  {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Expression</label>
+                <div className="relative">
+                  <input value={filterExpr} onChange={e => setFilterExpr(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { setActiveFilter({ col: filterCol, op: filterOp, expr: filterExpr }); setPage(1); setFilterOpen(false); } }}
+                    className="w-full px-3 py-2 pr-8 border border-input rounded-lg text-sm bg-background" />
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-border">
+            <Button variant="outline" onClick={() => { setFilterOpen(false); setFilterExpr(''); setActiveFilter(null); setPage(1); }}>Cancel</Button>
+            <Button className="bg-[#00BCD4] hover:bg-[#00ACC1] text-white" onClick={() => { setActiveFilter({ col: filterCol, op: filterOp, expr: filterExpr }); setPage(1); setFilterOpen(false); }}>Apply</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteId !== null} onOpenChange={open => { if (!open) setDeleteId(null); }}>
