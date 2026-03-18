@@ -18,6 +18,9 @@ import Opportunity from "@/pages/Opportunity";
 import NewOpportunity from "@/pages/NewOpportunity";
 import Quotes from "@/pages/Quotes";
 import NewQuote from "@/pages/NewQuote";
+import Operations from "@/pages/Operations";
+import NewOperation from "@/pages/NewOperation";
+import { OperationsProvider } from "@/pages/OperationsContext";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +39,7 @@ const App = () => (
       <AuthProvider>
         <Toaster />
         <Sonner />
+        <OperationsProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
@@ -56,7 +60,8 @@ const App = () => (
             <Route path="/sales/quotes/new" element={<ProtectedRoute><AppLayout><NewQuote /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/reports" element={<ProtectedPage title="Reports" description="Sales reports and analytics" />} />
             <Route path="/sales/configurations" element={<ProtectedPage title="Configurations" description="Sales module configurations" />} />
-            <Route path="/operations" element={<ProtectedPage title="Operations" description="Manage logistics operations" />} />
+            <Route path="/operations" element={<ProtectedRoute><AppLayout><Operations /></AppLayout></ProtectedRoute>} />
+            <Route path="/operations/new" element={<ProtectedRoute><AppLayout><NewOperation /></AppLayout></ProtectedRoute>} />
             <Route path="/rms" element={<ProtectedPage title="RMS" description="Revenue Management System" />} />
             <Route path="/procurement" element={<ProtectedPage title="Procurement" description="Procurement management" />} />
             <Route path="/schedules" element={<ProtectedPage title="Schedules" description="Manage schedules and timelines" />} />
@@ -64,6 +69,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </OperationsProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

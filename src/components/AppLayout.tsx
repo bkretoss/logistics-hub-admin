@@ -50,7 +50,13 @@ const menuItems: MenuItem[] = [
       { title: "Configurations", icon: Settings, path: "/sales/configurations" },
     ],
   },
-  { title: "Operations", icon: Truck, path: "/operations" },
+  {
+    title: "Operations",
+    icon: Truck,
+    children: [
+      { title: "Operations List", icon: Truck, path: "/operations" },
+    ],
+  },
   { title: "RMS", icon: Database, path: "/rms" },
   { title: "Procurement", icon: ShoppingCart, path: "/procurement" },
   { title: "Schedules", icon: Calendar, path: "/schedules" },
