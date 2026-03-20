@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   Bell,
+  UserSquare,
 } from "lucide-react";
 
 interface MenuItem {
@@ -68,6 +69,13 @@ const menuItems: MenuItem[] = [
       { title: "Branch Master List", icon: Database, path: "/admin/branch-master" },
     ],
   },
+  {
+    title: "HR",
+    icon: UserSquare,
+    children: [
+      { title: "Employee Master", icon: Users, path: "/hr/employee-master" },
+    ],
+  },
 ];
 
 const SidebarItem: React.FC<{
@@ -80,17 +88,24 @@ const SidebarItem: React.FC<{
   const isActive = item.path ? location.pathname.startsWith(item.path) : false;
   const hasChildren = item.children && item.children.length > 0;
 
-  // For top-level items, open state is controlled by openMenu
-  // For nested items, derive open from route
   const isTopLevel = depth === 0;
-  const open = isTopLevel
-    ? openMenu === item.title
-    : item.children?.some((c) => c.path && location.pathname.startsWith(c.path)) ?? false;
+
+  // For nested items with children, use local state; seed open if current route is under this subtree
+  const isNestedRouteActive = (items: MenuItem[]): boolean =>
+    items.some((i) => (i.path && location.pathname.startsWith(i.path)) || (i.children ? isNestedRouteActive(i.children) : false));
+
+  const [nestedOpen, setNestedOpen] = useState(() =>
+    !isTopLevel && hasChildren ? isNestedRouteActive(item.children!) : false
+  );
+
+  const open = isTopLevel ? openMenu === item.title : nestedOpen;
 
   if (hasChildren) {
     const toggle = () => {
       if (isTopLevel) {
         setOpenMenu(open ? null : item.title);
+      } else {
+        setNestedOpen((prev) => !prev);
       }
     };
     return (

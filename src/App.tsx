@@ -24,6 +24,8 @@ import { OperationsProvider } from "@/pages/OperationsContext";
 import BranchMasterList from "@/pages/BranchMasterList";
 import NewBranch from "@/pages/NewBranch";
 import ViewBranch from "@/pages/ViewBranch";
+import EmployeeMasterList from "@/pages/EmployeeMasterList";
+import NewEmployee from "@/pages/NewEmployee";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +76,9 @@ const App = () => (
             <Route path="/admin/branch-master/new" element={<ProtectedRoute><AppLayout><NewBranch /></AppLayout></ProtectedRoute>} />
             <Route path="/admin/branch-master/view/:id" element={<ProtectedRoute><AppLayout><ViewBranch /></AppLayout></ProtectedRoute>} />
             <Route path="/admin/branch-master/edit/:id" element={<ProtectedRoute><AppLayout><NewBranch /></AppLayout></ProtectedRoute>} />
+            <Route path="/hr/employee-master" element={<ProtectedRoute><AppLayout><EmployeeMasterList /></AppLayout></ProtectedRoute>} />
+            <Route path="/hr/employee-master/new" element={<ProtectedRoute><AppLayout><NewEmployee /></AppLayout></ProtectedRoute>} />
+            <Route path="/hr/employee-master/edit/:id" element={<ProtectedRoute><AppLayout><NewEmployee /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
