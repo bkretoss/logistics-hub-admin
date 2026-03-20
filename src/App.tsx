@@ -21,6 +21,9 @@ import NewQuote from "@/pages/NewQuote";
 import Operations from "@/pages/Operations";
 import NewOperation from "@/pages/NewOperation";
 import { OperationsProvider } from "@/pages/OperationsContext";
+import BranchMasterList from "@/pages/BranchMasterList";
+import NewBranch from "@/pages/NewBranch";
+import ViewBranch from "@/pages/ViewBranch";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +70,10 @@ const App = () => (
             <Route path="/procurement" element={<ProtectedPage title="Procurement" description="Procurement management" />} />
             <Route path="/schedules" element={<ProtectedPage title="Schedules" description="Manage schedules and timelines" />} />
             <Route path="/accounting" element={<ProtectedPage title="Accounting" description="Financial management and accounting" />} />
+            <Route path="/admin/branch-master" element={<ProtectedRoute><AppLayout><BranchMasterList /></AppLayout></ProtectedRoute>} />
+            <Route path="/admin/branch-master/new" element={<ProtectedRoute><AppLayout><NewBranch /></AppLayout></ProtectedRoute>} />
+            <Route path="/admin/branch-master/view/:id" element={<ProtectedRoute><AppLayout><ViewBranch /></AppLayout></ProtectedRoute>} />
+            <Route path="/admin/branch-master/edit/:id" element={<ProtectedRoute><AppLayout><NewBranch /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

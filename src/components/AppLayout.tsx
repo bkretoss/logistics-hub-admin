@@ -61,27 +61,42 @@ const menuItems: MenuItem[] = [
   { title: "Procurement", icon: ShoppingCart, path: "/procurement" },
   { title: "Schedules", icon: Calendar, path: "/schedules" },
   { title: "Accounting", icon: DollarSign, path: "/accounting" },
+  {
+    title: "Admin",
+    icon: Shield,
+    children: [
+      { title: "Branch Master List", icon: Database, path: "/admin/branch-master" },
+    ],
+  },
 ];
 
-const SidebarItem: React.FC<{ item: MenuItem; depth?: number }> = ({ item, depth = 0 }) => {
+const SidebarItem: React.FC<{
+  item: MenuItem;
+  depth?: number;
+  openMenu: string | null;
+  setOpenMenu: (title: string | null) => void;
+}> = ({ item, depth = 0, openMenu, setOpenMenu }) => {
   const location = useLocation();
-  const [open, setOpen] = useState(() => {
-    const checkActive = (i: MenuItem): boolean => {
-      if (i.path && location.pathname.startsWith(i.path)) return true;
-      return i.children?.some(checkActive) ?? false;
-    };
-    return checkActive(item);
-  });
-
   const isActive = item.path ? location.pathname.startsWith(item.path) : false;
   const hasChildren = item.children && item.children.length > 0;
-  const Icon = item.icon;
+
+  // For top-level items, open state is controlled by openMenu
+  // For nested items, derive open from route
+  const isTopLevel = depth === 0;
+  const open = isTopLevel
+    ? openMenu === item.title
+    : item.children?.some((c) => c.path && location.pathname.startsWith(c.path)) ?? false;
 
   if (hasChildren) {
+    const toggle = () => {
+      if (isTopLevel) {
+        setOpenMenu(open ? null : item.title);
+      }
+    };
     return (
       <div>
         <button
-          onClick={() => setOpen(!open)}
+          onClick={toggle}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/50`}
           style={{ paddingLeft: `${12 + depth * 16}px` }}
         >
@@ -91,7 +106,7 @@ const SidebarItem: React.FC<{ item: MenuItem; depth?: number }> = ({ item, depth
         {open && (
           <div className="mt-1 space-y-0.5">
             {item.children!.map((child) => (
-              <SidebarItem key={child.title} item={child} depth={depth + 1} />
+              <SidebarItem key={child.title} item={child} depth={depth + 1} openMenu={openMenu} setOpenMenu={setOpenMenu} />
             ))}
           </div>
         )}
@@ -118,9 +133,30 @@ const SidebarItem: React.FC<{ item: MenuItem; depth?: number }> = ({ item, depth
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [companyOpen, setCompanyOpen] = useState(false);
+
+  // Derive the active top-level menu from the current route
+  const getActiveTopMenu = () => {
+    const active = menuItems.find((item) => {
+      if (item.children) {
+        const check = (items: MenuItem[]): boolean =>
+          items.some((i) => (i.path && location.pathname.startsWith(i.path)) || (i.children ? check(i.children) : false));
+        return check(item.children);
+      }
+      return false;
+    });
+    return active?.title ?? null;
+  };
+
+  const [openMenu, setOpenMenu] = useState<string | null>(getActiveTopMenu);
+
+  // Sync open menu when route changes (e.g. browser back/forward)
+  React.useEffect(() => {
+    setOpenMenu(getActiveTopMenu());
+  }, [location.pathname]);
 
   const companies = [
     { id: 1, name: "Relay Logistics LLC", checked: false },
@@ -144,7 +180,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </div>
       <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-1 scrollbar-hide">
         {menuItems.map((item) => (
-          <SidebarItem key={item.title} item={item} />
+          <SidebarItem key={item.title} item={item} openMenu={openMenu} setOpenMenu={setOpenMenu} />
         ))}
       </nav>
       <div className="border-t border-sidebar-border p-4">
