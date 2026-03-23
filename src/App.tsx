@@ -26,6 +26,8 @@ import NewBranch from "@/pages/NewBranch";
 import ViewBranch from "@/pages/ViewBranch";
 import EmployeeMasterList from "@/pages/EmployeeMasterList";
 import NewEmployee from "@/pages/NewEmployee";
+import UserMasterList from "@/pages/UserMasterList";
+import NewUser from "@/pages/NewUser";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +81,9 @@ const App = () => (
             <Route path="/hr/employee-master" element={<ProtectedRoute><AppLayout><EmployeeMasterList /></AppLayout></ProtectedRoute>} />
             <Route path="/hr/employee-master/new" element={<ProtectedRoute><AppLayout><NewEmployee /></AppLayout></ProtectedRoute>} />
             <Route path="/hr/employee-master/edit/:id" element={<ProtectedRoute><AppLayout><NewEmployee /></AppLayout></ProtectedRoute>} />
+            <Route path="/admin/user-master" element={<ProtectedRoute><AppLayout><UserMasterList /></AppLayout></ProtectedRoute>} />
+            <Route path="/admin/user-master/new" element={<ProtectedRoute><AppLayout><NewUser /></AppLayout></ProtectedRoute>} />
+            <Route path="/admin/user-master/edit/:id" element={<ProtectedRoute><AppLayout><NewUser /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

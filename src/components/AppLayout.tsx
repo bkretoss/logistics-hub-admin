@@ -63,17 +63,18 @@ const menuItems: MenuItem[] = [
   { title: "Schedules", icon: Calendar, path: "/schedules" },
   { title: "Accounting", icon: DollarSign, path: "/accounting" },
   {
-    title: "Admin",
-    icon: Shield,
-    children: [
-      { title: "Branch Master List", icon: Database, path: "/admin/branch-master" },
-    ],
-  },
-  {
     title: "HR",
     icon: UserSquare,
     children: [
       { title: "Employee Master", icon: Users, path: "/hr/employee-master" },
+    ],
+  },
+  {
+    title: "Admin",
+    icon: Shield,
+    children: [
+      { title: "Branch Master List", icon: Database, path: "/admin/branch-master" },
+      { title: "User Master List",   icon: Users,    path: "/admin/user-master"   },
     ],
   },
 ];
