@@ -28,6 +28,8 @@ import EmployeeMasterList from "@/pages/EmployeeMasterList";
 import NewEmployee from "@/pages/NewEmployee";
 import UserMasterList from "@/pages/UserMasterList";
 import NewUser from "@/pages/NewUser";
+import CustomerMasterList from "@/pages/CustomerMasterList";
+import NewCustomer from "@/pages/NewCustomer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -84,6 +86,9 @@ const App = () => (
             <Route path="/admin/user-master" element={<ProtectedRoute><AppLayout><UserMasterList /></AppLayout></ProtectedRoute>} />
             <Route path="/admin/user-master/new" element={<ProtectedRoute><AppLayout><NewUser /></AppLayout></ProtectedRoute>} />
             <Route path="/admin/user-master/edit/:id" element={<ProtectedRoute><AppLayout><NewUser /></AppLayout></ProtectedRoute>} />
+            <Route path="/setting/customer-master" element={<ProtectedRoute><AppLayout><CustomerMasterList /></AppLayout></ProtectedRoute>} />
+            <Route path="/setting/customer-master/new" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
+            <Route path="/setting/customer-master/edit/:id" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
