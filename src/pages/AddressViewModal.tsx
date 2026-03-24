@@ -25,6 +25,8 @@ export interface AddressRow {
   taxRegistrationType: string;
   whatsApp: string;
   notes: string;
+  einNo: string;
+  businessNo: string;
 }
 
 const val = (v?: string | null): string =>
@@ -101,6 +103,8 @@ const AddressViewModal: React.FC<Props> = ({ address: a, onClose }) => (
           <Row2 fields={[['SEZ Zone', val(a.sezZone)], ['State', val(a.state)]]} />
           <Row2 fields={[['Fax No', val(a.faxNo)], ['Mobile No', val(a.mobileNo)]]} />
           <Row2 fields={[['Email ID', val(a.emailId)], ['Country', val(a.country)]]} />
+          {a.country === 'USA' && <Row  label="EIN No" value={val(a.einNo)} />}
+          {a.country === 'Canada' && <Row  label="Business No" value={val(a.businessNo)} />}
         </Section>
 
         <Section title="Contact Details" color="bg-[#90A4AE]">

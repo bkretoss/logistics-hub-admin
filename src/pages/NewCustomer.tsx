@@ -33,6 +33,8 @@ const emptyAddress = (): AddressRow => ({
   taxRegistrationType: "",
   whatsApp: "",
   notes: "",
+  einNo: "",
+  businessNo: "",
 });
 
 
@@ -99,7 +101,7 @@ const POSITIONS = ["Opened", "Closed", "Pending", "Suspended"];
 const INTEREST_OPTIONS = ["No", "Yes"];
 const ADDRESS_TYPES = ["--Select--", "Primary", "Secondary", "OFFICE", "HOME", "WAREHOUSE", "BILLING"];
 const GST_STATE_CODES = ["--Select--", "01-Jammu & Kashmir", "02-Himachal Pradesh", "03-Punjab", "04-Chandigarh", "05-Uttarakhand", "06-Haryana", "07-Delhi", "08-Rajasthan", "09-Uttar Pradesh", "10-Bihar", "96-Other Country"];
-const COUNTRIES = ["--Select--", "India", "USA", "UK", "UAE", "Singapore", "China", "Other"];
+const COUNTRIES = ["--Select--", "India", "USA", "Canada", "UK", "UAE", "Singapore", "China", "Other"];
 const PAYMENT_MODES = ["--Select--", "Cash", "Credit", "Cheque", "Online", "NEFT", "RTGS"];
 const CURRENCIES = ["--Select--", "INR - INDIAN RUPEE", "USD - US DOLLAR", "EUR - EURO", "GBP - POUND", "AED - UAE DIRHAM", "SGD - SINGAPORE DOLLAR"];
 const DOCUMENT_TYPES = ["--Select--", "License", "Certificate", "Contract", "Agreement", "Passport", "Visa", "Other"];
@@ -219,6 +221,15 @@ const NewCustomer = () => {
     if (!addressDraft.address.trim()) e.address = "Address is required";
     if (!addressDraft.city.trim()) e.city = "City is required";
     if (!addressDraft.pinNo.trim()) e.pinNo = "PIN No is required";
+
+    // Conditional validation
+    if (addressDraft.country === "USA") {
+      if (!addressDraft.einNo.trim()) e.einNo = "EIN No is required for USA";
+    }
+    if (addressDraft.country === "Canada") {
+      if (!addressDraft.businessNo.trim()) e.businessNo = "Business No is required for Canada";
+    }
+
     setAddressErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -934,6 +945,34 @@ const NewCustomer = () => {
                   <input value={addressDraft.contactPerson} onChange={(e) => handleAddressDraftChange("contactPerson", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
                 </div>
               </div>
+
+              {/* Conditional: USA - EIN No */}
+              {addressDraft.country === "USA" && (
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">EIN No <span className="text-red-500">*</span></label>
+                  <input
+                    value={addressDraft.einNo}
+                    onChange={(e) => handleAddressDraftChange("einNo", e.target.value)}
+                    placeholder="Enter EIN No"
+                    className={`w-full px-3 py-2 border rounded text-sm ${addressErrors.einNo ? "border-red-400" : "border-input"}`}
+                  />
+                  {addressErrors.einNo && <p className="text-xs text-red-500">{addressErrors.einNo}</p>}
+                </div>
+              )}
+
+              {/* Conditional: Canada - Business No */}
+              {addressDraft.country === "Canada" && (
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Business No <span className="text-red-500">*</span></label>
+                  <input
+                    value={addressDraft.businessNo}
+                    onChange={(e) => handleAddressDraftChange("businessNo", e.target.value)}
+                    placeholder="Enter Business No"
+                    className={`w-full px-3 py-2 border rounded text-sm ${addressErrors.businessNo ? "border-red-400" : "border-input"}`}
+                  />
+                  {addressErrors.businessNo && <p className="text-xs text-red-500">{addressErrors.businessNo}</p>}
+                </div>
+              )}
 
               {/* Row: Person Designation | Department */}
               <div className="grid grid-cols-2 gap-4">
