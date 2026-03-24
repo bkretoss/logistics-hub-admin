@@ -403,16 +403,18 @@ const NewOperation = () => {
     if (!validate()) return;
     if (isEdit && editOp) {
       updateOperation(editOp.id, formData);
+      navigate(`/operations/view/${editOp.id}`);
     } else {
+      const newId = Date.now();
       addOperation({
         ...formData,
-        id: Date.now(),
+        id: newId,
         status: 'Created',
         statusColor: 'text-blue-500',
         statusBgColor: 'bg-blue-500/10',
       });
+      navigate(`/operations/view/${newId}`);
     }
-    navigate('/operations');
     window.scrollTo(0, 0);
   };
 

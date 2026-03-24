@@ -20,6 +20,7 @@ import Quotes from "@/pages/Quotes";
 import NewQuote from "@/pages/NewQuote";
 import Operations from "@/pages/Operations";
 import NewOperation from "@/pages/NewOperation";
+import ViewOperation from "@/pages/ViewOperation";
 import { OperationsProvider } from "@/pages/OperationsContext";
 import BranchMasterList from "@/pages/BranchMasterList";
 import NewBranch from "@/pages/NewBranch";
@@ -72,6 +73,7 @@ const App = () => (
             <Route path="/operations" element={<ProtectedRoute><AppLayout><Operations /></AppLayout></ProtectedRoute>} />
             <Route path="/operations/new" element={<ProtectedRoute><AppLayout><NewOperation /></AppLayout></ProtectedRoute>} />
             <Route path="/operations/edit/:id" element={<ProtectedRoute><AppLayout><NewOperation /></AppLayout></ProtectedRoute>} />
+            <Route path="/operations/view/:id" element={<ProtectedRoute><AppLayout><ViewOperation /></AppLayout></ProtectedRoute>} />
             <Route path="/rms" element={<ProtectedPage title="RMS" description="Revenue Management System" />} />
             <Route path="/procurement" element={<ProtectedPage title="Procurement" description="Procurement management" />} />
             <Route path="/schedules" element={<ProtectedPage title="Schedules" description="Manage schedules and timelines" />} />

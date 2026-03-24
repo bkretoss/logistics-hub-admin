@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { employeeStore, type Employee } from './EmployeeMasterList';
+import { branchStore } from './BranchMasterList';
 
 const TITLES        = ['Mr', 'Mrs', 'Ms', 'Dr', 'Prof'];
 const SEXES         = ['Male', 'Female', 'Other'];
@@ -188,7 +189,12 @@ const NewEmployee = () => {
             </Field>
 
             <Field label="Branch">
-              <Input name="branch" value={form.branch} onChange={handleChange} />
+              <select name="branch" value={form.branch} onChange={handleChange} className={sel()}>
+                <option value="">--Select--</option>
+                {branchStore.data.map(b => (
+                  <option key={b.id} value={b.name}>{b.name}</option>
+                ))}
+              </select>
             </Field>
 
             <Field label="Name Title">
