@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { customerStore, type Customer } from "./CustomerMasterList";
 import AddressViewModal from "./AddressViewModal";
 import COAViewModal from "./COAViewModal";
+import DocumentViewModal from "./DocumentViewModal";
 
 import type { AddressRow } from "./AddressViewModal";
 import type { COARow } from "./COAViewModal";
@@ -36,11 +37,19 @@ const emptyAddress = (): AddressRow => ({
 
 
 
-interface DocumentRow {
+export interface DocumentRow {
   id: number;
+  lineNo: string;
+  position: string;
   documentType: string;
-  documentFile: string;
-  remarks: string;
+  documentNo: string;
+  issuedPlace: string;
+  issuedBy: string;
+  issuedDate: string;
+  expiryDate: string;
+  fileName: string;
+  attachment: string;
+  note: string;
 }
 
 interface CustomerFormData {
@@ -93,7 +102,7 @@ const GST_STATE_CODES = ["--Select--", "01-Jammu & Kashmir", "02-Himachal Prades
 const COUNTRIES = ["--Select--", "India", "USA", "UK", "UAE", "Singapore", "China", "Other"];
 const PAYMENT_MODES = ["--Select--", "Cash", "Credit", "Cheque", "Online", "NEFT", "RTGS"];
 const CURRENCIES = ["--Select--", "INR - INDIAN RUPEE", "USD - US DOLLAR", "EUR - EURO", "GBP - POUND", "AED - UAE DIRHAM", "SGD - SINGAPORE DOLLAR"];
-const DOCUMENT_TYPES = ["--Select--", "License", "Certificate", "Contract", "Agreement", "Other"];
+const DOCUMENT_TYPES = ["--Select--", "License", "Certificate", "Contract", "Agreement", "Passport", "Visa", "Other"];
 
 const NewCustomer = () => {
   const navigate = useNavigate();
@@ -138,6 +147,28 @@ const NewCustomer = () => {
   const [coaModalMode, setCOAModalMode] = useState<"add" | "edit">("add");
   const [viewingCOA, setViewingCOA] = useState<COARow | null>(null);
   const [deleteCOAConfirmId, setDeleteCOAConfirmId] = useState<number | null>(null);
+
+  const emptyDocument = (): DocumentRow => ({
+    id: Date.now(),
+    lineNo: String(form.documents.length + 1),
+    position: "Opened",
+    documentType: "",
+    documentNo: "",
+    issuedPlace: "",
+    issuedBy: "",
+    issuedDate: "",
+    expiryDate: "",
+    fileName: "",
+    attachment: "",
+    note: "",
+  });
+
+  const [docModal, setDocModal] = useState(false);
+  const [docDraft, setDocDraft] = useState<DocumentRow>(emptyDocument);
+  const [docErrors, setDocErrors] = useState<Partial<Record<keyof DocumentRow, string>>>({});
+  const [docModalMode, setDocModalMode] = useState<"add" | "edit">("add");
+  const [viewingDoc, setViewingDoc] = useState<DocumentRow | null>(null);
+  const [deleteDocConfirmId, setDeleteDocConfirmId] = useState<number | null>(null);
 
   useEffect(() => {
     if (editCustomer) setForm({ ...initialForm, ...editCustomer });
@@ -268,22 +299,49 @@ const NewCustomer = () => {
     }
   };
 
-  const addDocument = () => {
-    setForm((prev) => ({
-      ...prev,
-      documents: [...prev.documents, { id: Date.now(), documentType: "", documentFile: "", remarks: "" }],
-    }));
+  const openDocModal = () => {
+    setDocDraft({ ...emptyDocument(), lineNo: String(form.documents.length + 1) });
+    setDocErrors({});
+    setDocModalMode("add");
+    setDocModal(true);
   };
 
-  const removeDocument = (id: number) => {
-    setForm((prev) => ({ ...prev, documents: prev.documents.filter((d) => d.id !== id) }));
+  const openEditDocModal = (doc: DocumentRow) => {
+    setDocDraft({ ...doc });
+    setDocErrors({});
+    setDocModalMode("edit");
+    setDocModal(true);
   };
 
-  const updateDocument = (id: number, field: keyof DocumentRow, value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      documents: prev.documents.map((d) => (d.id === id ? { ...d, [field]: value } : d)),
-    }));
+  const handleDocDraftChange = (field: keyof DocumentRow, value: string) => {
+    setDocDraft((prev) => ({ ...prev, [field]: value }));
+    if (docErrors[field]) setDocErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const validateDocDraft = () => {
+    const e: Partial<Record<keyof DocumentRow, string>> = {};
+    if (!docDraft.lineNo.trim()) e.lineNo = "Line No is required";
+    if (!docDraft.documentType.trim()) e.documentType = "Document Type is required";
+    if (!docDraft.documentNo.trim()) e.documentNo = "Document No is required";
+    setDocErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const saveDoc = () => {
+    if (!validateDocDraft()) return;
+    if (docModalMode === "add") {
+      setForm((prev) => ({ ...prev, documents: [...prev.documents, { ...docDraft, id: Date.now() }] }));
+    } else {
+      setForm((prev) => ({ ...prev, documents: prev.documents.map((d) => (d.id === docDraft.id ? docDraft : d)) }));
+    }
+    setDocModal(false);
+  };
+
+  const confirmDeleteDoc = () => {
+    if (deleteDocConfirmId !== null) {
+      setForm((prev) => ({ ...prev, documents: prev.documents.filter((d) => d.id !== deleteDocConfirmId) }));
+      setDeleteDocConfirmId(null);
+    }
   };
 
   const validate = () => {
@@ -621,64 +679,63 @@ const NewCustomer = () => {
 
         {/* Documents Tab */}
         {activeTab === "documents" && (
-          <div className="p-6 space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Documents</h3>
-              <Button onClick={addDocument} size="sm" className="material-button text-black">
-                <Plus className="w-4 h-4 mr-1" /> Add Document
+          <div className="p-0">
+            <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-2">
+              <span className="text-white font-medium text-sm">Documents</span>
+              <Button onClick={openDocModal} size="sm" className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3">
+                <Plus className="w-3 h-3 mr-1" /> Add Document
               </Button>
             </div>
-            {form.documents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No documents added yet. Click "Add Document" to add one.</p>
-            ) : (
-              <div className="space-y-4">
-                {form.documents.map((doc) => (
-                  <div key={doc.id} className="border rounded-lg p-4 space-y-3 bg-gray-50">
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-sm font-medium">Document Entry</h4>
-                      <Button onClick={() => removeDocument(doc.id)} size="sm" variant="destructive">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-xs font-medium">Document Type</label>
-                        <select
-                          value={doc.documentType}
-                          onChange={(e) => updateDocument(doc.id, "documentType", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm bg-white"
-                        >
-                          {DOCUMENT_TYPES.map((t) => (
-                            <option key={t} value={t === "--Select--" ? "" : t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium">Document File</label>
-                        <input
-                          type="file"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) updateDocument(doc.id, "documentFile", file.name);
-                          }}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium">Remarks</label>
-                        <input
-                          value={doc.remarks}
-                          onChange={(e) => updateDocument(doc.id, "remarks", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Line No</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Document Type</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Document no</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Place</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Issued By</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Date</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Expiry Date</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Note</th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.documents.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">No documents added yet.</td>
+                    </tr>
+                  ) : (
+                    form.documents.map((doc) => (
+                      <tr key={doc.id} className="border-b hover:bg-gray-50">
+                        <td className="px-3 py-2">{doc.lineNo || "—"}</td>
+                        <td className="px-3 py-2">{doc.documentType || "—"}</td>
+                        <td className="px-3 py-2">{doc.documentNo || "—"}</td>
+                        <td className="px-3 py-2">{doc.issuedPlace || "—"}</td>
+                        <td className="px-3 py-2">{doc.issuedBy || "—"}</td>
+                        <td className="px-3 py-2">{doc.issuedDate || "—"}</td>
+                        <td className="px-3 py-2">{doc.expiryDate || "—"}</td>
+                        <td className="px-3 py-2">{doc.note || "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => setViewingDoc(doc)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View Document">
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => openEditDocModal(doc)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit Document">
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setDeleteDocConfirmId(doc.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete Document">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -1071,6 +1128,129 @@ const NewCustomer = () => {
       {/* View COA Modal */}
       {viewingCOA && (
         <COAViewModal coa={viewingCOA} onClose={() => setViewingCOA(null)} />
+      )}
+
+      {/* Document Add/Edit Modal */}
+      {docModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-3 rounded-t-lg">
+              <h2 className="text-white font-semibold text-base">Customer Document Upload</h2>
+              <button onClick={() => setDocModal(false)} className="text-white hover:text-gray-200"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="overflow-y-auto p-5 space-y-4 flex-1">
+              {/* Line No | Position */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Line No <span className="text-red-500">*</span></label>
+                  <input type="number" value={docDraft.lineNo} onChange={(e) => handleDocDraftChange("lineNo", e.target.value)}
+                    className={`w-full px-3 py-2 border rounded text-sm ${docErrors.lineNo ? "border-red-400" : "border-input"}`} />
+                  {docErrors.lineNo && <p className="text-xs text-red-500">{docErrors.lineNo}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Position</label>
+                  <select value={docDraft.position} onChange={(e) => handleDocDraftChange("position", e.target.value)} className="w-full px-3 py-2 border rounded text-sm">
+                    {POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              {/* Document Type | Document No */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Document Type <span className="text-red-500">*</span></label>
+                  <select value={docDraft.documentType} onChange={(e) => handleDocDraftChange("documentType", e.target.value)}
+                    className={`w-full px-3 py-2 border rounded text-sm ${docErrors.documentType ? "border-red-400" : "border-input"}`}>
+                    {DOCUMENT_TYPES.map((t) => <option key={t} value={t === "--Select--" ? "" : t}>{t}</option>)}
+                  </select>
+                  {docErrors.documentType && <p className="text-xs text-red-500">{docErrors.documentType}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Document No <span className="text-red-500">*</span></label>
+                  <input value={docDraft.documentNo} onChange={(e) => handleDocDraftChange("documentNo", e.target.value)}
+                    className={`w-full px-3 py-2 border rounded text-sm ${docErrors.documentNo ? "border-red-400" : "border-input"}`} />
+                  {docErrors.documentNo && <p className="text-xs text-red-500">{docErrors.documentNo}</p>}
+                </div>
+              </div>
+              {/* Issued Place | Issued By */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Issued Place</label>
+                  <input value={docDraft.issuedPlace} onChange={(e) => handleDocDraftChange("issuedPlace", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Issued By</label>
+                  <input value={docDraft.issuedBy} onChange={(e) => handleDocDraftChange("issuedBy", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
+              </div>
+              {/* Issued Date | Expiry Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Issued Date</label>
+                  <input type="date" value={docDraft.issuedDate} onChange={(e) => handleDocDraftChange("issuedDate", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Expiry Date</label>
+                  <input type="date" value={docDraft.expiryDate} onChange={(e) => handleDocDraftChange("expiryDate", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
+              </div>
+              {/* File Name | Attachment */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">File Name</label>
+                  <input value={docDraft.fileName} onChange={(e) => handleDocDraftChange("fileName", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Attachment</label>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer px-3 py-2 border border-input rounded text-sm bg-background hover:bg-muted whitespace-nowrap">
+                      Choose File
+                      <input type="file" className="hidden" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleDocDraftChange("attachment", file.name);
+                      }} />
+                    </label>
+                    <span className="text-sm text-muted-foreground truncate">{docDraft.attachment || "No file chosen"}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Note */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Note</label>
+                <textarea value={docDraft.note} onChange={(e) => handleDocDraftChange("note", e.target.value)} rows={3} className="w-full px-3 py-2 border rounded text-sm resize-y" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50 rounded-b-lg">
+              <Button variant="outline" onClick={() => setDocModal(false)}>Cancel</Button>
+              <Button className="bg-[#1a9fd4] text-white hover:bg-[#1589b8]" onClick={saveDoc}>
+                {docModalMode === "add" ? "Create" : "Update"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Document Modal */}
+      {viewingDoc && (
+        <DocumentViewModal document={viewingDoc} onClose={() => setViewingDoc(null)} />
+      )}
+
+      {/* Delete Document Confirmation Modal */}
+      {deleteDocConfirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
+            <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-3 rounded-t-lg">
+              <h2 className="text-white font-semibold text-base">Confirm Delete</h2>
+              <button onClick={() => setDeleteDocConfirmId(null)} className="text-white hover:text-gray-200"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-700">Are you sure you want to delete this document? This action cannot be undone.</p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-lg">
+              <Button variant="outline" onClick={() => setDeleteDocConfirmId(null)}>Cancel</Button>
+              <Button className="bg-red-500 text-white hover:bg-red-600" onClick={confirmDeleteDoc}>Delete</Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete COA Confirmation Modal */}
