@@ -52,6 +52,26 @@ const ViewOperation = () => {
   // Rider Container modal
   const [riderOpen, setRiderOpen] = useState(false);
 
+  // Routing modal
+  const [routingOpen, setRoutingOpen] = useState(false);
+  const PORT_OPTIONS = ['CHENNAI', 'MUMBAI', 'DELHI', 'KOLKATA', 'NHAVA SHEVA', 'COCHIN', 'JSD', 'JNPT'];
+  const AIRLINE_OPTIONS = ['TEAMGLOBAL LOGISTICS PVT LTD', 'Maersk Line', 'Emirates SkyCargo', 'ONE Line'];
+  const initRouting = {
+    sNo: '10', fromPortCode: '', fromPortName: '', fromEtd: '', fromAtd: '',
+    toPortCode: '', toPortName: '', position: 'Opened', toEta: '', toAta: '',
+    airlineCode: '', flightName: '', status: 'Planned',
+    fromEtdFollowup: 'No', notes: '',
+  };
+  const [routingForm, setRoutingForm] = useState(initRouting);
+  const [routingRows, setRoutingRows] = useState<typeof initRouting[]>([]);
+  const routingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setRoutingForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const saveRouting = () => {
+    setRoutingRows(prev => [...prev, routingForm]);
+    setRoutingForm({ ...initRouting, sNo: String(Number(routingForm.sNo) + 10) });
+    setRoutingOpen(false);
+  };
+
   // Add New Subledger modal
   const [slOpen, setSlOpen] = useState(false);
   const initSl = { customerName: '', categories: '', scacCode: '', address: '', pinCode: '', phone: '', mobile: '', emailId: '', gstState: '', gstNo: '', panNo: '', country: '' };
@@ -673,6 +693,187 @@ const ViewOperation = () => {
         </div>
       )}
 
+      {/* Others card */}
+      {(activeTab === 'Others' || activeTab === 'Show All') && (
+        <div className="material-card material-elevation-1 overflow-hidden">
+          <div className="bg-[#00BCD4] px-6 py-3">
+            <h2 className="text-white font-bold text-base">Others</h2>
+          </div>
+
+          {/* Routing (Vessel Movement) */}
+          <div className="border-b border-border">
+            <div className="bg-[#00BCD4] px-6 py-2.5 flex items-center justify-between">
+              <span className="text-white font-semibold text-sm">Routing (Vessel Movement)</span>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white">Get Schedule</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold" onClick={() => setRoutingOpen(true)}>Routing +</Button>
+              </div>
+            </div>
+            <div className="p-4">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    {['Edit', 'Line No', 'From Port Code', 'From Port Name', 'From ETD', 'From ATD', 'To Port CODE', 'To port Name', 'To ETA', 'To ATA', 'Vessel / Flight Name', 'Status', 'Notes'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {routingRows.map((row, i) => (
+                    <tr key={i} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2"><button className="text-red-400 hover:text-red-600"><Pencil className="w-3.5 h-3.5" /></button></td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.sNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.fromPortCode}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.fromPortName}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.fromEtd}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.fromAtd}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.toPortCode}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.toPortName}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.toEta}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.toAta}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.flightName}</td>
+                      <td className="px-3 py-2 text-xs text-foreground uppercase">{row.status}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.notes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Team + Profit Share */}
+          <div className="grid grid-cols-2 gap-0 border-b border-border">
+            <div className="border-r border-border">
+              <div className="bg-[#00BCD4] px-4 py-2.5 flex items-center justify-between">
+                <span className="text-white font-semibold text-sm">Team</span>
+                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold">Add Working Team</Button>
+              </div>
+              <div className="p-4">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      {['Edit', 'Employee', 'Dept', 'Followup Required', 'Followup Date', 'Followup Note', 'Note'].map(h => (
+                        <th key={h} className="text-left px-2 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-border hover:bg-muted/30">
+                      <td className="px-2 py-2"><button className="text-red-400 hover:text-red-600"><Pencil className="w-3.5 h-3.5" /></button></td>
+                      <td className="px-2 py-2 text-xs text-foreground">MANAGEMENT</td>
+                      <td className="px-2 py-2 text-xs text-foreground">SALES</td>
+                      <td className="px-2 py-2 text-xs text-foreground"></td>
+                      <td className="px-2 py-2 text-xs text-foreground"></td>
+                      <td className="px-2 py-2 text-xs text-foreground"></td>
+                      <td className="px-2 py-2 text-xs text-foreground">Auto Inserted</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div className="flex justify-end mt-2 text-xs text-muted-foreground">1 - 1</div>
+              </div>
+            </div>
+            <div>
+              <div className="bg-[#00BCD4] px-4 py-2.5 flex items-center justify-between">
+                <span className="text-white font-semibold text-sm">Profit Share</span>
+                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold">Add +</Button>
+              </div>
+              <div className="p-4 min-h-[80px]" />
+            </div>
+          </div>
+
+          {/* Status Update */}
+          <div className="border-b border-border">
+            <div className="bg-[#00BCD4] px-6 py-2.5 flex items-center justify-between">
+              <span className="text-white font-semibold text-sm">Status Update</span>
+              <button className="w-5 h-5 rounded-full border border-white/60 flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-white/80 inline-block" />
+              </button>
+            </div>
+            <div className="p-4 min-h-[40px]" />
+          </div>
+
+          {/* Audit */}
+          <div className="border-b border-border">
+            <div className="bg-[#00BCD4] px-6 py-2.5">
+              <span className="text-white font-semibold text-sm">Audit</span>
+            </div>
+            <div className="p-4">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    {['Insert / Update', 'Created / Updated By', 'Field Name', 'Old Value', 'New Value', 'Time'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-foreground text-xs whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-border hover:bg-muted/30">
+                    <td className="px-3 py-2 text-xs text-foreground">New Record</td>
+                    <td className="px-3 py-2 text-xs text-cyan-600">info@relay-logistics.com</td>
+                    <td className="px-3 py-2 text-xs text-cyan-600">{op.jobNo || 'RLPL/AE/J0303'}</td>
+                    <td className="px-3 py-2 text-xs text-foreground">-</td>
+                    <td className="px-3 py-2 text-xs text-foreground">-</td>
+                    <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.jobDate ? `${op.jobDate} 12:03PM` : '24-MAR-2026 12:03PM'}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="flex justify-end mt-2 text-xs text-muted-foreground">1 - 1</div>
+            </div>
+          </div>
+
+          {/* Pre Alert */}
+          <div>
+            <div className="bg-[#00BCD4] px-6 py-2.5">
+              <span className="text-white font-semibold text-sm">Pre Alert</span>
+            </div>
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-1 border border-input rounded px-2 py-1 bg-background">
+                  <span className="text-xs text-muted-foreground">🔍</span>
+                  <span className="text-xs text-muted-foreground">▾</span>
+                </div>
+                <input className="flex-1 max-w-xs px-2 py-1 text-xs rounded border border-input bg-background" />
+                <button className="px-3 py-1 bg-background text-xs font-semibold rounded border border-input">Go</button>
+                <button className="px-3 py-1 bg-background text-xs font-semibold rounded border border-input">Actions ▾</button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="text-sm border-collapse" style={{ minWidth: '1600px' }}>
+                  <thead>
+                    <tr className="border-b border-border">
+                      {['Customer Name','Customer Address','Shipper Name','Shipper Address','Consignee Name','Consignee Address','Notify Name','Notify Address','BL No','Carrier SCAC Code','MBL No','Place of Receipt','POR Name','POL Port','POL Name','POD Name','POD Port'].map(h => (
+                        <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">ARCHEAN INDUSTRIES PRIVATE LIMITED</td>
+                      <td className="px-3 py-2 text-xs text-foreground" style={{ maxWidth: '180px' }}>NO.2,NORTH CRESCENT ROAD, T.NAGAR,CHENNAI 600017 INDIA...</td>
+                      <td className="px-3 py-2 text-xs text-foreground">--</td>
+                      <td className="px-3 py-2 text-xs text-foreground">--</td>
+                      <td className="px-3 py-2 text-xs text-foreground">--</td>
+                      <td className="px-3 py-2 text-xs text-foreground">--</td>
+                      <td className="px-3 py-2 text-xs text-foreground">...</td>
+                      <td className="px-3 py-2 text-xs text-foreground">...</td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground">a</td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground">JSD</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">SIKORSKY HELIPORT-STRATFORD, CT</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">SIKORSKY HELIPORT-STRATFORD, CT</td>
+                      <td className="px-3 py-2 text-xs text-foreground">JSD</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-end mt-2 text-xs text-muted-foreground">1 - 1</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Costing Details Modal */}
       {costOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1013,6 +1214,140 @@ const ViewOperation = () => {
             </div>
             <div className="flex justify-end px-6 py-4 border-t border-border shrink-0">
               <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={slSave}>{slEditId ? 'Update' : 'Create'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Routing Modal */}
+      {routingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRoutingOpen(false)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 flex flex-col overflow-hidden">
+            <div className="bg-[#00BCD4] px-5 py-3 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold text-sm">Routing</h3>
+              <button onClick={() => setRoutingOpen(false)}
+                className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white font-bold text-xs">✕</button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              {/* Row 1: S.No# + From Port Code */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">S.No#</label>
+                <input name="sNo" value={routingForm.sNo} onChange={routingChange}
+                  className="w-16 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                <label className="text-xs font-semibold text-foreground whitespace-nowrap ml-2">From Port Code</label>
+                <select name="fromPortCode" value={routingForm.fromPortCode} onChange={routingChange}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                  <option value="">--Select--</option>
+                  {PORT_OPTIONS.map(p => <option key={p}>{p}</option>)}
+                </select>
+              </div>
+              {/* Row 1b: From Port Name */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">From Port Name</label>
+                <input name="fromPortName" value={routingForm.fromPortName} onChange={routingChange}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+              </div>
+              {/* Row 2: From ETD + From ATD */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">From ETD</label>
+                  <input type="date" name="fromEtd" value={routingForm.fromEtd} onChange={routingChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">From ATD</label>
+                  <input type="date" name="fromAtd" value={routingForm.fromAtd} onChange={routingChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+              {/* Row 3: To Port Code + Position */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">To Port Code</label>
+                  <select name="toPortCode" value={routingForm.toPortCode} onChange={routingChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value="">--Select--</option>
+                    {PORT_OPTIONS.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">
+                    Position <span className="text-destructive">*</span>
+                  </label>
+                  <select name="position" value={routingForm.position} onChange={routingChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background ml-2">
+                    {['Opened', 'Closed', 'In Transit', 'Arrived'].map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              {/* Row 3b: To Port Name */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-foreground w-20 shrink-0">To Port Name</label>
+                <input name="toPortName" value={routingForm.toPortName} onChange={routingChange}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+              </div>
+              {/* Row 4: To ETA + To ATA */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">To ETA</label>
+                  <input type="date" name="toEta" value={routingForm.toEta} onChange={routingChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">To ATA</label>
+                  <input type="date" name="toAta" value={routingForm.toAta} onChange={routingChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+              {/* Row 5: Airline Code */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">Airline Code</label>
+                <select name="airlineCode" value={routingForm.airlineCode} onChange={routingChange}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                  <option value="">--Select--</option>
+                  {AIRLINE_OPTIONS.map(a => <option key={a}>{a}</option>)}
+                </select>
+              </div>
+              {/* Row 6: Flight Name + Status */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">Flight Name</label>
+                  <input name="flightName" value={routingForm.flightName} onChange={routingChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-14 shrink-0">Status</label>
+                  <select name="status" value={routingForm.status} onChange={routingChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {['Planned', 'Confirmed', 'Departed', 'Arrived', 'Cancelled'].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              {/* Row 7: From ETD Followup toggle */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">From ETD Followup</label>
+                <div className="flex rounded overflow-hidden border border-input">
+                  {['No', 'Yes'].map(opt => (
+                    <button key={opt} type="button"
+                      onClick={() => setRoutingForm(prev => ({ ...prev, fromEtdFollowup: opt }))}
+                      className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
+                        routingForm.fromEtdFollowup === opt
+                          ? 'bg-[#00BCD4] text-white'
+                          : 'bg-background text-foreground hover:bg-muted'
+                      }`}>{opt}</button>
+                  ))}
+                </div>
+              </div>
+              {/* Row 8: Notes */}
+              <div className="flex items-start gap-2">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Notes</label>
+                <textarea name="notes" value={routingForm.notes} onChange={routingChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" className="px-5" onClick={() => setRoutingOpen(false)}>Cancel</Button>
+              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveRouting}>Create</Button>
             </div>
           </div>
         </div>
