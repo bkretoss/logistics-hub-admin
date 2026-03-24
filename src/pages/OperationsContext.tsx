@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import type { OperationFormData } from './NewOperation';
+import type { OperationFormData, SubledgerEntry } from './NewOperation';
 
 export interface Operation extends OperationFormData {
   id: number;
@@ -50,6 +50,10 @@ const seed: Operation[] = [
     eta: '2026-03-21',
     vesselName: '',
     voyageNumber: '',
+    subledgers: [
+      { id: 1, subledgerType: 'CUSTOMER', subledgerName: 'ARCHEAN INDUSTRIES PRIVATE LIMITED', address: 'NO.2,NORTH CRESCENT ROAD, T.NAGAR,CHENNAI 600017 INDIA', phone: '', fax: '', mobile: '', email: '', city: 'Chennai' },
+      { id: 2, subledgerType: 'AIRLINE', subledgerName: 'KALRA ONLINE SERVICES PVT. LTD', address: '414 4TH FLOOR AGI BUSINESS CENTRE, NEAR BUS STAND, JALANDHAR- (PUNJAB)', phone: '', fax: '', mobile: '', email: '', city: 'Jalandhar' },
+    ],
     status: 'Process',
     statusColor: 'text-yellow-500',
     statusBgColor: 'bg-yellow-500/10',
@@ -95,6 +99,7 @@ const seed: Operation[] = [
     eta: '2026-03-17',
     vesselName: '',
     voyageNumber: '',
+    subledgers: [],
     status: 'Closed',
     statusColor: 'text-green-500',
     statusBgColor: 'bg-green-500/10',
@@ -140,6 +145,7 @@ const seed: Operation[] = [
     eta: '2026-03-12',
     vesselName: '',
     voyageNumber: '',
+    subledgers: [],
     status: 'Created',
     statusColor: 'text-blue-500',
     statusBgColor: 'bg-blue-500/10',

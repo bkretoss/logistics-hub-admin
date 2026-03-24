@@ -175,6 +175,18 @@ const CONSIGNEE_OPTIONS: PartyWithBranches[] = [
   },
 ];
 
+export interface SubledgerEntry {
+  id: number;
+  subledgerType: string;
+  subledgerName: string;
+  address: string;
+  phone: string;
+  fax: string;
+  mobile: string;
+  email: string;
+  city: string;
+}
+
 export interface OperationFormData {
   jobNo: string;
   document: string;
@@ -220,6 +232,7 @@ export interface OperationFormData {
   eta: string;
   vesselName: string;
   voyageNumber: string;
+  subledgers: SubledgerEntry[];
 }
 
 const initialForm: OperationFormData = {
@@ -266,6 +279,7 @@ const initialForm: OperationFormData = {
   eta: '',
   vesselName: '',
   voyageNumber: '',
+  subledgers: [],
 };
 
 interface SubledgerForm {
@@ -443,7 +457,18 @@ const NewOperation = () => {
 
   const handleSubledgerCreate = () => {
     if (!validateSubledger()) return;
-    console.log('Subledger created:', subledger);
+    const newEntry: SubledgerEntry = {
+      id: Date.now(),
+      subledgerType: subledger.categories.toUpperCase(),
+      subledgerName: subledger.customerName,
+      address: subledger.address,
+      phone: subledger.phone,
+      fax: '',
+      mobile: subledger.mobile,
+      email: subledger.emailId,
+      city: '',
+    };
+    setFormData(prev => ({ ...prev, subledgers: [...(prev.subledgers ?? []), newEntry] }));
     setSubledger(initialSubledger);
     setSubledgerErrors({});
     setSubledgerOpen(false);
