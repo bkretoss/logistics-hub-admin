@@ -18,16 +18,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return stored ? JSON.parse(stored) : null;
   });
 
-  const login = useCallback(async (email: string, _password: string, remember: boolean) => {
+  const login = useCallback(async (email: string, _password: string, _remember: boolean) => {
     // Mock authentication
     await new Promise(resolve => setTimeout(resolve, 800));
     const mockUser = { email, name: email.split('@')[0] };
     setIsAuthenticated(true);
     setUser(mockUser);
-    if (remember) {
-      localStorage.setItem('logistics_auth', 'true');
-      localStorage.setItem('logistics_user', JSON.stringify(mockUser));
-    }
+    localStorage.setItem('logistics_auth', 'true');
+    localStorage.setItem('logistics_user', JSON.stringify(mockUser));
     return true;
   }, []);
 

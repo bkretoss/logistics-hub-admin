@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Pencil, X } from 'lucide-react';
+import { Pencil, X, ChevronDown, Columns3, Filter, Database, Palette, BarChart2, Rows3,
+  BookOpen, Download, Mail, HelpCircle, TableProperties, ArrowUpDown, Sigma, Calculator,
+  History, SplitSquareVertical, Highlighter, LayoutList, FileText, FileBarChart, FilePieChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
+} from '@/components/ui/dropdown-menu';
 import { useOperations } from './OperationsContext';
 
 const CARRIER_OPTIONS = [
@@ -51,6 +57,39 @@ const ViewOperation = () => {
 
   // Rider Container modal
   const [riderOpen, setRiderOpen] = useState(false);
+
+  // Status Update modal
+  const [statusOpen, setStatusOpen] = useState(false);
+  const UPDATE_TO_OPTIONS = ['Email', 'SMS', 'WhatsApp', 'Phone Call', 'Letter', 'Fax'];
+  const POSITION_OPTIONS  = ['Opened', 'In Transit', 'Arrived', 'Delivered', 'Closed'];
+  const initStatus = {
+    lineNo: '', updateTo: '', position: 'Opened',
+    subject: '', from: '', to: '', bcc: '', cc: '',
+    header: '', body: '', footer: '', notes: '',
+  };
+  const [statusForm, setStatusForm] = useState(initStatus);
+  const [statusRows, setStatusRows] = useState<typeof initStatus[]>([]);
+  const [statusEditIndex, setStatusEditIndex] = useState<number | null>(null);
+  const statusChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setStatusForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const openStatusEdit = (index: number) => {
+    setStatusEditIndex(index);
+    setStatusForm({ ...statusRows[index] });
+    setStatusOpen(true);
+  };
+  const closeStatusModal = () => {
+    setStatusOpen(false);
+    setStatusForm(initStatus);
+    setStatusEditIndex(null);
+  };
+  const saveStatus = () => {
+    if (statusEditIndex !== null) {
+      setStatusRows(prev => prev.map((r, i) => i === statusEditIndex ? statusForm : r));
+    } else {
+      setStatusRows(prev => [...prev, statusForm]);
+    }
+    closeStatusModal();
+  };
 
   // Routing modal
   const [routingOpen, setRoutingOpen] = useState(false);
@@ -860,11 +899,43 @@ const ViewOperation = () => {
           <div className="border-b border-border">
             <div className="bg-[#00BCD4] px-6 py-2.5 flex items-center justify-between">
               <span className="text-white font-semibold text-sm">Status Update</span>
-              <button className="w-5 h-5 rounded-full border border-white/60 flex items-center justify-center">
-                <span className="w-2 h-2 rounded-full bg-white/80 inline-block" />
-              </button>
+              <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold" onClick={() => { setStatusEditIndex(null); setStatusForm(initStatus); setStatusOpen(true); }}>Add +</Button>
+              
             </div>
-            <div className="p-4 min-h-[40px]" />
+            <div className="p-4">
+              {statusRows.length === 0 ? (
+                <div className="min-h-[40px]" />
+              ) : (
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      {['Edit', 'Line No#', 'Update To (Type)', 'Position', 'Subject', 'From', 'To', 'Bcc', 'Cc', 'Header', 'Body', 'Footer', 'Notes'].map(h => (
+                        <th key={h} className="text-left px-2 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {statusRows.map((row, i) => (
+                      <tr key={i} className="border-b border-border hover:bg-muted/30">
+                        <td className="px-2 py-2"><button className="text-red-400 hover:text-red-600" onClick={() => openStatusEdit(i)}><Pencil className="w-3.5 h-3.5" /></button></td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.lineNo}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.updateTo}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.position}</td>
+                        <td className="px-2 py-2 text-xs text-foreground max-w-[120px] truncate">{row.subject}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.from}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.to}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.bcc}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.cc}</td>
+                        <td className="px-2 py-2 text-xs text-foreground max-w-[100px] truncate">{row.header}</td>
+                        <td className="px-2 py-2 text-xs text-foreground max-w-[100px] truncate">{row.body}</td>
+                        <td className="px-2 py-2 text-xs text-foreground max-w-[100px] truncate">{row.footer}</td>
+                        <td className="px-2 py-2 text-xs text-foreground max-w-[100px] truncate">{row.notes}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
 
           {/* Audit */}
@@ -884,8 +955,8 @@ const ViewOperation = () => {
                 <tbody>
                   <tr className="border-b border-border hover:bg-muted/30">
                     <td className="px-3 py-2 text-xs text-foreground">New Record</td>
-                    <td className="px-3 py-2 text-xs text-cyan-600">info@relay-logistics.com</td>
-                    <td className="px-3 py-2 text-xs text-cyan-600">{op.jobNo || 'RLPL/AE/J0303'}</td>
+                    <td className="px-3 py-2 text-xs text-foreground">info@relay-logistics.com</td>
+                    <td className="px-3 py-2 text-xs text-foreground">{op.jobNo || 'RLPL/AE/J0303'}</td>
                     <td className="px-3 py-2 text-xs text-foreground">-</td>
                     <td className="px-3 py-2 text-xs text-foreground">-</td>
                     <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.jobDate ? `${op.jobDate} 12:03PM` : '24-MAR-2026 12:03PM'}</td>
@@ -903,19 +974,63 @@ const ViewOperation = () => {
             </div>
             <div className="p-4">
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex items-center gap-1 border border-input rounded px-2 py-1 bg-background">
-                  <span className="text-xs text-muted-foreground">🔍</span>
-                  <span className="text-xs text-muted-foreground">▾</span>
-                </div>
-                <input className="flex-1 max-w-xs px-2 py-1 text-xs rounded border border-input bg-background" />
+                <input className="flex-1 max-w-xs px-2 py-1 text-xs rounded border border-input bg-background" placeholder="Search..." />
                 <button className="px-3 py-1 bg-background text-xs font-semibold rounded border border-input">Go</button>
-                <button className="px-3 py-1 bg-background text-xs font-semibold rounded border border-input">Actions ▾</button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5 px-3 h-[30px] text-xs rounded">
+                      Actions <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    <DropdownMenuItem className="gap-2 text-xs"><Columns3 className="w-3.5 h-3.5" /> Columns</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 text-xs"><Filter className="w-3.5 h-3.5" /> Filter</DropdownMenuItem>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="gap-2 text-xs"><Database className="w-3.5 h-3.5" /> Data</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem className="gap-2 text-xs"><ArrowUpDown className="w-3.5 h-3.5" /> Sort</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-xs"><Sigma className="w-3.5 h-3.5" /> Aggregate</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-xs"><Calculator className="w-3.5 h-3.5" /> Compute</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-xs"><History className="w-3.5 h-3.5" /> Flashback</DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="gap-2 text-xs"><Palette className="w-3.5 h-3.5" /> Format</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem className="gap-2 text-xs"><SplitSquareVertical className="w-3.5 h-3.5" /> Control Break</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-xs"><Highlighter className="w-3.5 h-3.5" /> Highlight</DropdownMenuItem>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="gap-2 text-xs"><LayoutList className="w-3.5 h-3.5" /> Rows Per Page</DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            {[1,5,10,15,20,25,50,100].map(n => (
+                              <DropdownMenuItem key={n} className="gap-2 text-xs">{n}</DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuItem className="gap-2 text-xs"><BarChart2 className="w-3.5 h-3.5" /> Chart</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 text-xs"><Rows3 className="w-3.5 h-3.5" /> Group By</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 text-xs"><TableProperties className="w-3.5 h-3.5" /> Pivot</DropdownMenuItem>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="gap-2 text-xs"><BookOpen className="w-3.5 h-3.5" /> Report</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem className="gap-2 text-xs"><FileText className="w-3.5 h-3.5" /> Summary</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-xs"><FileBarChart className="w-3.5 h-3.5" /> Detailed</DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-xs"><FilePieChart className="w-3.5 h-3.5" /> Analytics</DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuItem className="gap-2 text-xs"><Download className="w-3.5 h-3.5" /> Download</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 text-xs"><Mail className="w-3.5 h-3.5" /> Subscription</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 text-xs"><HelpCircle className="w-3.5 h-3.5" /> Help</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div className="overflow-x-auto">
-                <table className="text-sm border-collapse" style={{ minWidth: '1600px' }}>
+                <table className="text-sm border-collapse" style={{ minWidth: '2800px' }}>
                   <thead>
                     <tr className="border-b border-border">
-                      {['Customer Name','Customer Address','Shipper Name','Shipper Address','Consignee Name','Consignee Address','Notify Name','Notify Address','BL No','Carrier SCAC Code','MBL No','Place of Receipt','POR Name','POL Port','POL Name','POD Name','POD Port'].map(h => (
+                      {['Customer Name','Customer Address','Shipper Name','Shipper Address','Consignee Name','Consignee Address','Notify Name','Notify Address','BL No','Carrier SCAC Code','MBL No','Place of Receipt','POR Name','POL Port','POL Name','POD Name','POD Port','Place of Delivery','POL ETD','POD ETA','Freight','Inco Terms','No of Pcs','Gross Weight','No of Container','Vessel Name','Vessel No','Description','Container Type'].map(h => (
                         <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -939,6 +1054,18 @@ const ViewOperation = () => {
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">SIKORSKY HELIPORT-STRATFORD, CT</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">SIKORSKY HELIPORT-STRATFORD, CT</td>
                       <td className="px-3 py-2 text-xs text-foreground">JSD</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.placeOfDelivery || ''}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.polEtd || '25-MAR-26'}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.podEta || '26-MAR-26'}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.freightPpCc ? op.freightPpCc.toUpperCase() : 'COLLECT'}</td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.flightName || ''}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.flightNumber || '111'}</td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground"></td>
                     </tr>
                   </tbody>
                 </table>
@@ -1466,6 +1593,102 @@ const ViewOperation = () => {
             <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
               <Button size="sm" variant="outline" className="px-5" onClick={() => { setTeamOpen(false); setTeamForm(initTeam); setTeamError(''); }}>Cancel</Button>
               <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveTeam}>Create</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status Update Modal */}
+      {statusOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeStatusModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="bg-[#00BCD4] px-5 py-3 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold text-sm">{statusEditIndex !== null ? 'Edit Status Update' : 'Status Update'}</h3>
+              <button onClick={closeStatusModal}
+                className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white font-bold text-xs">✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+              {/* Row 1: Line No# + Update To (Type) */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">Line No#</label>
+                <input name="lineNo" value={statusForm.lineNo} onChange={statusChange}
+                  className="w-24 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                <label className="text-xs font-semibold text-foreground whitespace-nowrap ml-2">Update To (Type)</label>
+                <select name="updateTo" value={statusForm.updateTo} onChange={statusChange}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                  <option value="">--Select--</option>
+                  {UPDATE_TO_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                </select>
+              </div>
+              {/* Position */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">
+                  Position <span className="text-destructive">*</span>
+                </label>
+                <select name="position" value={statusForm.position} onChange={statusChange}
+                  className="w-48 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                  {POSITION_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                </select>
+              </div>
+              {/* Subject */}
+              <div className="flex items-start gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Subject</label>
+                <textarea name="subject" value={statusForm.subject} onChange={statusChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+              {/* From */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">From</label>
+                <input name="from" value={statusForm.from} onChange={statusChange}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+              </div>
+              {/* To */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">To</label>
+                <input name="to" value={statusForm.to} onChange={statusChange}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+              </div>
+              {/* Bcc */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">Bcc</label>
+                <input name="bcc" value={statusForm.bcc} onChange={statusChange}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+              </div>
+              {/* Cc */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">Cc</label>
+                <input name="cc" value={statusForm.cc} onChange={statusChange}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+              </div>
+              {/* Header */}
+              <div className="flex items-start gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Header</label>
+                <textarea name="header" value={statusForm.header} onChange={statusChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+              {/* Body */}
+              <div className="flex items-start gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Body</label>
+                <textarea name="body" value={statusForm.body} onChange={statusChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+              {/* Footer */}
+              <div className="flex items-start gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Footer</label>
+                <textarea name="footer" value={statusForm.footer} onChange={statusChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+              {/* Notes */}
+              <div className="flex items-start gap-3">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Notes</label>
+                <textarea name="notes" value={statusForm.notes} onChange={statusChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" className="px-5" onClick={closeStatusModal}>Cancel</Button>
+              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveStatus}>Save</Button>
             </div>
           </div>
         </div>
