@@ -65,6 +65,8 @@ interface CustomerFormData {
   userName: string;
   interestCalculation: string;
   iataCode: string;
+  bond: string;
+  expireBondDate: string;
   position: string;
   website: string;
   password: string;
@@ -86,6 +88,8 @@ const initialForm: CustomerFormData = {
   userName: "",
   interestCalculation: "No",
   iataCode: "",
+  bond: "",
+  expireBondDate: "",
   position: "Opened",
   website: "",
   password: "",
@@ -495,7 +499,23 @@ const NewCustomer = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {textField("IEC Code", "iecCode")}
           {textField("IATA Code", "iataCode")}
-          <div /> {/* empty cell to maintain 3-col grid */}
+          <div />
+        </div>
+
+        {/* Row 6: Bond | Expire Bond Date */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {textField("Bond", "bond")}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Expire Bond Date</label>
+            <input
+              type="date"
+              name="expireBondDate"
+              value={form.expireBondDate}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <div />
         </div>
       </div>
 

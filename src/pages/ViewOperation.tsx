@@ -91,6 +91,193 @@ const ViewOperation = () => {
     closeStatusModal();
   };
 
+  // Dimensions modal
+  const [dimOpen, setDimOpen] = useState(false);
+  const PACKAGE_TYPES = ['Boxes', 'Pallets', 'Cartons', 'Bags', 'Drums', 'Crates', 'Bundles'];
+  const WEIGHT_UNITS  = ['Kg', 'Lbs', 'MT'];
+  const COMMODITY_TYPES = ['General', 'Hazardous', 'Perishable', 'Fragile', 'Oversized', 'Valuable'];
+  const initDim = {
+    sNo: '10',
+    lxwxh: '', lxwxhMeasurement: '', length: '', width: '', height: '',
+    noOfPcs: '', packageType: '',
+    gWeight: '', gWeightUnit: 'Kg',
+    vWeight: '', vWeightUnit: 'Kg',
+    netWeight: '', netWeightUnit: 'Kg',
+    volume: '', coo: '',
+    commodityType: '', commodityCode: '',
+    commodityDesc: '', notes: '',
+  };
+  const [dimForm, setDimForm] = useState(initDim);
+  const [dimRows, setDimRows] = useState<typeof initDim[]>([]);
+  const [dimEditIndex, setDimEditIndex] = useState<number | null>(null);
+  const dimChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setDimForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const openDimEdit = (index: number) => {
+    setDimEditIndex(index);
+    setDimForm({ ...dimRows[index] });
+    setDimOpen(true);
+  };
+  const closeDimModal = () => {
+    setDimOpen(false);
+    setDimForm(initDim);
+    setDimEditIndex(null);
+  };
+  const saveDim = () => {
+    if (dimEditIndex !== null) {
+      setDimRows(prev => prev.map((r, i) => i === dimEditIndex ? dimForm : r));
+    } else {
+      setDimRows(prev => [...prev, dimForm]);
+    }
+    closeDimModal();
+  };
+
+  // Shipping Instructions modal
+  const [siOpen, setSiOpen] = useState(false);
+  const [roroOpen, setRoroOpen] = useState(false);
+  const PACK_TYPES = ['Boxes', 'Pallets', 'Cartons', 'Bags', 'Drums', 'Crates', 'Bundles'];
+  const SI_WEIGHT_UNITS = ['Kg', 'Lbs', 'MT'];
+  const SI_COMMODITY_TYPES = ['General', 'Hazardous', 'Perishable', 'Fragile', 'Oversized', 'Valuable'];
+  const SEAL_TYPE_OPTIONS = ['Original', 'Telex', 'Seaway Bill', 'Express Release'];
+  const initSi = {
+    sNo: '10',
+    noOfPcs: '', packType: '',
+    noOfPallet: '',
+    gWeight: '', gWeightUnit: 'Kg',
+    vWeight: '', vWeightUnit: 'CBM',
+    nWeight: '', nWeightUnit: 'Kg',
+    volume: '', chargeableUnit: '',
+    commodityType: '', commodityCode: '',
+    commodityDesc: '',
+    manifestSeal: '', actualLinerSeal: '', customSeal: '',
+    exciseSealNo: '', sealDate: '', sealTypeIndicator: '',
+    sealDeviceId: '', movementDocType: '', movementDocNo: '',
+    notes: '',
+    roroYear: '', roroBrand: '', roroModel: '', roroSpecification: '',
+    roroChasisNo: '', roroEngineNo: '',
+  };
+  const [siForm, setSiForm] = useState(initSi);
+  const [siRows, setSiRows] = useState<typeof initSi[]>([]);
+  const [siEditIndex, setSiEditIndex] = useState<number | null>(null);
+  const siChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setSiForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const openSiEdit = (index: number) => {
+    setSiEditIndex(index);
+    setSiForm({ ...siRows[index] });
+    setSiOpen(true);
+  };
+  const closeSiModal = () => {
+    setSiOpen(false);
+    setSiForm(initSi);
+    setSiEditIndex(null);
+  };
+  const saveSi = () => {
+    if (siEditIndex !== null) {
+      setSiRows(prev => prev.map((r, i) => i === siEditIndex ? siForm : r));
+    } else {
+      setSiRows(prev => [...prev, siForm]);
+    }
+    closeSiModal();
+  };
+
+  // Shipping Bill modal
+  const [sbOpen, setSbOpen] = useState(false);
+  const SB_PACK_TYPES = ['Boxes', 'Pallets', 'Cartons', 'Bags', 'Drums', 'Crates', 'Bundles'];
+  const initSb = {
+    shippingBillNo: '', shippingBillDate: '',
+    mateReceiptNo: '', mateReceiptDate: '',
+    noOfPcs: '', packType: '',
+    grossWeight: '', measurement: '',
+    volume: '', commodityCode: '',
+    commodityType: '', commodityDesc: '',
+    note: '',
+  };
+  const [sbForm, setSbForm] = useState(initSb);
+  const [sbErrors, setSbErrors] = useState<Partial<Record<keyof typeof initSb, string>>>({});
+  const [sbRows, setSbRows] = useState<typeof initSb[]>([]);
+  const [sbEditIndex, setSbEditIndex] = useState<number | null>(null);
+  const sbChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setSbForm(prev => ({ ...prev, [name]: value }));
+    if (sbErrors[name as keyof typeof initSb]) setSbErrors(prev => ({ ...prev, [name]: '' }));
+  };
+  const openSbEdit = (index: number) => {
+    setSbEditIndex(index);
+    setSbForm({ ...sbRows[index] });
+    setSbErrors({});
+    setSbOpen(true);
+  };
+  const closeSbModal = () => {
+    setSbOpen(false);
+    setSbForm(initSb);
+    setSbErrors({});
+    setSbEditIndex(null);
+  };
+  const saveSb = () => {
+    const errs: Partial<Record<keyof typeof initSb, string>> = {};
+    if (!sbForm.shippingBillNo.trim()) errs.shippingBillNo = 'Shipping Bill No is required';
+    if (!sbForm.shippingBillDate) errs.shippingBillDate = 'Shipping Bill Date is required';
+    if (Object.keys(errs).length) { setSbErrors(errs); return; }
+    if (sbEditIndex !== null) {
+      setSbRows(prev => prev.map((r, i) => i === sbEditIndex ? sbForm : r));
+    } else {
+      setSbRows(prev => [...prev, sbForm]);
+    }
+    closeSbModal();
+  };
+
+  // House's List modal
+  const HOUSE_INCO_TERMS = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF'];
+  const HOUSE_FREIGHT_TERMS = ['Collect', 'Prepaid'];
+  const HOUSE_CUSTOMERS = ['ARCHEAN INDUSTRIES PRIVATE LIMITED', 'TEXELQ ENGINEERING INDIA PVT LTD', 'TEXGRAM INC DBA INOTEX'];
+  const HOUSE_SHIPPERS = ['TEAMGLOBAL LOGISTICS PVT LTD', 'Maersk Line', 'Emirates SkyCargo', 'ONE Line'];
+  const HOUSE_CONSIGNEES = ['ARCHEAN INDUSTRIES PRIVATE LIMITED', 'TEXELQ ENGINEERING INDIA PVT LTD'];
+  const HOUSE_NOTIFY = ['ARCHEAN INDUSTRIES PRIVATE LIMITED', 'TEXELQ ENGINEERING INDIA PVT LTD', 'TEAMGLOBAL LOGISTICS PVT LTD'];
+  const initHouse = {
+    placeOfReceipt: '', placeOfDelivery: '',
+    incoTerm: '', hawbNo: '', hawbDate: '', hawbMarkNo: '',
+    freightTerm: 'Collect', notes: '',
+    customer: '', customerAddress: '',
+    shipper: '', shipperAddress: '',
+    consignee: '', consigneeAddress: '',
+    notify1: '', notify1Address: '',
+  };
+  const [houseOpen, setHouseOpen] = useState(false);
+  const [houseForm, setHouseForm] = useState(initHouse);
+  const [houseErrors, setHouseErrors] = useState<Partial<Record<keyof typeof initHouse, string>>>({});
+  const [houseRows, setHouseRows] = useState<typeof initHouse[]>([]);
+  const [houseEditIndex, setHouseEditIndex] = useState<number | null>(null);
+  const houseChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setHouseForm(prev => ({ ...prev, [name]: value }));
+    if (houseErrors[name as keyof typeof initHouse]) setHouseErrors(prev => ({ ...prev, [name]: '' }));
+  };
+  const openHouseEdit = (index: number) => {
+    setHouseEditIndex(index);
+    setHouseForm({ ...houseRows[index] });
+    setHouseErrors({});
+    setHouseOpen(true);
+  };
+  const closeHouseModal = () => {
+    setHouseOpen(false);
+    setHouseForm(initHouse);
+    setHouseErrors({});
+    setHouseEditIndex(null);
+  };
+  const saveHouse = () => {
+    const errs: Partial<Record<keyof typeof initHouse, string>> = {};
+    if (!houseForm.placeOfReceipt.trim()) errs.placeOfReceipt = 'Place of Receipt is required';
+    if (!houseForm.placeOfDelivery.trim()) errs.placeOfDelivery = 'Place of Delivery is required';
+    if (!houseForm.incoTerm) errs.incoTerm = 'INCO Term is required';
+    if (!houseForm.customer) errs.customer = 'Customer is required';
+    if (Object.keys(errs).length) { setHouseErrors(errs); return; }
+    if (houseEditIndex !== null) {
+      setHouseRows(prev => prev.map((r, i) => i === houseEditIndex ? houseForm : r));
+    } else {
+      setHouseRows(prev => [...prev, houseForm]);
+    }
+    closeHouseModal();
+  };
+
   // Routing modal
   const [routingOpen, setRoutingOpen] = useState(false);
   const PORT_OPTIONS = ['CHENNAI', 'MUMBAI', 'DELHI', 'KOLKATA', 'NHAVA SHEVA', 'COCHIN', 'JSD', 'JNPT'];
@@ -695,20 +882,109 @@ const ViewOperation = () => {
       {/* Dimensions card */}
       {(activeTab === "Dimension's" || activeTab === 'Show All') && (
         <div className="material-card material-elevation-1 overflow-hidden">
-          <div className="bg-[#00BCD4] px-6 py-3">
+          <div className="bg-[#00BCD4] px-6 py-3 flex items-center justify-between">
             <h2 className="text-white font-bold text-base">Dimension's</h2>
+            <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold"
+              onClick={() => { setDimEditIndex(null); setDimForm(initDim); setDimOpen(true); }}>+</Button>
           </div>
-          <NoData />
+          {dimRows.length === 0 ? <NoData /> : (
+            <div className="p-4 overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    {['S.No#', 'L×W×H', 'Measurement', 'No of Pcs', 'Package Type', 'G.Weight', 'V.Weight', 'Net Weight', 'Volume', 'COO', 'Commodity Type', 'Commodity Code', 'Notes', 'Action'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dimRows.map((row, i) => (
+                    <tr key={i} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground">{row.sNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.lxwxh}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{[row.length, row.width, row.height].filter(Boolean).join(' × ')}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.noOfPcs}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.packageType}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.gWeight}{row.gWeight && ` ${row.gWeightUnit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.vWeight}{row.vWeight && ` ${row.vWeightUnit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.netWeight}{row.netWeight && ` ${row.netWeightUnit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.volume}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.coo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityType}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityCode}</td>
+                      <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.notes}</td>
+                      <td className="px-3 py-2">
+                        <button className="text-red-400 hover:text-red-600" onClick={() => openDimEdit(i)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
       {/* Shipping Instructions card */}
       {(activeTab === 'Shipping Instructions' || activeTab === 'Show All') && (
         <div className="material-card material-elevation-1 overflow-hidden">
-          <div className="bg-[#00BCD4] px-6 py-3">
+          <div className="bg-[#00BCD4] px-6 py-3 flex items-center justify-between">
             <h2 className="text-white font-bold text-base">Shipping Instructions</h2>
+            <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold"
+              onClick={() => { setSiEditIndex(null); setSiForm(initSi); setSiOpen(true); }}>+</Button>
           </div>
-          <NoData />
+          {siRows.length === 0 ? <NoData /> : (
+            <div className="p-4 overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    {['S.No#', 'No of PCS', 'Pack Type', 'No of Pallet', 'G.Weight', 'V.Weight', 'N.Weight', 'Volume', 'Chargeable Unit', 'Commodity Type', 'Commodity Code', 'Manifest Seal', 'Actual/Liner Seal', 'Custom Seal', 'Excise Seal No', 'Seal Date', 'Seal Type', 'Seal Device ID', 'Movement Doc Type', 'Movement Doc No', 'Notes', 'RORO Year', 'RORO Brand', 'RORO Model', 'RORO Chasis No', 'RORO Engine No', 'Action'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {siRows.map((row, i) => (
+                    <tr key={i} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground">{row.sNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.noOfPcs}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.packType}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.noOfPallet}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.gWeight}{row.gWeight && ` ${row.gWeightUnit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.vWeight}{row.vWeight && ` ${row.vWeightUnit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.nWeight}{row.nWeight && ` ${row.nWeightUnit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.volume}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.chargeableUnit}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityType}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityCode}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.manifestSeal}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.actualLinerSeal}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.customSeal}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.exciseSealNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.sealDate}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.sealTypeIndicator}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.sealDeviceId}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.movementDocType}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.movementDocNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.notes}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roroYear}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roroBrand}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roroModel}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roroChasisNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roroEngineNo}</td>
+                      <td className="px-3 py-2">
+                        <button className="text-red-400 hover:text-red-600" onClick={() => openSiEdit(i)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -760,20 +1036,95 @@ const ViewOperation = () => {
       {/* Shipping Bill / BOE card */}
       {(activeTab === 'Shipping Bill / BOE' || activeTab === 'Show All') && (
         <div className="material-card material-elevation-1 overflow-hidden">
-          <div className="bg-[#00BCD4] px-6 py-3">
+          <div className="bg-[#00BCD4] px-6 py-3 flex items-center justify-between">
             <h2 className="text-white font-bold text-base">Shipping Bill / BOE</h2>
+            <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold"
+              onClick={() => { setSbEditIndex(null); setSbForm(initSb); setSbOpen(true); }}>+</Button>
           </div>
-          <NoData />
+          {sbRows.length === 0 ? <NoData /> : (
+            <div className="p-4 overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    {['Shipping Bill No', 'Shipping Bill Date', 'Mate Receipt No', 'Mate Receipt Date', 'No of PCS', 'Pack Type', 'Gross Weight', 'Measurement', 'Volume', 'Commodity Code', 'Commodity Type', 'Commodity Desc', 'Note', 'Action'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sbRows.map((row, i) => (
+                    <tr key={i} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground">{row.shippingBillNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.shippingBillDate}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.mateReceiptNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.mateReceiptDate}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.noOfPcs}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.packType}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.grossWeight}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.measurement}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.volume}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityCode}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityType}</td>
+                      <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.commodityDesc}</td>
+                      <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.note}</td>
+                      <td className="px-3 py-2">
+                        <button className="text-red-400 hover:text-red-600" onClick={() => openSbEdit(i)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
       {/* House's List card */}
       {(activeTab === "House's List" || activeTab === 'Show All') && (
         <div className="material-card material-elevation-1 overflow-hidden">
-          <div className="bg-[#00BCD4] px-6 py-3">
+          <div className="bg-[#00BCD4] px-6 py-3 flex items-center justify-between">
             <h2 className="text-white font-bold text-base">House's List</h2>
+            <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold"
+              onClick={() => { setHouseEditIndex(null); setHouseForm(initHouse); setHouseOpen(true); }}>Add New House</Button>
           </div>
-          <NoData />
+          {houseRows.length === 0 ? <NoData /> : (
+            <div className="p-4 overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    {['HAWB No', 'HAWB Date', 'HAWB Mark No', 'Place of Receipt', 'Place of Delivery', 'INCO Term', 'Freight Term', 'Customer', 'Shipper', 'Consignee', 'Notify1', 'Notes', 'Action'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {houseRows.map((row, i) => (
+                    <tr key={i} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground">{row.hawbNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.hawbDate}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.hawbMarkNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.placeOfReceipt}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.placeOfDelivery}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.incoTerm}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.freightTerm}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.customer}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.shipper}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.consignee}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.notify1}</td>
+                      <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.notes}</td>
+                      <td className="px-3 py-2">
+                        <button className="text-red-400 hover:text-red-600" onClick={() => openHouseEdit(i)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1071,6 +1422,780 @@ const ViewOperation = () => {
                 </table>
               </div>
               <div className="flex justify-end mt-2 text-xs text-muted-foreground">1 - 1</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* House's List Modal */}
+      {houseOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeHouseModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-4xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="bg-[#00BCD4] px-5 py-3 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold text-sm">{houseEditIndex !== null ? 'Edit House Job' : 'Create New House Job'}</h3>
+              <button onClick={closeHouseModal}
+                className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white font-bold text-xs">✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+
+              {/* Read-only job info row */}
+              <div className="grid grid-cols-3 gap-4 text-xs">
+                <div className="flex items-start gap-2">
+                  <span className="font-semibold text-foreground w-20 shrink-0">Job No</span>
+                  <span className="text-foreground">{op.jobNo || 'RLPL/AE/J0306'} / {op.jobDate || '25-MAR-26'}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="font-semibold text-foreground w-10 shrink-0">POL</span>
+                  <span className="text-foreground">{op.pol || 'JSD / SIKORSKY HELIPORT-STRATFORD, CT'}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="font-semibold text-foreground w-10 shrink-0">POD</span>
+                  <span className="text-foreground">{op.pod || 'JSD / SIKORSKY HELIPORT-STRATFORD, CT'}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground w-20 shrink-0">ETD / ATD</span>
+                  <span className="text-foreground">{op.polEtd || '25-Mar-26'} /</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground w-20 shrink-0">ETA / ATA</span>
+                  <span className="text-foreground">{op.podEta || '26-Mar-26'} /</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground w-32 shrink-0">Flight Name / No.</span>
+                  <span className="text-foreground">{op.flightName || ''}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground w-20 shrink-0">MAWB No. / Date</span>
+                  <span className="text-foreground">{op.mblNo || ''}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="font-semibold text-foreground w-24 shrink-0">
+                    Place of Receipt <span className="text-destructive">*</span>
+                  </label>
+                  <div className="flex-1">
+                    <input name="placeOfReceipt" value={houseForm.placeOfReceipt} onChange={houseChange}
+                      className={`w-full px-2 py-1 border rounded text-xs bg-background ${houseErrors.placeOfReceipt ? 'border-destructive' : 'border-input'}`} />
+                    {houseErrors.placeOfReceipt && <p className="text-xs text-destructive mt-0.5">{houseErrors.placeOfReceipt}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="font-semibold text-foreground w-24 shrink-0">
+                    Place of Delivery <span className="text-destructive">*</span>
+                  </label>
+                  <div className="flex-1">
+                    <input name="placeOfDelivery" value={houseForm.placeOfDelivery} onChange={houseChange}
+                      className={`w-full px-2 py-1 border rounded text-xs bg-background ${houseErrors.placeOfDelivery ? 'border-destructive' : 'border-input'}`} />
+                    {houseErrors.placeOfDelivery && <p className="text-xs text-destructive mt-0.5">{houseErrors.placeOfDelivery}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* INCO Term + HAWB No + HAWB Date */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-24 shrink-0">
+                    INCO Term <span className="text-destructive">*</span>
+                  </label>
+                  <div className="flex-1">
+                    <select name="incoTerm" value={houseForm.incoTerm} onChange={houseChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${houseErrors.incoTerm ? 'border-destructive' : 'border-input'}`}>
+                      <option value="">--Select--</option>
+                      {HOUSE_INCO_TERMS.map(t => <option key={t}>{t}</option>)}
+                    </select>
+                    {houseErrors.incoTerm && <p className="text-xs text-destructive mt-0.5">{houseErrors.incoTerm}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">HAWB No.</label>
+                  <input name="hawbNo" value={houseForm.hawbNo} onChange={houseChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-24 shrink-0">HAWB Date</label>
+                  <input type="date" name="hawbDate" value={houseForm.hawbDate} onChange={houseChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Freight Term + HAWB Mark No + Notes */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-24 shrink-0">Freight Term</label>
+                  <select name="freightTerm" value={houseForm.freightTerm} onChange={houseChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {HOUSE_FREIGHT_TERMS.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-start gap-2">
+                  <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">HAWB Mark No.</label>
+                  <textarea name="hawbMarkNo" value={houseForm.hawbMarkNo} onChange={houseChange}
+                    rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                </div>
+                <div className="flex items-start gap-2">
+                  <label className="text-xs font-semibold text-foreground w-24 shrink-0 pt-1">Notes</label>
+                  <textarea name="notes" value={houseForm.notes} onChange={houseChange}
+                    rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                </div>
+              </div>
+
+              {/* Customer + Shipper panels */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border border-border rounded overflow-hidden">
+                  <div className="bg-[#00BCD4] px-3 py-2">
+                    <h4 className="text-white font-semibold text-xs">Customer</h4>
+                  </div>
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0">
+                        <span className="text-destructive mr-1">*</span>Customer
+                      </label>
+                      <div className="flex-1">
+                        <select name="customer" value={houseForm.customer} onChange={houseChange}
+                          className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${houseErrors.customer ? 'border-destructive' : 'border-input'}`}>
+                          <option value="">--Select Customer--</option>
+                          {HOUSE_CUSTOMERS.map(c => <option key={c}>{c}</option>)}
+                        </select>
+                        {houseErrors.customer && <p className="text-xs text-destructive mt-0.5">{houseErrors.customer}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
+                      <textarea name="customerAddress" value={houseForm.customerAddress} onChange={houseChange}
+                        rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                    </div>
+                  </div>
+                </div>
+                <div className="border border-border rounded overflow-hidden">
+                  <div className="bg-[#00BCD4] px-3 py-2">
+                    <h4 className="text-white font-semibold text-xs">Shipper</h4>
+                  </div>
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0">Shipper</label>
+                      <select name="shipper" value={houseForm.shipper} onChange={houseChange}
+                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                        <option value="">--Select Shipper--</option>
+                        {HOUSE_SHIPPERS.map(s => <option key={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
+                      <textarea name="shipperAddress" value={houseForm.shipperAddress} onChange={houseChange}
+                        rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Consignee + Notify1 panels */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border border-border rounded overflow-hidden">
+                  <div className="bg-[#00BCD4] px-3 py-2">
+                    <h4 className="text-white font-semibold text-xs">Consignee</h4>
+                  </div>
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0">Consignee</label>
+                      <select name="consignee" value={houseForm.consignee} onChange={houseChange}
+                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                        <option value="">--Select Consignee--</option>
+                        {HOUSE_CONSIGNEES.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
+                      <textarea name="consigneeAddress" value={houseForm.consigneeAddress} onChange={houseChange}
+                        rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                    </div>
+                  </div>
+                </div>
+                <div className="border border-border rounded overflow-hidden">
+                  <div className="bg-amber-400 px-3 py-2">
+                    <h4 className="text-white font-semibold text-xs">Notify1</h4>
+                  </div>
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0">Notify1</label>
+                      <select name="notify1" value={houseForm.notify1} onChange={houseChange}
+                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                        <option value="">--Select Notify1--</option>
+                        {HOUSE_NOTIFY.map(n => <option key={n}>{n}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
+                      <textarea name="notify1Address" value={houseForm.notify1Address} onChange={houseChange}
+                        rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6" onClick={closeHouseModal}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={saveHouse}>
+                {houseEditIndex !== null ? 'Update House Job' : 'Create House Job'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping Bill Modal */}
+      {sbOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeSbModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="bg-[#00BCD4] px-5 py-3 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold text-sm">Shipping Bill</h3>
+              <button onClick={closeSbModal}
+                className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white font-bold text-xs">✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+
+              {/* Row 1: Shipping Bill No + Shipping Bill Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">
+                    <span className="text-destructive mr-1">*</span>Shipping Bill No
+                  </label>
+                  <div className="flex-1">
+                    <input name="shippingBillNo" value={sbForm.shippingBillNo} onChange={sbChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.shippingBillNo ? 'border-destructive' : 'border-input'}`} />
+                    {sbErrors.shippingBillNo && <p className="text-xs text-destructive mt-0.5">{sbErrors.shippingBillNo}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">
+                    <span className="text-destructive mr-1">*</span>Shipping Bill Date
+                  </label>
+                  <div className="flex-1">
+                    <input type="date" name="shippingBillDate" value={sbForm.shippingBillDate} onChange={sbChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.shippingBillDate ? 'border-destructive' : 'border-input'}`} />
+                    {sbErrors.shippingBillDate && <p className="text-xs text-destructive mt-0.5">{sbErrors.shippingBillDate}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Mate Receipt No + Mate Receipt Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Mate Receipt No</label>
+                  <input name="mateReceiptNo" value={sbForm.mateReceiptNo} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Mate Receipt Date</label>
+                  <input type="date" name="mateReceiptDate" value={sbForm.mateReceiptDate} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 3: No of PCS + Pack Type */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">No Of PCS</label>
+                  <input name="noOfPcs" value={sbForm.noOfPcs} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Pack Type</label>
+                  <select name="packType" value={sbForm.packType} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value="">--Select--</option>
+                    {SB_PACK_TYPES.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 4: Gross Weight + Measurement */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Gross Weight</label>
+                  <input name="grossWeight" value={sbForm.grossWeight} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Measurement</label>
+                  <input name="measurement" value={sbForm.measurement} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 5: Volume + Commodity Code */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Volume</label>
+                  <input name="volume" value={sbForm.volume} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Commodity Code</label>
+                  <input name="commodityCode" value={sbForm.commodityCode} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 6: Commodity Type + Commodity Desc */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Commodity Type</label>
+                  <input name="commodityType" value={sbForm.commodityType} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-start gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0 pt-1">Commodity Desc</label>
+                  <textarea name="commodityDesc" value={sbForm.commodityDesc} onChange={sbChange}
+                    rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                </div>
+              </div>
+
+              {/* Row 7: Note (full width) */}
+              <div className="flex items-start gap-2">
+                <label className="text-xs font-semibold text-foreground w-32 shrink-0 pt-1">Note</label>
+                <textarea name="note" value={sbForm.note} onChange={sbChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6" onClick={closeSbModal}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={saveSb}>
+                {sbEditIndex !== null ? 'Update' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping Instructions Modal */}
+      {siOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeSiModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="bg-[#00BCD4] px-5 py-3 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold text-sm">Job Consignment Details</h3>
+              <button onClick={closeSiModal}
+                className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white font-bold text-xs">✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+
+              {/* Row 1: S.No# + No of PCS */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">S.No#</label>
+                  <input name="sNo" value={siForm.sNo} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background text-right" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">No of PCS</label>
+                  <input name="noOfPcs" value={siForm.noOfPcs} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 2: Pack Type + No of Pallet */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Pack Type</label>
+                  <select name="packType" value={siForm.packType} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value="">--Select--</option>
+                    {PACK_TYPES.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">No of Pallet</label>
+                  <input name="noOfPallet" value={siForm.noOfPallet} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 3: G.Weight + G.Weight Unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">G.Weight</label>
+                  <input name="gWeight" value={siForm.gWeight} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">G.Weight Unit</label>
+                  <select name="gWeightUnit" value={siForm.gWeightUnit} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {SI_WEIGHT_UNITS.map(u => <option key={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 4: V.Weight + V.Weight Unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">V.Weight</label>
+                  <input name="vWeight" value={siForm.vWeight} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">V.Weight Unit</label>
+                  <select name="vWeightUnit" value={siForm.vWeightUnit} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {['CBM', 'Kg', 'Lbs', 'MT'].map(u => <option key={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 5: N.Weight + N.Weight Unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">N.Weight</label>
+                  <input name="nWeight" value={siForm.nWeight} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">N.Weight Unit</label>
+                  <select name="nWeightUnit" value={siForm.nWeightUnit} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {SI_WEIGHT_UNITS.map(u => <option key={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 6: Volume + Chargeable Unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Volume</label>
+                  <input name="volume" value={siForm.volume} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Chargeable Unit</label>
+                  <input name="chargeableUnit" value={siForm.chargeableUnit} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 7: Commodity Type + Commodity Code */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Commodity Type</label>
+                  <select name="commodityType" value={siForm.commodityType} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value="">--Select--</option>
+                    {SI_COMMODITY_TYPES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Commodity Code</label>
+                  <input name="commodityCode" value={siForm.commodityCode} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 8: Commodity Desc (full width) */}
+              <div className="flex items-start gap-2">
+                <label className="text-xs font-semibold text-foreground w-32 shrink-0 pt-1">Commodity Desc</label>
+                <textarea name="commodityDesc" value={siForm.commodityDesc} onChange={siChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+
+              {/* Row 9: Manifest Seal + Actual/Liner Seal */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Manifest Seal</label>
+                  <input name="manifestSeal" value={siForm.manifestSeal} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Actual / Liner Seal</label>
+                  <input name="actualLinerSeal" value={siForm.actualLinerSeal} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 10: Custom Seal + Excise Seal No */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Custom Seal</label>
+                  <input name="customSeal" value={siForm.customSeal} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Excise Seal No</label>
+                  <input name="exciseSealNo" value={siForm.exciseSealNo} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 11: Seal Date + Seal Type Indicator */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Seal Date</label>
+                  <input type="date" name="sealDate" value={siForm.sealDate} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Seal Type Indicator</label>
+                  <select name="sealTypeIndicator" value={siForm.sealTypeIndicator} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value="">--Select--</option>
+                    {SEAL_TYPE_OPTIONS.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 12: Seal Device ID + Movement Doc Type */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Seal Device ID</label>
+                  <input name="sealDeviceId" value={siForm.sealDeviceId} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Movement Doc Type</label>
+                  <input name="movementDocType" value={siForm.movementDocType} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 13: Movement Doc No + Notes */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Movement Doc No</label>
+                  <input name="movementDocNo" value={siForm.movementDocNo} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Notes</label>
+                  <input name="notes" value={siForm.notes} onChange={siChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* RORO Section */}
+              <div className="rounded overflow-hidden border border-[#00BCD4]">
+                <button
+                  type="button"
+                  onClick={() => setRoroOpen(prev => !prev)}
+                  className="w-full bg-[#00BCD4] px-3 py-2 flex items-center justify-between text-left"
+                >
+                  <span className="text-white font-semibold text-xs">RORO</span>
+                  <span className={`text-white text-xs transition-transform duration-200 ${roroOpen ? 'rotate-180' : 'rotate-0'}`}>▼</span>
+                </button>
+                <div className={`overflow-hidden transition-all duration-200 ${roroOpen ? 'max-h-96' : 'max-h-0'}`}>
+                  <div className="p-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-foreground block mb-1">Roro Year</label>
+                      <input name="roroYear" value={siForm.roroYear} onChange={siChange}
+                        className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-foreground block mb-1">Roro Brand</label>
+                      <input name="roroBrand" value={siForm.roroBrand} onChange={siChange}
+                        className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-foreground block mb-1">Roro Model</label>
+                      <input name="roroModel" value={siForm.roroModel} onChange={siChange}
+                        className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-foreground block mb-1">Roro Specification</label>
+                      <textarea name="roroSpecification" value={siForm.roroSpecification} onChange={siChange}
+                        rows={3} className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-foreground block mb-1">RORO Chasis No#</label>
+                      <input name="roroChasisNo" value={siForm.roroChasisNo} onChange={siChange}
+                        className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-foreground block mb-1">RORO Engine No#</label>
+                      <input name="roroEngineNo" value={siForm.roroEngineNo} onChange={siChange}
+                        className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6" onClick={closeSiModal}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={saveSi}>Save</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dimensions Modal */}
+      {dimOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeDimModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="bg-[#00BCD4] px-5 py-3 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold text-sm">Dimension Details</h3>
+              <button onClick={closeDimModal}
+                className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white font-bold text-xs">✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+
+              {/* Row 1: S.No# + L×W×H Measurement */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">
+                    S.No# <span className="text-destructive">*</span>
+                  </label>
+                  <input name="sNo" value={dimForm.sNo} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background text-right" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">L x W x H<br />Measurement</label>
+                  <input name="lxwxhMeasurement" value={dimForm.lxwxhMeasurement} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 2: L×W×H */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0">
+                  L x W x H <span className="text-destructive">*</span>
+                </label>
+                <div className="flex items-center gap-1.5 flex-1">
+                  <input name="lxwxh" value={dimForm.lxwxh} onChange={dimChange}
+                    placeholder="L"
+                    className="w-0 flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                  <span className="text-xs text-muted-foreground shrink-0">×</span>
+                  <input name="width" value={dimForm.width} onChange={dimChange}
+                    placeholder="W"
+                    className="w-0 flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                  <span className="text-xs text-muted-foreground shrink-0">×</span>
+                  <input name="height" value={dimForm.height} onChange={dimChange}
+                    placeholder="H"
+                    className="w-0 flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+
+              {/* Row 3: No of Pcs + Package Type */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">No of Pcs</label>
+                  <input name="noOfPcs" value={dimForm.noOfPcs} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">Package Type</label>
+                  <select name="packageType" value={dimForm.packageType} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background ml-2">
+                    <option value="">-- Select --</option>
+                    {PACKAGE_TYPES.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 4: G.Weight + unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">G.Weight</label>
+                  <input name="gWeight" value={dimForm.gWeight} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <select name="gWeightUnit" value={dimForm.gWeightUnit} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {WEIGHT_UNITS.map(u => <option key={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 5: V.Weight + unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">V.Weight</label>
+                  <input name="vWeight" value={dimForm.vWeight} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <select name="vWeightUnit" value={dimForm.vWeightUnit} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {WEIGHT_UNITS.map(u => <option key={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 6: Net Weight + unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Net Weight</label>
+                  <input name="netWeight" value={dimForm.netWeight} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <select name="netWeightUnit" value={dimForm.netWeightUnit} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {WEIGHT_UNITS.map(u => <option key={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 7: Volume + COO */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Volume</label>
+                  <input name="volume" value={dimForm.volume} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">COO</label>
+                  <input name="coo" value={dimForm.coo} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background ml-2" />
+                </div>
+              </div>
+
+              {/* Row 8: Commodity Type + Commodity Code */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Commodity Type</label>
+                  <select name="commodityType" value={dimForm.commodityType} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value="">-- Select --</option>
+                    {COMMODITY_TYPES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">Commodity Code</label>
+                  <input name="commodityCode" value={dimForm.commodityCode} onChange={dimChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background ml-2" />
+                </div>
+              </div>
+
+              {/* Row 9: Commodity Desc */}
+              <div className="flex items-start gap-2">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Commodity Desc</label>
+                <textarea name="commodityDesc" value={dimForm.commodityDesc} onChange={dimChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+
+              {/* Row 10: Notes */}
+              <div className="flex items-start gap-2">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Notes</label>
+                <textarea name="notes" value={dimForm.notes} onChange={dimChange}
+                  rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" className="px-5" onClick={closeDimModal}>Cancel</Button>
+              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveDim}>Save</Button>
             </div>
           </div>
         </div>
