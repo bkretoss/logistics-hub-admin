@@ -34,8 +34,11 @@ const Login: React.FC = () => {
     try {
       const success = await login(email, password, remember);
       if (success) navigate("/dashboard");
-    } catch {
-      setErrors({ general: "Login failed. Please try again." });
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Login failed. Please try again.";
+      setErrors({ general: message });
     } finally {
       setLoading(false);
     }

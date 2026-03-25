@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { loginApi } from '@/services/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -11,28 +12,29 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('logistics_auth') === 'true';
+    return !!localStorage.getItem('token');
   });
   const [user, setUser] = useState<{ email: string; name: string } | null>(() => {
     const stored = localStorage.getItem('logistics_user');
     return stored ? JSON.parse(stored) : null;
   });
 
-  const login = useCallback(async (email: string, _password: string, _remember: boolean) => {
-    // Mock authentication
-    await new Promise(resolve => setTimeout(resolve, 800));
-    const mockUser = { email, name: email.split('@')[0] };
+  const login = useCallback(async (email: string, password: string, _remember: boolean) => {
+    const { data } = await loginApi(email, password);
+    const token = data.token ?? data.data?.token;
+    if (!token) throw new Error(data.message ?? 'Login failed');
+    const loggedInUser = { email, name: data.data?.name ?? email.split('@')[0] };
+    localStorage.setItem('token', token);
+    localStorage.setItem('logistics_user', JSON.stringify(loggedInUser));
     setIsAuthenticated(true);
-    setUser(mockUser);
-    localStorage.setItem('logistics_auth', 'true');
-    localStorage.setItem('logistics_user', JSON.stringify(mockUser));
+    setUser(loggedInUser);
     return true;
   }, []);
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);
     setUser(null);
-    localStorage.removeItem('logistics_auth');
+    localStorage.removeItem('token');
     localStorage.removeItem('logistics_user');
   }, []);
 
