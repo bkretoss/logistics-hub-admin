@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       "/api": {
         // target: "http://localhost:8001",
-        target: "https://logistic.kretoss.in",
+        target: "https://logistic.kretoss.in/api",
         changeOrigin: true,
       },
     },
