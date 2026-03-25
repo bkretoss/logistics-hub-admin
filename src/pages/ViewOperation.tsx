@@ -72,7 +72,52 @@ const ViewOperation = () => {
     setRoutingOpen(false);
   };
 
-  // Add New Subledger modal
+  // Profit Share modal
+  const [profitOpen, setProfitOpen] = useState(false);
+  const PS_TYPE_OPTIONS = ['Employee', 'Agent', 'Partner', 'Branch', 'Other'];
+  const PS_TO_NAME_OPTIONS = ['MANAGEMENT', 'SALES TEAM', 'OPERATIONS', 'ACCOUNTS'];
+  const initProfit = { type: '', toName: '', toNameDesc: '', percentage: '', profitAmount: '', jobProfit: '', note: '' };
+  const [profitForm, setProfitForm] = useState(initProfit);
+  const [profitErrors, setProfitErrors] = useState<Partial<typeof initProfit>>({});
+  const [profitRows, setProfitRows] = useState<typeof initProfit[]>([]);
+  const profitChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setProfitForm(prev => ({ ...prev, [name]: value }));
+    if (profitErrors[name as keyof typeof initProfit]) setProfitErrors(prev => ({ ...prev, [name]: '' }));
+  };
+  const saveProfit = () => {
+    const errs: Partial<typeof initProfit> = {};
+    if (!profitForm.type)           errs.type         = 'Required';
+    if (!profitForm.toName)         errs.toName       = 'Required';
+    if (!profitForm.percentage)     errs.percentage   = 'Required';
+    if (!profitForm.profitAmount)   errs.profitAmount = 'Required';
+    if (!profitForm.jobProfit)      errs.jobProfit    = 'Required';
+    if (Object.keys(errs).length) { setProfitErrors(errs); return; }
+    setProfitRows(prev => [...prev, profitForm]);
+    setProfitForm(initProfit);
+    setProfitErrors({});
+    setProfitOpen(false);
+  };
+
+  // Working Team modal
+  const [teamOpen, setTeamOpen] = useState(false);
+  const EMPLOYEE_OPTIONS = ['MANAGEMENT', 'SALES TEAM', 'OPERATIONS', 'ACCOUNTS', 'ADMIN'];
+  const DEPT_OPTIONS = ['SALES', 'OPERATIONS', 'ACCOUNTS', 'ADMIN', 'HR', 'IT'];
+  const initTeam = { employee: '', department: '', followupRequired: 'No', note: '' };
+  const [teamForm, setTeamForm] = useState(initTeam);
+  const [teamError, setTeamError] = useState('');
+  const [teamRows, setTeamRows] = useState([
+    { employee: 'MANAGEMENT', department: 'SALES', followupRequired: 'No', followupDate: '', followupNote: '', note: 'Auto Inserted' },
+  ]);
+  const teamChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement>) =>
+    setTeamForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const saveTeam = () => {
+    if (!teamForm.employee) { setTeamError('Employee is required'); return; }
+    setTeamRows(prev => [...prev, { ...teamForm, followupDate: '', followupNote: '' }]);
+    setTeamForm(initTeam);
+    setTeamError('');
+    setTeamOpen(false);
+  };
   const [slOpen, setSlOpen] = useState(false);
   const initSl = { customerName: '', categories: '', scacCode: '', address: '', pinCode: '', phone: '', mobile: '', emailId: '', gstState: '', gstNo: '', panNo: '', country: '' };
   const [slForm, setSlForm] = useState(initSl);
@@ -746,7 +791,7 @@ const ViewOperation = () => {
             <div className="border-r border-border">
               <div className="bg-[#00BCD4] px-4 py-2.5 flex items-center justify-between">
                 <span className="text-white font-semibold text-sm">Team</span>
-                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold">Add Working Team</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold" onClick={() => setTeamOpen(true)}>Add Working Team</Button>
               </div>
               <div className="p-4">
                 <table className="w-full text-sm border-collapse">
@@ -758,26 +803,56 @@ const ViewOperation = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-border hover:bg-muted/30">
-                      <td className="px-2 py-2"><button className="text-red-400 hover:text-red-600"><Pencil className="w-3.5 h-3.5" /></button></td>
-                      <td className="px-2 py-2 text-xs text-foreground">MANAGEMENT</td>
-                      <td className="px-2 py-2 text-xs text-foreground">SALES</td>
-                      <td className="px-2 py-2 text-xs text-foreground"></td>
-                      <td className="px-2 py-2 text-xs text-foreground"></td>
-                      <td className="px-2 py-2 text-xs text-foreground"></td>
-                      <td className="px-2 py-2 text-xs text-foreground">Auto Inserted</td>
-                    </tr>
+                    {teamRows.map((row, i) => (
+                      <tr key={i} className="border-b border-border hover:bg-muted/30">
+                        <td className="px-2 py-2"><button className="text-red-400 hover:text-red-600"><Pencil className="w-3.5 h-3.5" /></button></td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.employee}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.department}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.followupRequired}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.followupDate}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.followupNote}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.note}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-                <div className="flex justify-end mt-2 text-xs text-muted-foreground">1 - 1</div>
+                <div className="flex justify-end mt-2 text-xs text-muted-foreground">{teamRows.length} - {teamRows.length}</div>
               </div>
             </div>
             <div>
               <div className="bg-[#00BCD4] px-4 py-2.5 flex items-center justify-between">
                 <span className="text-white font-semibold text-sm">Profit Share</span>
-                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold">Add +</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold" onClick={() => setProfitOpen(true)}>Add +</Button>
               </div>
-              <div className="p-4 min-h-[80px]" />
+              <div className="p-4">
+                {profitRows.length === 0 ? (
+                  <div className="min-h-[80px]" />
+                ) : (
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-border">
+                        {['Edit', 'Type', 'To Name', 'To Name (Desc)', 'Percentage', 'Profit Amount', 'Job Profit', 'Note'].map(h => (
+                          <th key={h} className="text-left px-2 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profitRows.map((row, i) => (
+                        <tr key={i} className="border-b border-border hover:bg-muted/30">
+                          <td className="px-2 py-2"><button className="text-red-400 hover:text-red-600"><Pencil className="w-3.5 h-3.5" /></button></td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.type}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.toName}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.toNameDesc}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.percentage}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.profitAmount}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.jobProfit}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.note}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1218,6 +1293,184 @@ const ViewOperation = () => {
           </div>
         </div>
       )}
+      {/* Profit Share Modal */}
+      {profitOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setProfitOpen(false); setProfitForm(initProfit); setProfitErrors({}); }} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 flex flex-col overflow-hidden">
+            <div className="bg-[#00BCD4] px-5 py-3 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold text-sm">Profit Share</h3>
+              <button onClick={() => { setProfitOpen(false); setProfitForm(initProfit); setProfitErrors({}); }}
+                className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white font-bold text-xs">✕</button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              {/* JOB No# + JOB Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">JOB No#</label>
+                  <input readOnly value={op.jobNo || 'RLPL/AE/J0303'}
+                    className="w-full px-2 py-1.5 border border-input rounded text-xs bg-muted" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">JOB Date</label>
+                  <input readOnly value={op.jobDate || '24-MAR-26'}
+                    className="w-full px-2 py-1.5 border border-input rounded text-xs bg-muted" />
+                </div>
+              </div>
+              {/* Type */}
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">
+                  <span className="text-destructive mr-1">*</span>Type
+                </label>
+                <select name="type" value={profitForm.type} onChange={profitChange}
+                  className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
+                    profitErrors.type ? 'border-destructive' : 'border-input'
+                  }`}>
+                  <option value="">--Select--</option>
+                  {PS_TYPE_OPTIONS.map(t => <option key={t}>{t}</option>)}
+                </select>
+                {profitErrors.type && <p className="text-xs text-destructive mt-0.5">{profitErrors.type}</p>}
+              </div>
+              {/* To Name + To Name (Description) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">
+                    <span className="text-destructive mr-1">*</span>To Name
+                  </label>
+                  <select name="toName" value={profitForm.toName} onChange={profitChange}
+                    className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
+                      profitErrors.toName ? 'border-destructive' : 'border-input'
+                    }`}>
+                    <option value="">--Select--</option>
+                    {PS_TO_NAME_OPTIONS.map(n => <option key={n}>{n}</option>)}
+                  </select>
+                  {profitErrors.toName && <p className="text-xs text-destructive mt-0.5">{profitErrors.toName}</p>}
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">
+                    <span className="text-destructive mr-1">*</span>To Name (Description)
+                  </label>
+                  <input name="toNameDesc" value={profitForm.toNameDesc} onChange={profitChange}
+                    className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+              {/* Percentage + Profit Amount */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">
+                    <span className="text-destructive mr-1">*</span>Percentage
+                  </label>
+                  <input name="percentage" value={profitForm.percentage} onChange={profitChange}
+                    className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
+                      profitErrors.percentage ? 'border-destructive' : 'border-input'
+                    }`} />
+                  {profitErrors.percentage && <p className="text-xs text-destructive mt-0.5">{profitErrors.percentage}</p>}
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">
+                    <span className="text-destructive mr-1">*</span>Profit Amount
+                  </label>
+                  <input name="profitAmount" value={profitForm.profitAmount} onChange={profitChange}
+                    className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
+                      profitErrors.profitAmount ? 'border-destructive' : 'border-input'
+                    }`} />
+                  {profitErrors.profitAmount && <p className="text-xs text-destructive mt-0.5">{profitErrors.profitAmount}</p>}
+                </div>
+              </div>
+              {/* Job Profit */}
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">
+                  <span className="text-destructive mr-1">*</span>Job Profit
+                </label>
+                <input name="jobProfit" value={profitForm.jobProfit} onChange={profitChange}
+                  className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
+                    profitErrors.jobProfit ? 'border-destructive' : 'border-input'
+                  }`} />
+                {profitErrors.jobProfit && <p className="text-xs text-destructive mt-0.5">{profitErrors.jobProfit}</p>}
+              </div>
+              {/* Note */}
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">Note</label>
+                <textarea name="note" value={profitForm.note} onChange={profitChange}
+                  rows={4} className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" className="px-5" onClick={() => { setProfitOpen(false); setProfitForm(initProfit); setProfitErrors({}); }}>Cancel</Button>
+              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveProfit}>Create</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Working Team Modal */}
+      {teamOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setTeamOpen(false); setTeamForm(initTeam); setTeamError(''); }} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 flex flex-col overflow-hidden">
+            <div className="bg-[#00BCD4] px-5 py-3 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold text-sm">Job Working Team</h3>
+              <button onClick={() => { setTeamOpen(false); setTeamForm(initTeam); setTeamError(''); }}
+                className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white font-bold text-xs">✕</button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              {/* Employee */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-foreground w-32 shrink-0">
+                  Employee <span className="text-destructive">*</span>
+                </label>
+                <div className="flex-1">
+                  <select name="employee" value={teamForm.employee}
+                    onChange={e => { teamChange(e); setTeamError(''); }}
+                    className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
+                      teamError ? 'border-destructive' : 'border-input'
+                    }`}>
+                    <option value="">--Select--</option>
+                    {EMPLOYEE_OPTIONS.map(e => <option key={e}>{e}</option>)}
+                  </select>
+                  {teamError && <p className="text-xs text-destructive mt-0.5">{teamError}</p>}
+                </div>
+              </div>
+              {/* Department + Followup Required */}
+              <div className="grid grid-cols-2 gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">Department(Sec)</label>
+                  <select name="department" value={teamForm.department} onChange={teamChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value=""></option>
+                    {DEPT_OPTIONS.map(d => <option key={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">Followup Required</label>
+                  <div className="flex rounded overflow-hidden border border-input ml-1">
+                    {['No', 'Yes'].map(opt => (
+                      <button key={opt} type="button"
+                        onClick={() => setTeamForm(prev => ({ ...prev, followupRequired: opt }))}
+                        className={`px-4 py-1.5 text-xs font-semibold transition-colors ${
+                          teamForm.followupRequired === opt
+                            ? 'bg-[#00BCD4] text-white'
+                            : 'bg-background text-foreground hover:bg-muted'
+                        }`}>{opt}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Note */}
+              <div className="flex items-start gap-3">
+                <label className="text-xs font-semibold text-foreground w-32 shrink-0 pt-1">Note</label>
+                <textarea name="note" value={teamForm.note} onChange={teamChange}
+                  rows={4} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" className="px-5" onClick={() => { setTeamOpen(false); setTeamForm(initTeam); setTeamError(''); }}>Cancel</Button>
+              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveTeam}>Create</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Routing Modal */}
       {routingOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
