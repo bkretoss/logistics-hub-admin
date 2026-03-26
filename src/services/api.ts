@@ -38,4 +38,11 @@ export const updateLeadStatusApi = (id: number, status: string)                 
 export const updateLeadRatingApi = (id: number, rating: number)                 => api.put(`/leads/rating/${id}`, { rating: String(rating) });
 export const deleteLeadApi = (id: number) => api.delete(`/leads/${id}`);
 
+export const createRateRequestApi      = (data: Record<string, unknown>) => api.post("/rate-requests", data);
+export const getOpportunitiesApi        = ()                               => api.get("/rate-requests");
+export const getOpportunityApi          = (id: string)                     => api.get(`/rate-requests/${id}`);
+export const updateRateRequestApi       = (id: string, data: Record<string, unknown>) => api.put(`/rate-requests/${id}`, data);
+export const deleteOpportunityApi       = (id: number)                     => api.delete(`/rate-requests/${id}`);
+export const updateOpportunityStatusApi = (id: number, status: string)     => api.put(`/rate-requests/status/${id}`, { status });
+
 export default api;

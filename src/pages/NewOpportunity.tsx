@@ -5,78 +5,208 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { createRateRequestApi } from "@/services/api";
+import { toast } from "@/hooks/use-toast";
 
 const NewOpportunity = () => {
   const navigate = useNavigate();
   const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [nextVisit, setNextVisit] = useState("No");
-  const [serviceLines, setServiceLines] = useState([{ id: 1, containerType: "", containerQuantity: 1 }]);
-  const [formData, setFormData] = useState({
-    name: "",
-    account: "",
-    type: "",
-    leadSource: "",
-    // Rate Request Record
-    opportunityOwner: "",
-    opportunityType: "",
-    type2: "",
-    nextStep: "",
-    probability: "",
-    pricingTeam: "",
-    shippingPriorities: "",
-    // Shipment Details
-    shipmentMode: "",
-    shipmentType: "",
-    cargoType: "",
-    operation: "",
-    expectedRevenue: "",
-    originCountry: "",
-    originPort: "",
-    destinationCountry: "",
-    destinationPort: "",
-    cargoDescription: "",
-    // Port Details
-    equipment: "",
-    equipmentType: "",
-    address: "",
-    // Vendor Rate Comparison
-    vendorAgent: "",
-    currency: "USD",
-    rateLocal: "",
-    // Customer Visit Information
-    visitBy: "",
-    venue: "",
-    typeOfVisit: "",
-    item: "",
-    scheduledBy: "",
+  const [loading, setLoading] = useState(false);
+  const [serviceLines, setServiceLines] = useState([{ id: 1, service: "", containerType: "", containerQuantity: 1 }]);
+  const [vendorRates, setVendorRates] = useState([{ id: 1, vendor_agent: "", currency: "USD", rate_total: "" }]);
+  const [customerVisits, setCustomerVisits] = useState<any[]>([]);
+  const [visitFormData, setVisitFormData] = useState({
+    visit_date: "",
+    visit_time: "00:00",
+    next_visit: "No",
+    next_followup_date: "",
+    assign_to: "",
+    mode_of_communication: "",
+    visited_by: "",
     purpose: "",
-    expectedBy: "",
-    salesPipeline: "",
+    visit_notes: "",
+  });
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split("T")[0],
+    location: "",
+    lead: "",
+    sales_team: "",
+    opportunitySource: "Online",
+    opportunityType: "New Client",
+    type: "Shipment",
+    sales_agent: "",
+    company: "Relay Logistics Private Limited",
+    pricing_team: "",
+    shipping_providers: "",
+    status: "Open",
+    // Shipment Details
+    transport_mode: "",
+    shipment_type: "",
+    cargo_type: "",
+    incoterms: "",
+    commodity: "",
+    service_mode: "",
+    estimated_shipment_date: "",
+    cargo_status: "Ready to Ship",
+    origin_country: "",
+    destination_country: "",
+    cargo_description: "",
+    // Party Details
+    customer: "",
+    contact_person: "",
+    designation: "",
+    customer_type: "Shipper",
+    prospect: "",
     department: "",
-    freightBy: "",
-    // Additional Services
-    services: "",
-    customerType: "",
-    addLine: "",
+    address_street1: "",
+    address_street2: "",
+    address_state: "",
+    address_city: "",
+    address_zip: "",
+    address_country: "",
+    email: "",
+    telephone_no: "",
+    mobile_no: "",
+
   });
 
   const addServiceLine = () => {
-    setServiceLines([...serviceLines, { id: Date.now(), containerType: "", containerQuantity: 1 }]);
+    setServiceLines([...serviceLines, { id: Date.now(), service: "", containerType: "", containerQuantity: 1 }]);
   };
 
   const removeServiceLine = (id: number) => {
     setServiceLines(serviceLines.filter(line => line.id !== id));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleAddVisit = () => {
+    if (!visitFormData.visit_date || !visitFormData.mode_of_communication || !visitFormData.visited_by || !visitFormData.purpose) {
+      toast({ title: "Error", description: "Please fill all required visit fields", variant: "destructive" });
+      return;
+    }
+    setCustomerVisits([...customerVisits, { ...visitFormData, id: Date.now() }]);
+    setVisitFormData({
+      visit_date: "",
+      visit_time: "00:00",
+      next_visit: "No",
+      next_followup_date: "",
+      assign_to: "",
+      mode_of_communication: "",
+      visited_by: "",
+      purpose: "",
+      visit_notes: "",
+    });
+    setShowVisitDialog(false);
+  };
+
+  const removeVisit = (id: number) => {
+    setCustomerVisits(customerVisits.filter(v => v.id !== id));
+  };
+
+  const buildPayload = () => ({
+    date: formData.date,
+    location: formData.location,
+    lead: formData.lead,
+    sales_team: formData.sales_team,
+    opportunity_source: formData.opportunitySource,
+    opportunity_type: formData.opportunityType,
+    type: formData.type,
+    sales_agent: formData.sales_agent,
+    company: formData.company,
+    pricing_team: formData.pricing_team,
+    shipping_providers: formData.shipping_providers,
+    status: formData.status,
+    shipment_details: {
+      transport_mode: formData.transport_mode,
+      shipment_type: formData.shipment_type,
+      cargo_type: formData.cargo_type,
+      incoterms: formData.incoterms,
+      commodity: formData.commodity,
+      service_mode: formData.service_mode,
+      estimated_shipment_date: formData.estimated_shipment_date,
+      cargo_status: formData.cargo_status,
+      origin_country: formData.origin_country,
+      destination_country: formData.destination_country,
+      cargo_description: formData.cargo_description,
+    },
+    party_details: {
+      customer: formData.customer,
+      contact_person: formData.contact_person,
+      designation: formData.designation,
+      customer_type: formData.customer_type,
+      prospect: formData.prospect,
+      department: formData.department,
+      address_street1: formData.address_street1,
+      address_street2: formData.address_street2,
+      address_state: formData.address_state,
+      address_city: formData.address_city,
+      address_zip: formData.address_zip,
+      address_country: formData.address_country,
+      email: formData.email,
+      telephone_no: formData.telephone_no,
+      mobile_no: formData.mobile_no,
+    },
+    vendor_rates: vendorRates.filter(v => v.vendor_agent).map(v => ({
+      vendor_agent: v.vendor_agent,
+      currency: v.currency,
+      rate_total: parseFloat(v.rate_total) || 0,
+    })),
+    additional_services: serviceLines.filter(s => s.service && s.containerType).map(s => ({
+      additional_service: s.service,
+      container_type: s.containerType,
+      container_quantity: parseInt(s.containerQuantity.toString()) || 1,
+    })),
+    customer_visits: customerVisits.map(v => ({
+      visit_date: v.visit_date,
+      visit_time: v.visit_time,
+      next_visit: v.next_visit,
+      next_followup_date: v.next_visit === "Yes" ? v.next_followup_date : "",
+      assign_to: v.assign_to,
+      mode_of_communication: v.mode_of_communication,
+      visited_by: v.visited_by,
+      purpose: v.purpose,
+      visit_notes: v.visit_notes,
+    })),
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.date) newErrors.date = "Date is required.";
+    if (!formData.estimated_shipment_date) newErrors.estimated_shipment_date = "Estimated Shipment Date is required.";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
-    navigate("/sales/opportunity");
-    window.scrollTo(0, 0);
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      const payload = buildPayload();
+      console.log("Submitting payload:", payload);
+      await createRateRequestApi(payload);
+      toast({ title: "Success", description: "Opportunity created successfully", variant: "success" });
+      setTimeout(() => {
+        navigate("/sales/opportunity");
+        window.scrollTo(0, 0);
+      }, 1500);
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || error.message || "Failed to create opportunity";
+      toast({ title: "Error", description: errorMsg, variant: "destructive" });
+      console.error("API Error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleVisitChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setVisitFormData({ ...visitFormData, [e.target.name]: e.target.value });
   };
 
   return (
@@ -91,70 +221,68 @@ const NewOpportunity = () => {
         </div>
       </div>
 
-      {/* Status Buttons */}
-      <div className="flex items-center gap-3">
-        <Button className="bg-primary text-black">Change Status</Button>
-        <Button className="bg-primary text-black">Create Quote</Button>
-        <Button className="bg-primary text-black">Rate Request</Button>
-        <div className="flex items-center gap-2 ml-auto">
-          <div className="px-4 py-2 bg-primary text-black font-medium rounded-lg">Open</div>
-          <div className="px-4 py-2 bg-muted text-black font-medium rounded-lg">Active</div>
-          <div className="px-4 py-2 bg-muted text-black font-medium rounded-lg">Created</div>
-          <div className="px-4 py-2 bg-muted text-black font-medium rounded-lg">Closed</div>
-          <div className="px-4 py-2 bg-muted text-black font-medium rounded-lg">On Hold</div>
-        </div>
-      </div>
-
       <form onSubmit={handleSubmit}>
         <div className="material-card material-elevation-1 p-6 space-y-8">
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2">
               <Label htmlFor="date" className="text-sm font-semibold">
-                Date
+                Date <span className="text-red-500">*</span>
               </Label>
-              <Input id="date" name="date" type="date" defaultValue="2026-03-09" />
+              <Input
+                id="date"
+                name="date"
+                type="date"
+                value={formData.date}
+                onChange={(e) => {
+                  handleChange(e);
+                  if (e.target.value) setErrors(prev => ({ ...prev, date: "" }));
+                }}
+                className={errors.date ? "border-red-500 focus-visible:ring-red-500" : ""}
+              />
+              {errors.date && <p className="text-red-500 text-xs">{errors.date}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="location" className="text-sm font-semibold">
                 Location
               </Label>
-              <select id="location" name="location" className="w-full px-3 py-2 border border-input rounded-lg">
+              <select id="location" name="location" value={formData.location} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option value="">Select</option>
                 <option>New York</option>
                 <option>Los Angeles</option>
                 <option>Chicago</option>
+                <option>Dubai</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="lead" className="text-sm font-semibold">
                 Lead
               </Label>
-              <select id="lead" name="lead" className="w-full px-3 py-2 border border-input rounded-lg">
+              <select id="lead" name="lead" value={formData.lead} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option value="">Select</option>
-                <option>Lead 1</option>
-                <option>Lead 2</option>
+                <option>LEAD-001</option>
+                <option>LEAD-002</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="salesTeam" className="text-sm font-semibold">
                 Sales Team
               </Label>
-              <select id="salesTeam" name="salesTeam" className="w-full px-3 py-2 border border-input rounded-lg">
+              <select id="salesTeam" name="sales_team" value={formData.sales_team} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option value="">Select</option>
-                <option>Team A</option>
-                <option>Team B</option>
+                <option>Team Alpha</option>
+                <option>Team Beta</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Rate Request Source</Label>
               <div className="flex gap-4 pt-2">
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="opportunitySource" value="Online" defaultChecked />
+                  <input type="radio" name="opportunitySource" value="Online" checked={formData.opportunitySource === "Online"} onChange={handleChange} />
                   <span className="text-sm">Online</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="opportunitySource" value="Offline" />
+                  <input type="radio" name="opportunitySource" value="Offline" checked={formData.opportunitySource === "Offline"} onChange={handleChange} />
                   <span className="text-sm">Offline</span>
                 </label>
               </div>
@@ -163,11 +291,11 @@ const NewOpportunity = () => {
               <Label className="text-sm font-semibold">Rate Request Type</Label>
               <div className="flex gap-4 pt-2">
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="opportunityType" value="New Client" defaultChecked />
+                  <input type="radio" name="opportunityType" value="New Client" checked={formData.opportunityType === "New Client"} onChange={handleChange} />
                   <span className="text-sm">New Client</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="opportunityType" value="Existing Client" />
+                  <input type="radio" name="opportunityType" value="Existing Client" checked={formData.opportunityType === "Existing Client"} onChange={handleChange} />
                   <span className="text-sm">Existing Client</span>
                 </label>
               </div>
@@ -176,11 +304,11 @@ const NewOpportunity = () => {
               <Label className="text-sm font-semibold">Type</Label>
               <div className="flex gap-4 pt-2">
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="type" value="Shipment" defaultChecked />
+                  <input type="radio" name="type" value="Shipment" checked={formData.type === "Shipment"} onChange={handleChange} />
                   <span className="text-sm">Shipment</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="type" value="Service Job" />
+                  <input type="radio" name="type" value="Service Job" checked={formData.type === "Service Job"} onChange={handleChange} />
                   <span className="text-sm">Service Job</span>
                 </label>
               </div>
@@ -189,17 +317,17 @@ const NewOpportunity = () => {
               <Label htmlFor="salesAgent" className="text-sm font-semibold">
                 Sales Agent
               </Label>
-              <select id="salesAgent" name="salesAgent" className="w-full px-3 py-2 border border-input rounded-lg">
+              <select id="salesAgent" name="sales_agent" value={formData.sales_agent} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option value="">Select</option>
-                <option>Agent 1</option>
-                <option>Agent 2</option>
+                <option>John Doe</option>
+                <option>Jane Smith</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company" className="text-sm font-semibold">
                 Company
               </Label>
-              <select id="company" name="company" className="w-full px-3 py-2 border border-input rounded-lg">
+              <select id="company" name="company" value={formData.company} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option>Relay Logistics Private Limited</option>
               </select>
             </div>
@@ -207,24 +335,33 @@ const NewOpportunity = () => {
               <Label htmlFor="pricingTeam" className="text-sm font-semibold">
                 Pricing Team
               </Label>
-              <select id="pricingTeam" name="pricingTeam" className="w-full px-3 py-2 border border-input rounded-lg">
+              <select id="pricingTeam" name="pricing_team" value={formData.pricing_team} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option value="">Select</option>
-                <option>Pricing Team 1</option>
-                <option>Pricing Team 2</option>
+                <option>Pricing Team A</option>
+                <option>Pricing Team B</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="shippingProviders" className="text-sm font-semibold">
                 Shipping Providers
               </Label>
-              <select
-                id="shippingProviders"
-                name="shippingProviders"
-                className="w-full px-3 py-2 border border-input rounded-lg"
-              >
+              <select id="shippingProviders" name="shipping_providers" value={formData.shipping_providers} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option value="">Select</option>
-                <option>Provider 1</option>
-                <option>Provider 2</option>
+                <option>Maersk</option>
+                <option>MSC</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status" className="text-sm font-semibold">
+                Status
+              </Label>
+              <select id="status" name="status" value={formData.status} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <option value="Open">Open</option>
+                <option value="Active">Active</option>
+                <option value="Created">Created</option>
+                <option value="Closed">Closed</option>
+                <option value="On Hold">On Hold</option>
+                <option value="Pending">Pending</option>
               </select>
             </div>
           </div>
@@ -239,8 +376,8 @@ const NewOpportunity = () => {
                 </Label>
                 <select
                   id="transportMode"
-                  name="transportMode"
-                  value={formData.shipmentMode}
+                  name="transport_mode"
+                  value={formData.transport_mode}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-input rounded-lg"
                 >
@@ -257,8 +394,8 @@ const NewOpportunity = () => {
                 </Label>
                 <select
                   id="shipmentType"
-                  name="shipmentType"
-                  value={formData.shipmentType}
+                  name="shipment_type"
+                  value={formData.shipment_type}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-input rounded-lg"
                 >
@@ -274,8 +411,8 @@ const NewOpportunity = () => {
                 </Label>
                 <select
                   id="cargoType"
-                  name="cargoType"
-                  value={formData.cargoType}
+                  name="cargo_type"
+                  value={formData.cargo_type}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-input rounded-lg"
                 >
@@ -289,7 +426,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="incoterms" className="text-sm font-semibold">
                   Incoterms
                 </Label>
-                <select id="incoterms" name="incoterms" className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="incoterms" name="incoterms" value={formData.incoterms} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   <option>FOB</option>
                   <option>CIF</option>
@@ -300,7 +437,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="commodity" className="text-sm font-semibold">
                   Commodity
                 </Label>
-                <select id="commodity" name="commodity" className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="commodity" name="commodity" value={formData.commodity} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   <option>Electronics</option>
                   <option>Textiles</option>
@@ -311,7 +448,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="serviceMode" className="text-sm font-semibold">
                   Service Mode
                 </Label>
-                <select id="serviceMode" name="serviceMode" className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="serviceMode" name="service_mode" value={formData.service_mode} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   <option>Door to Door</option>
                   <option>Port to Port</option>
@@ -320,19 +457,32 @@ const NewOpportunity = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="estimatedShipmentDate" className="text-sm font-semibold">
-                  Estimated Shipment Date
+                  Estimated Shipment Date <span className="text-red-500">*</span>
                 </Label>
-                <Input id="estimatedShipmentDate" name="estimatedShipmentDate" type="date" />
+                <Input
+                  id="estimatedShipmentDate"
+                  name="estimated_shipment_date"
+                  type="date"
+                  value={formData.estimated_shipment_date}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (e.target.value) setErrors(prev => ({ ...prev, estimated_shipment_date: "" }));
+                  }}
+                  className={errors.estimated_shipment_date ? "border-red-500 focus-visible:ring-red-500" : ""}
+                />
+                {errors.estimated_shipment_date && (
+                  <p className="text-red-500 text-xs">{errors.estimated_shipment_date}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Cargo Status</Label>
                 <div className="flex gap-4 pt-2">
                   <label className="flex items-center gap-2">
-                    <input type="radio" name="cargoStatus" value="Ready to Ship" defaultChecked />
+                    <input type="radio" name="cargo_status" value="Ready to Ship" checked={formData.cargo_status === "Ready to Ship"} onChange={handleChange} />
                     <span className="text-sm">Ready to Ship</span>
                   </label>
                   <label className="flex items-center gap-2">
-                    <input type="radio" name="cargoStatus" value="Ship Later" />
+                    <input type="radio" name="cargo_status" value="Ship Later" checked={formData.cargo_status === "Ship Later"} onChange={handleChange} />
                     <span className="text-sm">Ship Later</span>
                   </label>
                 </div>
@@ -343,8 +493,8 @@ const NewOpportunity = () => {
                 </Label>
                 <select
                   id="originCountry"
-                  name="originCountry"
-                  value={formData.originCountry}
+                  name="origin_country"
+                  value={formData.origin_country}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-input rounded-lg"
                 >
@@ -360,8 +510,8 @@ const NewOpportunity = () => {
                 </Label>
                 <select
                   id="destinationCountry"
-                  name="destinationCountry"
-                  value={formData.destinationCountry}
+                  name="destination_country"
+                  value={formData.destination_country}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-input rounded-lg"
                 >
@@ -369,6 +519,7 @@ const NewOpportunity = () => {
                   <option>United States</option>
                   <option>China</option>
                   <option>India</option>
+                  <option>UAE</option>
                 </select>
               </div>
               <div className="space-y-2 md:col-span-2">
@@ -377,8 +528,8 @@ const NewOpportunity = () => {
                 </Label>
                 <Textarea
                   id="cargoDescription"
-                  name="cargoDescription"
-                  value={formData.cargoDescription}
+                  name="cargo_description"
+                  value={formData.cargo_description}
                   onChange={handleChange}
                   rows={3}
                 />
@@ -394,81 +545,71 @@ const NewOpportunity = () => {
                 <Label htmlFor="customer" className="text-sm font-semibold">
                   Customer
                 </Label>
-                <select id="customer" name="customer" className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="customer" name="customer" value={formData.customer} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
-                  <option>Customer 1</option>
-                  <option>Customer 2</option>
+                  <option>XYZ Trading</option>
+                  <option>ABC Corp</option>
                 </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contactPerson" className="text-sm font-semibold">
                   Contact Person
                 </Label>
-                <Input id="contactPerson" name="contactPerson" />
+                <Input id="contactPerson" name="contact_person" value={formData.contact_person} onChange={handleChange} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="designation" className="text-sm font-semibold">
                   Designation
                 </Label>
-                <Input id="designation" name="designation" />
+                <Input id="designation" name="designation" value={formData.designation} onChange={handleChange} />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Customer Type</Label>
                 <div className="flex gap-4 pt-2">
                   <label className="flex items-center gap-2">
-                    <input type="radio" name="customerType" value="Shipper" defaultChecked />
-                    <span className="text-sm">Shipper</span>
+                    <input type="radio" name="customer_type" value="Corporate" checked={formData.customer_type === "Corporate"} onChange={handleChange} />
+                    <span className="text-sm">Corporate</span>
                   </label>
                   <label className="flex items-center gap-2">
-                    <input type="radio" name="customerType" value="Consignee" />
-                    <span className="text-sm">Consignee</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="customerType" value="Agent" />
-                    <span className="text-sm">Agent</span>
+                    <input type="radio" name="customer_type" value="Individual" checked={formData.customer_type === "Individual"} onChange={handleChange} />
+                    <span className="text-sm">Individual</span>
                   </label>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="customerSelect" className="text-sm font-semibold">
+                <Label htmlFor="prospect" className="text-sm font-semibold">
                   Prospect
                 </Label>
-                <select
-                  id="customerSelect"
-                  name="customerSelect"
-                  className="w-full px-3 py-2 border border-input rounded-lg"
-                >
+                <select id="prospect" name="prospect" value={formData.prospect} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
-                  <option>Customer A</option>
-                  <option>Customer B</option>
+                  <option>Hot</option>
+                  <option>Warm</option>
+                  <option>Cold</option>
                 </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="department" className="text-sm font-semibold">
                   Department
                 </Label>
-                <Input id="department" name="department" />
+                <Input id="department" name="department" value={formData.department} onChange={handleChange} />
               </div>
               <div className="space-y-2 md:col-span-3">
                 <Label htmlFor="addressStreet1" className="text-sm font-semibold">
                   Address
                 </Label>
                 <div className="grid grid-cols-2 gap-2 mb-2">
-                  <Input id="addressStreet1" name="addressStreet1" placeholder="Street 1..." />
-                  <Input id="addressStreet2" name="addressStreet2" placeholder="Street 2..." />
+                  <Input id="addressStreet1" name="address_street1" placeholder="Street 1..." value={formData.address_street1} onChange={handleChange} />
+                  <Input id="addressStreet2" name="address_street2" placeholder="Street 2..." value={formData.address_street2} onChange={handleChange} />
                 </div>
                 <div className="grid grid-cols-4 gap-2">
-                  <select className="px-3 py-2 border border-input rounded-lg">
-                    <option>State</option>
-                  </select>
-                  <select className="px-3 py-2 border border-input rounded-lg">
-                    <option>City</option>
-                  </select>
-                  <Input placeholder="ZIP" />
-                  <select className="px-3 py-2 border border-input rounded-lg">
-                    <option>Country</option>
+                  <Input placeholder="State" name="address_state" value={formData.address_state} onChange={handleChange} />
+                  <Input placeholder="City" name="address_city" value={formData.address_city} onChange={handleChange} />
+                  <Input placeholder="ZIP" name="address_zip" value={formData.address_zip} onChange={handleChange} />
+                  <select name="address_country" value={formData.address_country} onChange={handleChange} className="px-3 py-2 border border-input rounded-lg">
+                    <option value="">Country</option>
                     <option>United States</option>
                     <option>India</option>
+                    <option>UAE</option>
                   </select>
                 </div>
               </div>
@@ -476,19 +617,19 @@ const NewOpportunity = () => {
                 <Label htmlFor="email" className="text-sm font-semibold">
                   Email
                 </Label>
-                <Input id="email" name="email" type="email" />
+                <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="telephoneNo" className="text-sm font-semibold">
                   Telephone No
                 </Label>
-                <Input id="telephoneNo" name="telephoneNo" />
+                <Input id="telephoneNo" name="telephone_no" value={formData.telephone_no} onChange={handleChange} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="mobileNo" className="text-sm font-semibold">
                   Mobile No
                 </Label>
-                <Input id="mobileNo" name="mobileNo" />
+                <Input id="mobileNo" name="mobile_no" value={formData.mobile_no} onChange={handleChange} />
               </div>
             </div>
           </div>
@@ -496,34 +637,53 @@ const NewOpportunity = () => {
           {/* Vendor Rate Comparison */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Vendor Rate Comparison</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="vendorAgent" className="text-sm font-semibold">
-                  Agent
-                </Label>
-                <Input id="vendorAgent" name="vendorAgent" value={formData.vendorAgent} onChange={handleChange} />
+            <div className="border border-border rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-3 gap-4 font-semibold text-sm">
+                <div>Agent</div>
+                <div>Currency</div>
+                <div>Rate Total</div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="currency" className="text-sm font-semibold">
-                  Currency
-                </Label>
-                <select
-                  id="currency"
-                  name="currency"
-                  value={formData.currency}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-lg"
-                >
-                  <option>USD</option>
-                  <option>INR</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="rateLocal" className="text-sm font-semibold">
-                  Rate Total
-                </Label>
-                <Input id="rateLocal" name="rateLocal" value={formData.rateLocal} onChange={handleChange} />
-              </div>
+              {vendorRates.map((vr) => (
+                <div key={vr.id} className="grid grid-cols-3 gap-4 items-center">
+                  <Input
+                    placeholder="Vendor Agent"
+                    value={vr.vendor_agent}
+                    onChange={(e) => setVendorRates(vendorRates.map(r => r.id === vr.id ? { ...r, vendor_agent: e.target.value } : r))}
+                  />
+                  <select
+                    value={vr.currency}
+                    onChange={(e) => setVendorRates(vendorRates.map(r => r.id === vr.id ? { ...r, currency: e.target.value } : r))}
+                    className="w-full px-3 py-2 border border-input rounded-lg"
+                  >
+                    <option>USD</option>
+                    <option>INR</option>
+                    <option>EUR</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={vr.rate_total}
+                      onChange={(e) => setVendorRates(vendorRates.map(r => r.id === vr.id ? { ...r, rate_total: e.target.value } : r))}
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setVendorRates(vendorRates.filter(r => r.id !== vr.id))}
+                      className="p-2 text-destructive hover:bg-destructive/10 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setVendorRates([...vendorRates, { id: Date.now(), vendor_agent: "", currency: "USD", rate_total: "" }])}
+                className="text-primary text-sm font-medium hover:underline"
+              >
+                Add a line
+              </button>
             </div>
           </div>
 
@@ -539,14 +699,35 @@ const NewOpportunity = () => {
                       <th className="text-left p-3 text-xs font-semibold text-muted-foreground">MODE OF COMMUNICATION</th>
                       <th className="text-left p-3 text-xs font-semibold text-muted-foreground">VISITED BY</th>
                       <th className="text-left p-3 text-xs font-semibold text-muted-foreground">PURPOSE</th>
-                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">NEXT VISIT</th>
                       <th className="text-left p-3 text-xs font-semibold text-muted-foreground">NOTES</th>
+                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">ACTION</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td colSpan={6} className="p-4 text-center text-muted-foreground text-sm">No visits added yet</td>
-                    </tr>
+                    {customerVisits.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-4 text-center text-muted-foreground text-sm">No visits added yet</td>
+                      </tr>
+                    ) : (
+                      customerVisits.map((visit) => (
+                        <tr key={visit.id} className="border-t border-border">
+                          <td className="p-3 text-sm">{visit.visit_date} {visit.visit_time}</td>
+                          <td className="p-3 text-sm">{visit.mode_of_communication}</td>
+                          <td className="p-3 text-sm">{visit.visited_by}</td>
+                          <td className="p-3 text-sm">{visit.purpose}</td>
+                          <td className="p-3 text-sm">{visit.visit_notes}</td>
+                          <td className="p-3 text-sm">
+                            <button
+                              type="button"
+                              onClick={() => removeVisit(visit.id)}
+                              className="text-destructive hover:bg-destructive/10 p-1 rounded"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -560,53 +741,58 @@ const NewOpportunity = () => {
           {/* Additional Services */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Additional Services</h2>
-            <div className="space-y-4">
-              <div className="space-y-2 md:w-1/3">
-                <select className="w-full px-3 py-2 border border-input rounded-lg">
-                  <option value="">Select Service</option>
-                  <option>Packaging</option>
-                  <option>Insurance</option>
-                  <option>Customs Clearance</option>
-                </select>
+            <div className="border border-border rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-3 gap-4 font-semibold text-sm">
+                <div>Service</div>
+                <div>Container Type</div>
+                <div>Container Quantity</div>
               </div>
-              <div className="border border-border rounded-lg p-4">
-                <div className="mb-3">
-                  <span className="text-sm font-semibold text-muted-foreground">Packages</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-4 font-semibold text-sm mb-2">
-                    <div>Container Type</div>
-                    <div>Container Quantity</div>
+              {serviceLines.map((line) => (
+                <div key={line.id} className="grid grid-cols-3 gap-4 items-center">
+                  <select
+                    value={line.service}
+                    onChange={(e) => setServiceLines(serviceLines.map(s => s.id === line.id ? { ...s, service: e.target.value } : s))}
+                    className="w-full px-3 py-2 border border-input rounded-lg"
+                  >
+                    <option value="">Select Service</option>
+                    <option value="Insurance">Insurance</option>
+                    <option value="Custom Clearance">Custom Clearance</option>
+                    <option value="Packaging">Packaging</option>
+                  </select>
+                  <select
+                    value={line.containerType}
+                    onChange={(e) => setServiceLines(serviceLines.map(s => s.id === line.id ? { ...s, containerType: e.target.value } : s))}
+                    className="w-full px-3 py-2 border border-input rounded-lg"
+                  >
+                    <option value="">Select</option>
+                    <option value="20GP">20ft Container (20GP)</option>
+                    <option value="40HC">40ft HC Container (40HC)</option>
+                    <option value="40FT">40ft Container (40FT)</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={line.containerQuantity}
+                      onChange={(e) => setServiceLines(serviceLines.map(s => s.id === line.id ? { ...s, containerQuantity: parseInt(e.target.value) || 1 } : s))}
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeServiceLine(line.id)}
+                      className="p-2 text-destructive hover:bg-destructive/10 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  {serviceLines.map((line) => (
-                    <div key={line.id} className="grid grid-cols-2 gap-4 items-center">
-                      <select className="w-full px-3 py-2 border border-input rounded-lg">
-                        <option value="">Select</option>
-                        <option>20ft Container</option>
-                        <option>40ft Container</option>
-                        <option>40ft HC Container</option>
-                      </select>
-                      <div className="flex items-center gap-2">
-                        <Input type="number" defaultValue={line.containerQuantity} className="flex-1" />
-                        <button
-                          type="button"
-                          onClick={() => removeServiceLine(line.id)}
-                          className="p-2 text-destructive hover:bg-destructive/10 rounded"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={addServiceLine}
-                  className="text-primary text-sm font-medium mt-3 hover:underline"
-                >
-                  Add a line
-                </button>
-              </div>
+              ))}
+              <button
+                type="button"
+                onClick={addServiceLine}
+                className="text-primary text-sm font-medium hover:underline"
+              >
+                Add a line
+              </button>
             </div>
           </div>
 
@@ -614,8 +800,8 @@ const NewOpportunity = () => {
             <Button type="button" className="bg-red-400 text-black hover:bg-red-350" onClick={() => navigate("/sales/opportunity")}>
               Cancel
             </Button>
-            <Button type="submit" className="material-button text-black">
-              Save Rate Request
+            <Button type="submit" disabled={loading} className="material-button text-black">
+              {loading ? "Saving..." : "Save Rate Request"}
             </Button>
           </div>
         </div>
@@ -636,17 +822,13 @@ const NewOpportunity = () => {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Date & Time</Label>
                   <div className="flex gap-2">
-                    <Input type="date" className="flex-1" />
-                    <Input type="time" defaultValue="0:00" className="w-32" />
+                    <Input type="date" name="visit_date" value={visitFormData.visit_date} onChange={handleVisitChange} className="flex-1" />
+                    <Input type="time" name="visit_time" value={visitFormData.visit_time} onChange={handleVisitChange} className="w-32" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Next Visit</Label>
-                  <select 
-                    className="w-full px-3 py-2 border border-input rounded-lg"
-                    value={nextVisit}
-                    onChange={(e) => setNextVisit(e.target.value)}
-                  >
+                  <select name="next_visit" value={nextVisit} onChange={(e) => { setNextVisit(e.target.value); setVisitFormData({ ...visitFormData, next_visit: e.target.value }); }} className="w-full px-3 py-2 border border-input rounded-lg">
                     <option>No</option>
                     <option>Yes</option>
                   </select>
@@ -655,21 +837,21 @@ const NewOpportunity = () => {
                   <>
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold">Next Followup Date</Label>
-                      <Input type="date" />
+                      <Input type="date" name="next_followup_date" value={visitFormData.next_followup_date} onChange={handleVisitChange} />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold">Assign To</Label>
-                      <select className="w-full px-3 py-2 border border-input rounded-lg">
+                      <select name="assign_to" value={visitFormData.assign_to} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg">
                         <option value="">Select</option>
-                        <option>Sales Rep 1</option>
-                        <option>Sales Rep 2</option>
+                        <option>John Doe</option>
+                        <option>Jane Smith</option>
                       </select>
                     </div>
                   </>
                 )}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Mode of Communication</Label>
-                  <select className="w-full px-3 py-2 border border-input rounded-lg">
+                  <select name="mode_of_communication" value={visitFormData.mode_of_communication} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg">
                     <option value="">Select</option>
                     <option>Phone</option>
                     <option>Email</option>
@@ -678,25 +860,25 @@ const NewOpportunity = () => {
                 </div>
                 <div className="space-y-2 md:row-span-2">
                   <Label className="text-sm font-semibold">Notes</Label>
-                  <Textarea rows={5} />
+                  <Textarea name="visit_notes" value={visitFormData.visit_notes} onChange={handleVisitChange} rows={5} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Visited By</Label>
-                  <select className="w-full px-3 py-2 border border-input rounded-lg">
+                  <select name="visited_by" value={visitFormData.visited_by} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg">
                     <option value="">Select</option>
-                    <option>Sales Rep 1</option>
-                    <option>Sales Rep 2</option>
+                    <option>John Doe</option>
+                    <option>Jane Smith</option>
                   </select>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Purpose</Label>
-                  <Input />
+                  <Input name="purpose" value={visitFormData.purpose} onChange={handleVisitChange} />
                 </div>
               </div>
             </div>
             <div className="flex items-center justify-start gap-3 p-6 border-t border-border">
-              <Button type="button" className="bg-primary text-black" onClick={() => setShowVisitDialog(false)}>Save & Close</Button>
-              <Button type="button" className="bg-primary text-black" onClick={() => setShowVisitDialog(false)}>Save & New</Button>
+              <Button type="button" className="bg-primary text-black" onClick={handleAddVisit}>Save & Close</Button>
+              <Button type="button" className="bg-primary text-black" onClick={() => { handleAddVisit(); setVisitFormData({ visit_date: "", visit_time: "00:00", next_visit: "No", next_followup_date: "", assign_to: "", mode_of_communication: "", visited_by: "", purpose: "", visit_notes: "" }); setNextVisit("No"); setShowVisitDialog(true); }}>Save & New</Button>
               <Button type="button" variant="outline" onClick={() => setShowVisitDialog(false)}>Discard</Button>
             </div>
           </div>

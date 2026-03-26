@@ -32,6 +32,9 @@ import UserMasterList from "@/pages/UserMasterList";
 import NewUser from "@/pages/NewUser";
 import CustomerMasterList from "@/pages/CustomerMasterList";
 import NewCustomer from "@/pages/NewCustomer";
+import RateRequests from "@/pages/RateRequests";
+import NewRateRequest from "@/pages/NewRateRequest";
+import ViewRateRequest from "@/pages/ViewRateRequest";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,7 +70,10 @@ const App = () => (
             <Route path="/sales/leads/edit/:id" element={<ProtectedRoute><AppLayout><EditLead /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/opportunity" element={<ProtectedRoute><AppLayout><Opportunity /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/opportunity/new" element={<ProtectedRoute><AppLayout><NewOpportunity /></AppLayout></ProtectedRoute>} />
-            <Route path="/sales/rate-requests" element={<ProtectedPage title="Rate Requests" description="Handle rate request submissions" />} />
+            <Route path="/sales/rate-requests" element={<ProtectedRoute><AppLayout><RateRequests /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/rate-requests/new" element={<ProtectedRoute><AppLayout><NewRateRequest /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/rate-requests/edit/:id" element={<ProtectedRoute><AppLayout><NewRateRequest /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/rate-requests/view/:id" element={<ProtectedRoute><AppLayout><ViewRateRequest /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/quotes" element={<ProtectedRoute><AppLayout><Quotes /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/quotes/new" element={<ProtectedRoute><AppLayout><NewQuote /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/reports" element={<ProtectedPage title="Reports" description="Sales reports and analytics" />} />
