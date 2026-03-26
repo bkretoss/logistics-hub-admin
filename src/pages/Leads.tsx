@@ -14,7 +14,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { getLeadsApi, deleteLeadApi, updateLeadApi } from "@/services/api";
+import { getLeadsApi, deleteLeadApi, updateLeadApi, updateLeadStatusApi, updateLeadRatingApi } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Lead {
@@ -55,13 +55,31 @@ const getStatus = (s: string) => STATUS_MAP[s] ?? STATUS_MAP["Open"];
 export const STATUS_OPTIONS = ["Unverified", "Qualified", "Disqualified", "Open", "Active", "Closed", "Future Prospect"];
 
 // ─── Star rating ───────────────────────────────────────────────────────────────
-const StarRating = ({ rating }: { rating: number }) => (
-  <div className="flex items-center gap-0.5 mt-0.5">
-    {[...Array(5)].map((_, i) => (
-      <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200 fill-gray-200"}`} />
-    ))}
-  </div>
-);
+const StarRating = ({ rating, onRate, updating }: { rating: number; onRate?: (r: number) => void; updating?: boolean }) => {
+  const [hovered, setHovered] = React.useState(0);
+  return (
+    <div className="flex items-center gap-0.5 mt-0.5">
+      {[...Array(5)].map((_, i) => {
+        const val = i + 1;
+        return (
+          <button
+            key={i}
+            type="button"
+            disabled={!onRate || updating}
+            onClick={() => onRate?.(val)}
+            onMouseEnter={() => onRate && setHovered(val)}
+            onMouseLeave={() => onRate && setHovered(0)}
+            className={onRate ? "cursor-pointer disabled:cursor-default" : "cursor-default"}
+          >
+            <Star className={`w-3 h-3 transition-colors ${
+              (hovered || rating) >= val ? "fill-yellow-400 text-yellow-400" : "text-gray-200 fill-gray-200"
+            } ${updating ? "opacity-50" : ""}`} />
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 // ─── Main component ────────────────────────────────────────────────────────────
 const Leads = () => {
@@ -139,13 +157,30 @@ const Leads = () => {
     }
   }, []);
 
+  // ── Rating change ─────────────────────────────────────────────────────────────
+  const [updatingRating, setUpdatingRating] = useState<number | null>(null);
+
+  const handleRatingChange = async (id: number, rating: number) => {
+    setUpdatingRating(id);
+    try {
+      await updateLeadRatingApi(id, rating);
+      setLeads(prev => prev.map(l => l.id === id ? { ...l, rating } : l));
+      toast({ title: 'Success', description: 'Lead rating updated successfully', variant: 'success' });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? 'Failed to update rating. Please try again.';
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+    } finally {
+      setUpdatingRating(null);
+    }
+  };
+
   // ── Status change ────────────────────────────────────────────────────────────
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
 
   const handleStatusChange = async (id: number, status: string) => {
     setUpdatingStatus(id);
     try {
-      await updateLeadApi(String(id), { status });
+      await updateLeadStatusApi(id, status);
       setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
       toast({ title: 'Success', description: 'Lead status updated successfully', variant: 'success' });
     } catch (err: any) {
@@ -314,7 +349,7 @@ const Leads = () => {
                     <div>
                       <h3 className="font-semibold text-foreground text-base">{lead.customer}</h3>
                       <p className="text-sm text-amber-500 font-medium mt-0.5">{lead.target}</p>
-                      <StarRating rating={lead.rating} />
+                      <StarRating rating={lead.rating} onRate={r => handleRatingChange(lead.id, r)} updating={updatingRating === lead.id} />
                     </div>
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${st.color} ${st.bg}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
@@ -379,7 +414,7 @@ const Leads = () => {
                           {/* TARGET */}
                           <td className="px-4 py-4">
                             <p className="text-sm text-foreground font-medium leading-tight">{lead.target}</p>
-                            <StarRating rating={lead.rating} />
+                            <StarRating rating={lead.rating} onRate={r => handleRatingChange(lead.id, r)} updating={updatingRating === lead.id} />
                           </td>
 
                           {/* LEAD SOURCE */}

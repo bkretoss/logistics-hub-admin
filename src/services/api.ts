@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8001/api",
-  // baseURL: "https://logistic.kretoss.in/api",
+  // baseURL: "http://localhost:8001/api",
+  baseURL: "https://logistic.kretoss.in/api",
   headers: { "Content-Type": "application/json" },
 });
 
@@ -33,7 +33,9 @@ export const loginApi = (email: string, password: string) => api.post("/admin/lo
 export const createLeadApi = (data: Record<string, unknown>) => api.post("/leads", data);
 export const getLeadsApi   = ()                               => api.get("/leads");
 export const getLeadApi    = (id: string)                     => api.get(`/leads/${id}`);
-export const updateLeadApi = (id: string, data: Record<string, unknown>) => api.put(`/leads/${id}`, data);
+export const updateLeadApi       = (id: string, data: Record<string, unknown>) => api.put(`/leads/${id}`, data);
+export const updateLeadStatusApi = (id: number, status: string)                 => api.put(`/leads/status/${id}`, { status });
+export const updateLeadRatingApi = (id: number, rating: number)                 => api.put(`/leads/rating/${id}`, { rating: String(rating) });
 export const deleteLeadApi = (id: number) => api.delete(`/leads/${id}`);
 
 export default api;
