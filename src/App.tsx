@@ -14,6 +14,7 @@ import Prospect from "@/pages/Prospect";
 import NewProspect from "@/pages/NewProspect";
 import Leads from "@/pages/Leads";
 import NewLead from "@/pages/NewLead";
+import EditLead from "@/pages/EditLead";
 import Opportunity from "@/pages/Opportunity";
 import NewOpportunity from "@/pages/NewOpportunity";
 import Quotes from "@/pages/Quotes";
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/sales/prospect/new" element={<ProtectedRoute><AppLayout><NewProspect /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/leads" element={<ProtectedRoute><AppLayout><Leads /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/leads/new" element={<ProtectedRoute><AppLayout><NewLead /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/leads/edit/:id" element={<ProtectedRoute><AppLayout><EditLead /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/opportunity" element={<ProtectedRoute><AppLayout><Opportunity /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/opportunity/new" element={<ProtectedRoute><AppLayout><NewOpportunity /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/rate-requests" element={<ProtectedPage title="Rate Requests" description="Handle rate request submissions" />} />
