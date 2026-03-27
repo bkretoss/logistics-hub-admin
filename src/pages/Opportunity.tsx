@@ -14,7 +14,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { getOpportunitiesApi, deleteOpportunityApi, updateOpportunityStatusApi } from "@/services/api";
+import { getOpportunitiesApi, deleteOpportunityApi, updateOpportunityStatusApi, getOpportunityApi } from "@/services/api";
 
 interface Opportunity {
   id: number;
@@ -99,6 +99,23 @@ const Opportunity = () => {
   const [oppToDelete,       setOppToDelete]       = useState<Opportunity | null>(null);
   const [deleting,          setDeleting]          = useState(false);
   const [updatingStatus,    setUpdatingStatus]    = useState<number | null>(null);
+  const [viewData,          setViewData]          = useState<any>(null);
+  const [viewLoading,       setViewLoading]       = useState(false);
+
+  const openViewModal = async (id: number) => {
+    setViewDialogOpen(true);
+    setViewLoading(true);
+    setViewData(null);
+    try {
+      const res = await getOpportunityApi(String(id));
+      setViewData(res.data?.data ?? res.data);
+    } catch {
+      toast({ title: "Error", description: "Failed to load opportunity details", variant: "destructive" });
+      setViewDialogOpen(false);
+    } finally {
+      setViewLoading(false);
+    }
+  };
 
   const fetchOpportunities = useCallback(async () => {
     try {
@@ -399,7 +416,9 @@ const Opportunity = () => {
                           <td className="px-4 py-4 text-sm text-muted-foreground whitespace-nowrap">{opp.displayDate || "-"}</td>
 
                           {/* LEAD REFERENCE */}
-                          <td className="px-4 py-4 text-sm text-foreground">{opp.lead_ref || "-"}</td>
+                          <td className="px-4 py-4 text-sm text-foreground">
+                            {opp.lead_ref || "-"}
+                          </td>
 
                           {/* LOCATION */}
                           <td className="px-4 py-4 text-sm text-muted-foreground">{opp.location || "-"}</td>
@@ -447,7 +466,7 @@ const Opportunity = () => {
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-1.5">
                               <button
-                                onClick={() => { setSelectedOpp(opp); setViewDialogOpen(true); }}
+                                onClick={() => openViewModal(opp.id)}
                                 className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors" title="View"
                               >
                                 <Eye className="w-4 h-4 text-blue-500" />
@@ -506,84 +525,147 @@ const Opportunity = () => {
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Rate Request Details — {selectedOpp?.name}</DialogTitle>
+            <DialogTitle>Rate Request Details</DialogTitle>
           </DialogHeader>
-          {selectedOpp && (
-            <div className="space-y-6 text-sm">
-              {[
-                { title: "Summary", fields: [
-                  ["Name",        selectedOpp.name],
-                  ["Account",     selectedOpp.account],
-                  ["Close Date",  selectedOpp.closeDate],
-                  ["Amount",      selectedOpp.amount],
-                  ["Probability", selectedOpp.probability],
-                  ["Owner",       selectedOpp.owner],
-                ]},
-                { title: "Basic Information", fields: [
-                  ["Date",               selectedOpp.date],
-                  ["Source",             selectedOpp.opportunitySource],
-                  ["Location",           selectedOpp.location],
-                  ["Type",               selectedOpp.opportunityType],
-                  ["Lead",               selectedOpp.lead],
-                  ["Sales Team",         selectedOpp.salesTeam],
-                  ["Sales Agent",        selectedOpp.salesAgent],
-                  ["Company",            selectedOpp.company],
-                  ["Pricing Team",       selectedOpp.pricingTeam],
-                  ["Shipping Providers", selectedOpp.shippingProviders],
-                ]},
-                { title: "Shipment Details", fields: [
-                  ["Transport Mode",          selectedOpp.transportMode],
-                  ["Shipment Type",           selectedOpp.shipmentType],
-                  ["Cargo Type",              selectedOpp.cargoType],
-                  ["Incoterms",               selectedOpp.incoterms],
-                  ["Commodity",               selectedOpp.commodity],
-                  ["Service Mode",            selectedOpp.serviceMode],
-                  ["Est. Shipment Date",      selectedOpp.estimatedShipmentDate],
-                  ["Cargo Status",            selectedOpp.cargoStatus],
-                  ["Origin Country",          selectedOpp.originCountry],
-                  ["Destination Country",     selectedOpp.destinationCountry],
-                  ["Cargo Description",       selectedOpp.cargoDescription],
-                ]},
-                { title: "Party Details", fields: [
-                  ["Customer",      selectedOpp.customer],
-                  ["Contact Person",selectedOpp.contactPerson],
-                  ["Customer Type", selectedOpp.customerType],
-                  ["Designation",   selectedOpp.designation],
-                  ["Prospect",      selectedOpp.prospect],
-                  ["Department",    selectedOpp.department],
-                  ["Address",       selectedOpp.address],
-                  ["Email",         selectedOpp.email],
-                  ["Telephone",     selectedOpp.telephoneNo],
-                  ["Mobile",        selectedOpp.mobileNo],
-                ]},
-                { title: "Vendor Rate", fields: [
-                  ["Agent",      selectedOpp.vendorAgent],
-                  ["Currency",   selectedOpp.currency],
-                  ["Rate Total", selectedOpp.rateTotal ? `$${selectedOpp.rateTotal}` : undefined],
-                ]},
-              ].map(section => (
-                <div key={section.title}>
-                  <h3 className="text-sm font-bold text-primary mb-3">{section.title}</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {section.fields.filter(([, v]) => v).map(([label, value]) => (
-                      <div key={label as string}>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
-                        <p className="font-medium mt-0.5">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Status</p>
-                {(() => { const st = getStatus(selectedOpp.status); return (
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${st.color} ${st.bg}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />{selectedOpp.status}
-                  </span>
-                ); })()}
-              </div>
+          {viewLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground text-sm">Loading...</span>
             </div>
           )}
+          {!viewLoading && viewData && (() => {
+            const sd = viewData.shipment_details ?? {};
+            const pd = viewData.party_details ?? {};
+            const Field = ({ label, value }: { label: string; value?: string | number | null }) => (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+                <p className="text-sm font-medium mt-0.5">{value || "-"}</p>
+              </div>
+            );
+            const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+              <div>
+                <h3 className="text-sm font-bold text-primary mb-3 pb-1 border-b border-border">{title}</h3>
+                {children}
+              </div>
+            );
+            return (
+              <div className="space-y-6 text-sm">
+                {/* Basic Details */}
+                <Section title="Basic Details">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <Field label="Date" value={viewData.date} />
+                    <Field label="Location" value={viewData.location} />
+                    <Field label="Lead Reference" value={viewData.lead_ref} />
+                    <Field label="Sales Team" value={viewData.sales_team} />
+                    <Field label="Rate Request Source" value={viewData.opportunity_source} />
+                    <Field label="Rate Request Type" value={viewData.opportunity_type} />
+                    <Field label="Type" value={viewData.type} />
+                    <Field label="Sales Agent" value={viewData.sales_agent} />
+                    <Field label="Company" value={viewData.company} />
+                    <Field label="Pricing Team" value={viewData.pricing_team} />
+                    <Field label="Shipping Providers" value={viewData.shipping_providers} />
+                    <Field label="Status" value={viewData.status} />
+                  </div>
+                </Section>
+                {/* Shipment Details */}
+                <Section title="Shipment Details">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <Field label="Transport Mode" value={sd.transport_mode} />
+                    <Field label="Shipment Type" value={sd.shipment_type} />
+                    <Field label="Cargo Type" value={sd.cargo_type} />
+                    <Field label="Incoterms" value={sd.incoterms} />
+                    <Field label="Commodity" value={sd.commodity} />
+                    <Field label="Service Mode" value={sd.service_mode} />
+                    <Field label="Est. Shipment Date" value={sd.estimated_shipment_date} />
+                    <Field label="Cargo Status" value={sd.cargo_status} />
+                    <Field label="Origin Country" value={sd.origin_country} />
+                    <Field label="Destination Country" value={sd.destination_country} />
+                    <div className="col-span-2 md:col-span-3"><Field label="Cargo Description" value={sd.cargo_description} /></div>
+                  </div>
+                </Section>
+                {/* Party Details */}
+                <Section title="Party Details">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <Field label="Customer" value={pd.customer} />
+                    <Field label="Contact Person" value={pd.contact_person} />
+                    <Field label="Designation" value={pd.designation} />
+                    <Field label="Customer Type" value={pd.customer_type} />
+                    <Field label="Prospect" value={pd.prospect} />
+                    <Field label="Department" value={pd.department} />
+                    <Field label="Street 1" value={pd.address_street1} />
+                    <Field label="Street 2" value={pd.address_street2} />
+                    <Field label="State" value={pd.address_state} />
+                    <Field label="City" value={pd.address_city} />
+                    <Field label="ZIP" value={pd.address_zip} />
+                    <Field label="Country" value={pd.address_country} />
+                    <Field label="Email" value={pd.email} />
+                    <Field label="Telephone No" value={pd.telephone_no} />
+                    <Field label="Mobile No" value={pd.mobile_no} />
+                  </div>
+                </Section>
+                {/* Vendor Rates */}
+                <Section title="Vendor Rate Comparison">
+                  <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        {["AGENT", "CURRENCY", "RATE TOTAL"].map(h => <th key={h} className="text-left p-2 font-semibold text-muted-foreground">{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewData.vendor_rates?.length > 0 ? viewData.vendor_rates.map((r: any) => (
+                        <tr key={r.id} className="border-t border-border">
+                          <td className="p-2">{r.vendor_agent}</td>
+                          <td className="p-2">{r.currency}</td>
+                          <td className="p-2">{r.rate_total}</td>
+                        </tr>
+                      )) : <tr><td colSpan={3} className="p-3 text-center text-muted-foreground">No vendor rates</td></tr>}
+                    </tbody>
+                  </table>
+                </Section>
+                {/* Additional Services */}
+                <Section title="Additional Services">
+                  <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        {["SERVICE", "CONTAINER TYPE", "QUANTITY"].map(h => <th key={h} className="text-left p-2 font-semibold text-muted-foreground">{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewData.additional_services?.length > 0 ? viewData.additional_services.map((s: any) => (
+                        <tr key={s.id} className="border-t border-border">
+                          <td className="p-2">{s.additional_service}</td>
+                          <td className="p-2">{s.container_type}</td>
+                          <td className="p-2">{s.container_quantity}</td>
+                        </tr>
+                      )) : <tr><td colSpan={3} className="p-3 text-center text-muted-foreground">No additional services</td></tr>}
+                    </tbody>
+                  </table>
+                </Section>
+                {/* Customer Visits */}
+                <Section title="Customer Visit Information">
+                  <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        {["DATE & TIME", "MODE", "VISITED BY", "PURPOSE", "NEXT VISIT", "NOTES"].map(h => <th key={h} className="text-left p-2 font-semibold text-muted-foreground">{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewData.customer_visits?.length > 0 ? viewData.customer_visits.map((v: any) => (
+                        <tr key={v.id} className="border-t border-border">
+                          <td className="p-2 whitespace-nowrap">{v.visit_date} {v.visit_time}</td>
+                          <td className="p-2">{v.mode_of_communication}</td>
+                          <td className="p-2">{v.visited_by}</td>
+                          <td className="p-2">{v.purpose}</td>
+                          <td className="p-2">{v.next_visit || "-"}</td>
+                          <td className="p-2">{v.visit_notes}</td>
+                        </tr>
+                      )) : <tr><td colSpan={6} className="p-3 text-center text-muted-foreground">No visits</td></tr>}
+                    </tbody>
+                  </table>
+                </Section>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

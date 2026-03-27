@@ -1,17 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createRateRequestApi } from "@/services/api";
+import { createRateRequestApi, getLeadsApi } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 
 const NewOpportunity = () => {
   const navigate = useNavigate();
+  const [leads, setLeads] = useState<{ id: number }[]>([]);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
-  const [nextVisit, setNextVisit] = useState("No");
+
+  useEffect(() => {
+    getLeadsApi().then((res) => {
+      const raw = res.data;
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.data?.data) ? raw.data.data : [];
+      setLeads(list);
+    }).catch(() => {});
+  }, []);
+  const [hasNextVisit, setHasNextVisit] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serviceLines, setServiceLines] = useState([{ id: 1, service: "", containerType: "", containerQuantity: 1 }]);
   const [vendorRates, setVendorRates] = useState([{ id: 1, vendor_agent: "", currency: "USD", rate_total: "" }]);
@@ -19,7 +28,7 @@ const NewOpportunity = () => {
   const [visitFormData, setVisitFormData] = useState({
     visit_date: "",
     visit_time: "00:00",
-    next_visit: "No",
+    next_visit: "",
     next_followup_date: "",
     assign_to: "",
     mode_of_communication: "",
@@ -79,24 +88,34 @@ const NewOpportunity = () => {
     setServiceLines(serviceLines.filter(line => line.id !== id));
   };
 
+  const resetVisitForm = () => {
+    setVisitFormData({ visit_date: "", visit_time: "00:00", next_visit: "", next_followup_date: "", assign_to: "", mode_of_communication: "", visited_by: "", purpose: "", visit_notes: "" });
+    setHasNextVisit(false);
+  };
+
   const handleAddVisit = () => {
     if (!visitFormData.visit_date || !visitFormData.mode_of_communication || !visitFormData.visited_by || !visitFormData.purpose) {
       toast({ title: "Error", description: "Please fill all required visit fields", variant: "destructive" });
       return;
     }
-    setCustomerVisits([...customerVisits, { ...visitFormData, id: Date.now() }]);
-    setVisitFormData({
-      visit_date: "",
-      visit_time: "00:00",
-      next_visit: "No",
-      next_followup_date: "",
-      assign_to: "",
-      mode_of_communication: "",
-      visited_by: "",
-      purpose: "",
-      visit_notes: "",
-    });
+    const visitTime = visitFormData.visit_time.length === 5 ? visitFormData.visit_time + ":00" : visitFormData.visit_time;
+    const nextVisitDate = hasNextVisit ? visitFormData.next_visit : "";
+    const nextFollowupDate = hasNextVisit ? visitFormData.next_followup_date : "";
+    setCustomerVisits([...customerVisits, { ...visitFormData, visit_time: visitTime, next_visit: nextVisitDate, next_followup_date: nextFollowupDate, id: Date.now() }]);
+    resetVisitForm();
     setShowVisitDialog(false);
+  };
+
+  const handleAddVisitAndMore = () => {
+    if (!visitFormData.visit_date || !visitFormData.mode_of_communication || !visitFormData.visited_by || !visitFormData.purpose) {
+      toast({ title: "Error", description: "Please fill all required visit fields", variant: "destructive" });
+      return;
+    }
+    const visitTime = visitFormData.visit_time.length === 5 ? visitFormData.visit_time + ":00" : visitFormData.visit_time;
+    const nextVisitDate = hasNextVisit ? visitFormData.next_visit : "";
+    const nextFollowupDate = hasNextVisit ? visitFormData.next_followup_date : "";
+    setCustomerVisits(prev => [...prev, { ...visitFormData, visit_time: visitTime, next_visit: nextVisitDate, next_followup_date: nextFollowupDate, id: Date.now() }]);
+    resetVisitForm();
   };
 
   const removeVisit = (id: number) => {
@@ -156,17 +175,7 @@ const NewOpportunity = () => {
       container_type: s.containerType,
       container_quantity: parseInt(s.containerQuantity.toString()) || 1,
     })),
-    customer_visits: customerVisits.map(v => ({
-      visit_date: v.visit_date,
-      visit_time: v.visit_time,
-      next_visit: v.next_visit,
-      next_followup_date: v.next_visit === "Yes" ? v.next_followup_date : "",
-      assign_to: v.assign_to,
-      mode_of_communication: v.mode_of_communication,
-      visited_by: v.visited_by,
-      purpose: v.purpose,
-      visit_notes: v.visit_notes,
-    })),
+    customer_visits: customerVisits.map(({ id: _id, ...v }) => v),
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -260,8 +269,10 @@ const NewOpportunity = () => {
               </Label>
               <select id="lead" name="lead" value={formData.lead} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option value="">Select</option>
-                <option>LEAD-001</option>
-                <option>LEAD-002</option>
+                {leads.map((lead) => {
+                  const formatted = `LEAD-${String(lead.id).padStart(3, "0")}`;
+                  return <option key={lead.id} value={formatted}>{formatted}</option>;
+                })}
               </select>
             </div>
             <div className="space-y-2">
@@ -695,7 +706,8 @@ const NewOpportunity = () => {
                 <table className="w-full">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">DATE & TIME</th>
+                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">DATE</th>
+                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">TIME</th>
                       <th className="text-left p-3 text-xs font-semibold text-muted-foreground">MODE OF COMMUNICATION</th>
                       <th className="text-left p-3 text-xs font-semibold text-muted-foreground">VISITED BY</th>
                       <th className="text-left p-3 text-xs font-semibold text-muted-foreground">PURPOSE</th>
@@ -705,13 +717,12 @@ const NewOpportunity = () => {
                   </thead>
                   <tbody>
                     {customerVisits.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="p-4 text-center text-muted-foreground text-sm">No visits added yet</td>
-                      </tr>
+                      <tr><td colSpan={7} className="p-4 text-center text-muted-foreground text-sm">No visits added yet</td></tr>
                     ) : (
                       customerVisits.map((visit) => (
                         <tr key={visit.id} className="border-t border-border">
-                          <td className="p-3 text-sm">{visit.visit_date} {visit.visit_time}</td>
+                          <td className="p-3 text-sm">{visit.visit_date}</td>
+                          <td className="p-3 text-sm">{visit.visit_time}</td>
                           <td className="p-3 text-sm">{visit.mode_of_communication}</td>
                           <td className="p-3 text-sm">{visit.visited_by}</td>
                           <td className="p-3 text-sm">{visit.purpose}</td>
@@ -807,64 +818,38 @@ const NewOpportunity = () => {
         </div>
       </form>
 
-      {/* Visit Dialog */}
+      {/* Visit Dialog - outside form to prevent accidental submission */}
       {showVisitDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card rounded-xl material-elevation-4 w-full max-w-3xl mx-4">
+          <div className="bg-card rounded-xl material-elevation-4 w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border">
               <h2 className="text-xl font-bold text-primary">Create Customer Visit Information</h2>
               <button onClick={() => setShowVisitDialog(false)} className="p-2 hover:bg-muted rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Date & Time</Label>
-                  <div className="flex gap-2">
-                    <Input type="date" name="visit_date" value={visitFormData.visit_date} onChange={handleVisitChange} className="flex-1" />
-                    <Input type="time" name="visit_time" value={visitFormData.visit_time} onChange={handleVisitChange} className="w-32" />
-                  </div>
+                  <Label className="text-sm font-semibold">Visit Date</Label>
+                  <Input type="date" name="visit_date" value={visitFormData.visit_date} onChange={handleVisitChange} className="w-full" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Next Visit</Label>
-                  <select name="next_visit" value={nextVisit} onChange={(e) => { setNextVisit(e.target.value); setVisitFormData({ ...visitFormData, next_visit: e.target.value }); }} className="w-full px-3 py-2 border border-input rounded-lg">
-                    <option>No</option>
-                    <option>Yes</option>
-                  </select>
+                  <Label className="text-sm font-semibold">Visit Time</Label>
+                  <Input type="time" name="visit_time" value={visitFormData.visit_time} onChange={handleVisitChange} className="w-full" />
                 </div>
-                {nextVisit === "Yes" && (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">Next Followup Date</Label>
-                      <Input type="date" name="next_followup_date" value={visitFormData.next_followup_date} onChange={handleVisitChange} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">Assign To</Label>
-                      <select name="assign_to" value={visitFormData.assign_to} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg">
-                        <option value="">Select</option>
-                        <option>John Doe</option>
-                        <option>Jane Smith</option>
-                      </select>
-                    </div>
-                  </>
-                )}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Mode of Communication</Label>
-                  <select name="mode_of_communication" value={visitFormData.mode_of_communication} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <select name="mode_of_communication" value={visitFormData.mode_of_communication} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg h-10">
                     <option value="">Select</option>
                     <option>Phone</option>
                     <option>Email</option>
                     <option>In-Person</option>
                   </select>
                 </div>
-                <div className="space-y-2 md:row-span-2">
-                  <Label className="text-sm font-semibold">Notes</Label>
-                  <Textarea name="visit_notes" value={visitFormData.visit_notes} onChange={handleVisitChange} rows={5} />
-                </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Visited By</Label>
-                  <select name="visited_by" value={visitFormData.visited_by} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <select name="visited_by" value={visitFormData.visited_by} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg h-10">
                     <option value="">Select</option>
                     <option>John Doe</option>
                     <option>Jane Smith</option>
@@ -872,14 +857,47 @@ const NewOpportunity = () => {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Purpose</Label>
-                  <Input name="purpose" value={visitFormData.purpose} onChange={handleVisitChange} />
+                  <Input name="purpose" value={visitFormData.purpose} onChange={handleVisitChange} className="w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Next Visit</Label>
+                  <select value={hasNextVisit ? "Yes" : "No"} onChange={(e) => setHasNextVisit(e.target.value === "Yes")} className="w-full px-3 py-2 border border-input rounded-lg h-10">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+                {hasNextVisit && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Next Visit Date</Label>
+                      <Input type="date" name="next_visit" value={visitFormData.next_visit} onChange={handleVisitChange} className="w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Next Followup Date</Label>
+                      <Input type="date" name="next_followup_date" value={visitFormData.next_followup_date} onChange={handleVisitChange} className="w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Assign To</Label>
+                      <select name="assign_to" value={visitFormData.assign_to} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg h-10">
+                        <option value="">Select</option>
+                        <option>John Doe</option>
+                        <option>Jane Smith</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-sm font-semibold">Notes</Label>
+                  <Textarea name="visit_notes" value={visitFormData.visit_notes} onChange={handleVisitChange} rows={3} className="w-full" />
                 </div>
               </div>
             </div>
             <div className="flex items-center justify-start gap-3 p-6 border-t border-border">
-              <Button type="button" className="bg-primary text-black" onClick={handleAddVisit}>Save & Close</Button>
-              <Button type="button" className="bg-primary text-black" onClick={() => { handleAddVisit(); setVisitFormData({ visit_date: "", visit_time: "00:00", next_visit: "No", next_followup_date: "", assign_to: "", mode_of_communication: "", visited_by: "", purpose: "", visit_notes: "" }); setNextVisit("No"); setShowVisitDialog(true); }}>Save & New</Button>
-              <Button type="button" variant="outline" onClick={() => setShowVisitDialog(false)}>Discard</Button>
+              <Button type="button" className="bg-primary text-black" onClick={handleAddVisit}>Save</Button>
+              <Button type="button" variant="outline" className="gap-2" onClick={handleAddVisitAndMore}>
+                <Plus className="w-4 h-4" /> Add More
+              </Button>
+              <Button type="button" variant="outline" onClick={() => { resetVisitForm(); setShowVisitDialog(false); }}>Discard</Button>
             </div>
           </div>
         </div>

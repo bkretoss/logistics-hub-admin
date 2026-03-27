@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { createRateRequestApi, updateRateRequestApi, getOpportunityApi } from "@/services/api";
+import { createRateRequestApi, updateRateRequestApi, getOpportunityApi, getLeadsApi } from "@/services/api";
 
 interface VendorRate {
   id: number;
@@ -130,6 +130,17 @@ const initialForm: RateRequestForm = {
   customer_visits: [],
 };
 
+// Convert any date string to YYYY-MM-DD for <input type="date">
+const toInputDate = (val: string): string => {
+  if (!val) return "";
+  // already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.slice(0, 10);
+  // DD-MM-YYYY or DD/MM/YYYY
+  const m = val.match(/(\d{2})[\-\/](\d{2})[\-\/](\d{4})/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return val;
+};
+
 const emptyVendorRate = (): VendorRate => ({ id: Date.now(), vendor_agent: "", currency: "USD", rate_total: 0 });
 const emptyAdditionalService = (): AdditionalService => ({ id: Date.now(), additional_service: "", container_type: "", container_quantity: 1 });
 const emptyCustomerVisit = (): CustomerVisit => ({
@@ -149,24 +160,29 @@ const NewRateRequest = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [form, setForm] = useState<RateRequestForm>(initialForm);
+  const [leads, setLeads] = useState<{ id: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
+
+  useEffect(() => {
+    getLeadsApi().then((res) => {
+      const raw = res.data;
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.data?.data) ? raw.data.data : [];
+      setLeads(list);
+    }).catch(() => {});
+  }, []);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Vendor Rate Modal State
   const [vendorRateModal, setVendorRateModal] = useState(false);
-  const [vendorRateDraft, setVendorRateDraft] = useState<VendorRate>(emptyVendorRate());
-  const [vendorRateMode, setVendorRateMode] = useState<"add" | "edit">("add");
 
   // Additional Service Modal State
   const [serviceModal, setServiceModal] = useState(false);
-  const [serviceDraft, setServiceDraft] = useState<AdditionalService>(emptyAdditionalService());
-  const [serviceMode, setServiceMode] = useState<"add" | "edit">("add");
 
   // Customer Visit Modal State
   const [visitModal, setVisitModal] = useState(false);
   const [visitDraft, setVisitDraft] = useState<CustomerVisit>(emptyCustomerVisit());
-  const [visitMode, setVisitMode] = useState<"add" | "edit">("add");
+  const [visitNextVisit, setVisitNextVisit] = useState("No");
 
   useEffect(() => {
     if (id) {
@@ -178,11 +194,64 @@ const NewRateRequest = () => {
     try {
       setFetching(true);
       const res = await getOpportunityApi(id!);
-      const data = res.data;
-      setForm(data);
+      const raw = res.data;
+      const data = raw?.data ?? raw;
+      setForm({
+        date: toInputDate(data.date ?? ""),
+        location: data.location ?? "",
+        lead: (() => { const v = data.lead_ref ?? data.lead ?? ""; if (!v) return ""; return /^LEAD-/.test(String(v)) ? String(v) : `LEAD-${String(v).padStart(3, "0")}`; })(),
+        sales_team: data.sales_team ?? "",
+        opportunity_source: data.opportunity_source ?? "",
+        opportunity_type: data.opportunity_type ?? "",
+        type: data.type ?? "",
+        sales_agent: data.sales_agent ?? "",
+        company: data.company ?? "",
+        pricing_team: data.pricing_team ?? "",
+        shipping_providers: data.shipping_providers ?? "",
+        status: data.status ?? "Pending",
+        shipment_details: {
+          transport_mode: data.shipment_details?.transport_mode ?? "",
+          shipment_type: data.shipment_details?.shipment_type ?? "",
+          cargo_type: data.shipment_details?.cargo_type ?? "",
+          incoterms: data.shipment_details?.incoterms ?? "",
+          commodity: data.shipment_details?.commodity ?? "",
+          service_mode: data.shipment_details?.service_mode ?? "",
+          estimated_shipment_date: toInputDate(data.shipment_details?.estimated_shipment_date ?? ""),
+          cargo_status: data.shipment_details?.cargo_status ?? "",
+          origin_country: data.shipment_details?.origin_country ?? "",
+          destination_country: data.shipment_details?.destination_country ?? "",
+          cargo_description: data.shipment_details?.cargo_description ?? "",
+        },
+        party_details: {
+          customer: data.party_details?.customer ?? "",
+          contact_person: data.party_details?.contact_person ?? "",
+          designation: data.party_details?.designation ?? "",
+          customer_type: data.party_details?.customer_type ?? "",
+          prospect: data.party_details?.prospect ?? "",
+          department: data.party_details?.department ?? "",
+          address_street1: data.party_details?.address_street1 ?? "",
+          address_street2: data.party_details?.address_street2 ?? "",
+          address_state: data.party_details?.address_state ?? "",
+          address_city: data.party_details?.address_city ?? "",
+          address_zip: data.party_details?.address_zip ?? "",
+          address_country: data.party_details?.address_country ?? "",
+          email: data.party_details?.email ?? "",
+          telephone_no: data.party_details?.telephone_no ?? "",
+          mobile_no: data.party_details?.mobile_no ?? "",
+        },
+        vendor_rates: Array.isArray(data.vendor_rates)
+          ? data.vendor_rates.map((r: any, i: number) => ({ id: r.id ?? i, vendor_agent: r.vendor_agent ?? "", currency: r.currency ?? "USD", rate_total: r.rate_total ?? 0 }))
+          : [],
+        additional_services: Array.isArray(data.additional_services)
+          ? data.additional_services.map((s: any, i: number) => ({ id: s.id ?? i, additional_service: s.additional_service ?? "", container_type: s.container_type ?? "", container_quantity: s.container_quantity ?? 1 }))
+          : [],
+        customer_visits: Array.isArray(data.customer_visits)
+          ? data.customer_visits.map((v: any, i: number) => ({ id: v.id ?? i, visit_date: v.visit_date ?? "", visit_time: v.visit_time ?? "", next_visit: v.next_visit ?? "", next_followup_date: v.next_followup_date ?? "", assign_to: v.assign_to ?? "", mode_of_communication: v.mode_of_communication ?? "", visited_by: v.visited_by ?? "", purpose: v.purpose ?? "", visit_notes: v.visit_notes ?? "" }))
+          : [],
+      });
     } catch (err: any) {
       toast({ title: "Error", description: "Failed to load rate request", variant: "destructive" });
-      navigate("/sales/rate-requests");
+      navigate("/sales/opportunity");
     } finally {
       setFetching(false);
     }
@@ -192,7 +261,7 @@ const NewRateRequest = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={() => navigate("/sales/rate-requests")}>
+          <Button variant="outline" size="icon" onClick={() => navigate("/sales/opportunity")}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <h2 className="text-2xl font-bold text-foreground">Loading...</h2>
@@ -214,67 +283,11 @@ const NewRateRequest = () => {
   };
 
   // Vendor Rate handlers
-  const openVendorRateModal = () => {
-    setVendorRateDraft(emptyVendorRate());
-    setVendorRateMode("add");
-    setVendorRateModal(true);
-  };
-
-  const openEditVendorRateModal = (rate: VendorRate) => {
-    setVendorRateDraft({ ...rate });
-    setVendorRateMode("edit");
-    setVendorRateModal(true);
-  };
-
-  const saveVendorRate = () => {
-    if (!vendorRateDraft.vendor_agent.trim()) {
-      toast({ title: "Error", description: "Vendor agent is required", variant: "destructive" });
-      return;
-    }
-    if (vendorRateMode === "add") {
-      setForm((prev) => ({ ...prev, vendor_rates: [...prev.vendor_rates, { ...vendorRateDraft, id: Date.now() }] }));
-    } else {
-      setForm((prev) => ({
-        ...prev,
-        vendor_rates: prev.vendor_rates.map((r) => (r.id === vendorRateDraft.id ? vendorRateDraft : r)),
-      }));
-    }
-    setVendorRateModal(false);
-  };
-
   const removeVendorRate = (rateId: number) => {
     setForm((prev) => ({ ...prev, vendor_rates: prev.vendor_rates.filter((r) => r.id !== rateId) }));
   };
 
   // Additional Service handlers
-  const openServiceModal = () => {
-    setServiceDraft(emptyAdditionalService());
-    setServiceMode("add");
-    setServiceModal(true);
-  };
-
-  const openEditServiceModal = (service: AdditionalService) => {
-    setServiceDraft({ ...service });
-    setServiceMode("edit");
-    setServiceModal(true);
-  };
-
-  const saveService = () => {
-    if (!serviceDraft.additional_service.trim()) {
-      toast({ title: "Error", description: "Service name is required", variant: "destructive" });
-      return;
-    }
-    if (serviceMode === "add") {
-      setForm((prev) => ({ ...prev, additional_services: [...prev.additional_services, { ...serviceDraft, id: Date.now() }] }));
-    } else {
-      setForm((prev) => ({
-        ...prev,
-        additional_services: prev.additional_services.map((s) => (s.id === serviceDraft.id ? serviceDraft : s)),
-      }));
-    }
-    setServiceModal(false);
-  };
-
   const removeService = (serviceId: number) => {
     setForm((prev) => ({ ...prev, additional_services: prev.additional_services.filter((s) => s.id !== serviceId) }));
   };
@@ -282,29 +295,16 @@ const NewRateRequest = () => {
   // Customer Visit handlers
   const openVisitModal = () => {
     setVisitDraft(emptyCustomerVisit());
-    setVisitMode("add");
+    setVisitNextVisit("No");
     setVisitModal(true);
   };
 
-  const openEditVisitModal = (visit: CustomerVisit) => {
-    setVisitDraft({ ...visit });
-    setVisitMode("edit");
-    setVisitModal(true);
-  };
-
-  const saveVisit = () => {
-    if (!visitDraft.visit_date.trim()) {
-      toast({ title: "Error", description: "Visit date is required", variant: "destructive" });
+  const handleAddVisit = () => {
+    if (!visitDraft.visit_date || !visitDraft.mode_of_communication || !visitDraft.visited_by || !visitDraft.purpose) {
+      toast({ title: "Error", description: "Please fill all required visit fields", variant: "destructive" });
       return;
     }
-    if (visitMode === "add") {
-      setForm((prev) => ({ ...prev, customer_visits: [...prev.customer_visits, { ...visitDraft, id: Date.now() }] }));
-    } else {
-      setForm((prev) => ({
-        ...prev,
-        customer_visits: prev.customer_visits.map((v) => (v.id === visitDraft.id ? visitDraft : v)),
-      }));
-    }
+    setForm((prev) => ({ ...prev, customer_visits: [...prev.customer_visits, { ...visitDraft, id: Date.now() }] }));
     setVisitModal(false);
   };
 
@@ -317,14 +317,16 @@ const NewRateRequest = () => {
     setLoading(true);
 
     try {
+      const { lead, ...rest } = form;
+      const payload = { ...rest, lead_ref: lead };
       if (id) {
-        await updateRateRequestApi(id, form);
+        await updateRateRequestApi(id, payload);
         toast({ title: "Success", description: "Rate Request updated successfully", variant: "success" });
       } else {
-        await createRateRequestApi(form);
+        await createRateRequestApi(payload);
         toast({ title: "Success", description: "Rate Request created successfully", variant: "success" });
       }
-      navigate("/sales/rate-requests");
+      navigate("/sales/opportunity");
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? "Failed to save rate request";
       toast({ title: "Error", description: msg, variant: "destructive" });
@@ -336,7 +338,7 @@ const NewRateRequest = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => navigate("/sales/rate-requests")}>
+        <Button variant="outline" size="icon" onClick={() => navigate("/sales/opportunity")}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <h2 className="text-2xl font-bold text-foreground">{id ? "Edit Rate Request" : "New Rate Request"}</h2>
@@ -358,7 +360,13 @@ const NewRateRequest = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Lead <span className="text-red-500">*</span></Label>
-                <Input placeholder="Lead number" value={form.lead} onChange={(e) => handleBasicChange("lead", e.target.value)} />
+                <select value={form.lead} onChange={(e) => handleBasicChange("lead", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {leads.map((lead) => {
+                    const formatted = `LEAD-${String(lead.id).padStart(3, "0")}`;
+                    return <option key={lead.id} value={formatted}>{formatted}</option>;
+                  })}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Sales Team</Label>
@@ -539,138 +547,167 @@ const NewRateRequest = () => {
 
           {/* Vendor Rates */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-primary">Vendor Rates</h3>
-              <Button type="button" size="sm" className="material-button text-black" onClick={openVendorRateModal}>
-                + Add Rate
-              </Button>
-            </div>
-            <div className="border border-border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left p-3 font-semibold">Vendor Agent</th>
-                    <th className="text-left p-3 font-semibold">Currency</th>
-                    <th className="text-right p-3 font-semibold">Rate Total</th>
-                    <th className="text-center p-3 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.vendor_rates.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="text-center p-4 text-muted-foreground">No vendor rates added yet</td>
-                    </tr>
-                  ) : (
-                    form.vendor_rates.map((rate) => (
-                      <tr key={rate.id} className="border-t border-border">
-                        <td className="p-3">{rate.vendor_agent}</td>
-                        <td className="p-3">{rate.currency}</td>
-                        <td className="p-3 text-right">{rate.rate_total}</td>
-                        <td className="p-3 text-center">
-                          <div className="flex gap-2 justify-center">
-                            <button type="button" onClick={() => openEditVendorRateModal(rate)} className="text-green-500 hover:text-green-700">Edit</button>
-                            <button type="button" onClick={() => removeVendorRate(rate.id)} className="text-red-500 hover:text-red-700">Delete</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Additional Services */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-primary">Additional Services</h3>
-              <Button type="button" size="sm" className="material-button text-black" onClick={openServiceModal}>
-                + Add Service
-              </Button>
-            </div>
-            <div className="border border-border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left p-3 font-semibold">Service</th>
-                    <th className="text-left p-3 font-semibold">Container Type</th>
-                    <th className="text-right p-3 font-semibold">Quantity</th>
-                    <th className="text-center p-3 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.additional_services.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="text-center p-4 text-muted-foreground">No services added yet</td>
-                    </tr>
-                  ) : (
-                    form.additional_services.map((service) => (
-                      <tr key={service.id} className="border-t border-border">
-                        <td className="p-3">{service.additional_service}</td>
-                        <td className="p-3">{service.container_type}</td>
-                        <td className="p-3 text-right">{service.container_quantity}</td>
-                        <td className="p-3 text-center">
-                          <div className="flex gap-2 justify-center">
-                            <button type="button" onClick={() => openEditServiceModal(service)} className="text-green-500 hover:text-green-700">Edit</button>
-                            <button type="button" onClick={() => removeService(service.id)} className="text-red-500 hover:text-red-700">Delete</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <h3 className="text-lg font-bold text-primary mb-4">Vendor Rate Comparison</h3>
+            <div className="border border-border rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-3 gap-4 font-semibold text-sm">
+                <div>Agent</div>
+                <div>Currency</div>
+                <div>Rate Total</div>
+              </div>
+              {form.vendor_rates.map((vr) => (
+                <div key={vr.id} className="grid grid-cols-3 gap-4 items-center">
+                  <Input
+                    placeholder="Vendor Agent"
+                    value={vr.vendor_agent}
+                    onChange={(e) => setForm((prev) => ({ ...prev, vendor_rates: prev.vendor_rates.map((r) => r.id === vr.id ? { ...r, vendor_agent: e.target.value } : r) }))}
+                  />
+                  <select
+                    value={vr.currency}
+                    onChange={(e) => setForm((prev) => ({ ...prev, vendor_rates: prev.vendor_rates.map((r) => r.id === vr.id ? { ...r, currency: e.target.value } : r) }))}
+                    className="w-full px-3 py-2 border border-input rounded-lg"
+                  >
+                    <option>USD</option>
+                    <option>INR</option>
+                    <option>EUR</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={vr.rate_total}
+                      onChange={(e) => setForm((prev) => ({ ...prev, vendor_rates: prev.vendor_rates.map((r) => r.id === vr.id ? { ...r, rate_total: parseFloat(e.target.value) || 0 } : r) }))}
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeVendorRate(vr.id)}
+                      className="p-2 text-destructive hover:bg-destructive/10 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, vendor_rates: [...prev.vendor_rates, { id: Date.now(), vendor_agent: "", currency: "USD", rate_total: 0 }] }))}
+                className="text-primary text-sm font-medium hover:underline"
+              >
+                Add a line
+              </button>
             </div>
           </div>
 
           {/* Customer Visits */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-primary">Customer Visits</h3>
-              <Button type="button" size="sm" className="material-button text-black" onClick={openVisitModal}>
-                + Add Visit
-              </Button>
-            </div>
-            <div className="border border-border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left p-3 font-semibold">Visit Date</th>
-                    <th className="text-left p-3 font-semibold">Time</th>
-                    <th className="text-left p-3 font-semibold">Purpose</th>
-                    <th className="text-left p-3 font-semibold">Assign To</th>
-                    <th className="text-center p-3 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.customer_visits.length === 0 ? (
+            <h3 className="text-lg font-bold text-primary mb-4">Customer Visit Information</h3>
+            <div className="space-y-4">
+              <div className="border border-border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-muted">
                     <tr>
-                      <td colSpan={5} className="text-center p-4 text-muted-foreground">No visits added yet</td>
+                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">DATE & TIME</th>
+                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">MODE OF COMMUNICATION</th>
+                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">VISITED BY</th>
+                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">PURPOSE</th>
+                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">NOTES</th>
+                      <th className="text-left p-3 text-xs font-semibold text-muted-foreground">ACTION</th>
                     </tr>
-                  ) : (
-                    form.customer_visits.map((visit) => (
-                      <tr key={visit.id} className="border-t border-border">
-                        <td className="p-3">{visit.visit_date}</td>
-                        <td className="p-3">{visit.visit_time}</td>
-                        <td className="p-3">{visit.purpose}</td>
-                        <td className="p-3">{visit.assign_to}</td>
-                        <td className="p-3 text-center">
-                          <div className="flex gap-2 justify-center">
-                            <button type="button" onClick={() => openEditVisitModal(visit)} className="text-green-500 hover:text-green-700">Edit</button>
-                            <button type="button" onClick={() => removeVisit(visit.id)} className="text-red-500 hover:text-red-700">Delete</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {form.customer_visits.length === 0 ? (
+                      <tr><td colSpan={6} className="p-4 text-center text-muted-foreground text-sm">No visits added yet</td></tr>
+                    ) : (
+                      form.customer_visits.map((visit) => (
+                        <tr key={visit.id} className="border-t border-border">
+                          <td className="p-3 text-sm">{visit.visit_date} {visit.visit_time}</td>
+                          <td className="p-3 text-sm">{visit.mode_of_communication}</td>
+                          <td className="p-3 text-sm">{visit.visited_by}</td>
+                          <td className="p-3 text-sm">{visit.purpose}</td>
+                          <td className="p-3 text-sm">{visit.visit_notes}</td>
+                          <td className="p-3 text-sm">
+                            <button type="button" onClick={() => removeVisit(visit.id)} className="text-destructive hover:bg-destructive/10 p-1 rounded">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <Button type="button" variant="outline" className="gap-2" onClick={openVisitModal}>
+                + Add Line
+              </Button>
             </div>
           </div>
 
+          {/* Additional Services */}
+          <div>
+            <h3 className="text-lg font-bold text-primary mb-4">Additional Services</h3>
+            <div className="border border-border rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-3 gap-4 font-semibold text-sm">
+                <div>Service</div>
+                <div>Container Type</div>
+                <div>Container Quantity</div>
+              </div>
+              {form.additional_services.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No services added yet</p>
+              ) : (
+                form.additional_services.map((service) => (
+                  <div key={service.id} className="grid grid-cols-3 gap-4 items-center">
+                    <select
+                      value={service.additional_service}
+                      onChange={(e) => setForm((prev) => ({ ...prev, additional_services: prev.additional_services.map((s) => s.id === service.id ? { ...s, additional_service: e.target.value } : s) }))}
+                      className="w-full px-3 py-2 border border-input rounded-lg"
+                    >
+                      <option value="">Select Service</option>
+                      <option value="Insurance">Insurance</option>
+                      <option value="Custom Clearance">Custom Clearance</option>
+                      <option value="Packaging">Packaging</option>
+                    </select>
+                    <select
+                      value={service.container_type}
+                      onChange={(e) => setForm((prev) => ({ ...prev, additional_services: prev.additional_services.map((s) => s.id === service.id ? { ...s, container_type: e.target.value } : s) }))}
+                      className="w-full px-3 py-2 border border-input rounded-lg"
+                    >
+                      <option value="">Select</option>
+                      <option value="20GP">20ft Container (20GP)</option>
+                      <option value="40HC">40ft HC Container (40HC)</option>
+                      <option value="40FT">40ft Container (40FT)</option>
+                    </select>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={service.container_quantity}
+                        onChange={(e) => setForm((prev) => ({ ...prev, additional_services: prev.additional_services.map((s) => s.id === service.id ? { ...s, container_quantity: parseInt(e.target.value) || 1 } : s) }))}
+                        className="flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeService(service.id)}
+                        className="p-2 text-destructive hover:bg-destructive/10 rounded"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, additional_services: [...prev.additional_services, { id: Date.now(), additional_service: "", container_type: "", container_quantity: 1 }] }))}
+                className="text-primary text-sm font-medium hover:underline"
+              >
+                Add a line
+              </button>
+            </div>
+          </div>
+
+
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-3 pt-4">
-            <Button type="button" className="bg-red-400 text-black hover:bg-red-350" onClick={() => navigate("/sales/rate-requests")}>
+            <Button type="button" className="bg-red-400 text-black hover:bg-red-350" onClick={() => navigate("/sales/opportunity")}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="material-button text-black">
@@ -680,126 +717,79 @@ const NewRateRequest = () => {
         </div>
       </form>
 
-      {/* Vendor Rate Modal */}
-      {vendorRateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">{vendorRateMode === "add" ? "Add Vendor Rate" : "Edit Vendor Rate"}</h3>
-              <button onClick={() => setVendorRateModal(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Vendor Agent</Label>
-                <Input placeholder="Vendor name" value={vendorRateDraft.vendor_agent} onChange={(e) => setVendorRateDraft({ ...vendorRateDraft, vendor_agent: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Currency</Label>
-                <select value={vendorRateDraft.currency} onChange={(e) => setVendorRateDraft({ ...vendorRateDraft, currency: e.target.value })} className="w-full px-3 py-2 border border-input rounded-lg">
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                  <option value="INR">INR</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Rate Total</Label>
-                <Input type="number" placeholder="0.00" value={vendorRateDraft.rate_total} onChange={(e) => setVendorRateDraft({ ...vendorRateDraft, rate_total: parseFloat(e.target.value) || 0 })} />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setVendorRateModal(false)}>Cancel</Button>
-              <Button type="button" className="flex-1 material-button text-black" onClick={saveVendorRate}>Save</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Additional Service Modal */}
-      {serviceModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">{serviceMode === "add" ? "Add Service" : "Edit Service"}</h3>
-              <button onClick={() => setServiceModal(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Service Name</Label>
-                <Input placeholder="Service name" value={serviceDraft.additional_service} onChange={(e) => setServiceDraft({ ...serviceDraft, additional_service: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Container Type</Label>
-                <Input placeholder="20GP, 40HC, etc." value={serviceDraft.container_type} onChange={(e) => setServiceDraft({ ...serviceDraft, container_type: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Quantity</Label>
-                <Input type="number" placeholder="0" value={serviceDraft.container_quantity} onChange={(e) => setServiceDraft({ ...serviceDraft, container_quantity: parseInt(e.target.value) || 1 })} />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setServiceModal(false)}>Cancel</Button>
-              <Button type="button" className="flex-1 material-button text-black" onClick={saveService}>Save</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Customer Visit Modal */}
+      {/* Visit Modal */}
       {visitModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 max-h-screen overflow-y-auto">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-lg my-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">{visitMode === "add" ? "Add Visit" : "Edit Visit"}</h3>
-              <button onClick={() => setVisitModal(false)} className="text-muted-foreground hover:text-foreground">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card rounded-xl material-elevation-4 w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h2 className="text-xl font-bold text-primary">Create Customer Visit Information</h2>
+              <button onClick={() => setVisitModal(false)} className="p-2 hover:bg-muted rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              <div className="space-y-2">
-                <Label>Visit Date</Label>
-                <Input type="date" value={visitDraft.visit_date} onChange={(e) => setVisitDraft({ ...visitDraft, visit_date: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Visit Time</Label>
-                <Input type="time" value={visitDraft.visit_time} onChange={(e) => setVisitDraft({ ...visitDraft, visit_time: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Next Visit</Label>
-                <Input type="date" value={visitDraft.next_visit} onChange={(e) => setVisitDraft({ ...visitDraft, next_visit: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Next Followup Date</Label>
-                <Input type="date" value={visitDraft.next_followup_date} onChange={(e) => setVisitDraft({ ...visitDraft, next_followup_date: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Assign To</Label>
-                <Input placeholder="Person name" value={visitDraft.assign_to} onChange={(e) => setVisitDraft({ ...visitDraft, assign_to: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Mode of Communication</Label>
-                <Input placeholder="In-Person, Phone, Email, etc." value={visitDraft.mode_of_communication} onChange={(e) => setVisitDraft({ ...visitDraft, mode_of_communication: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Visited By</Label>
-                <Input placeholder="Person name" value={visitDraft.visited_by} onChange={(e) => setVisitDraft({ ...visitDraft, visited_by: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Purpose</Label>
-                <Input placeholder="Rate Discussion, Follow-up, etc." value={visitDraft.purpose} onChange={(e) => setVisitDraft({ ...visitDraft, purpose: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Visit Notes</Label>
-                <textarea className="w-full px-3 py-2 border border-input rounded-lg" placeholder="Visit notes" value={visitDraft.visit_notes} onChange={(e) => setVisitDraft({ ...visitDraft, visit_notes: e.target.value })}></textarea>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Visit Date</Label>
+                  <Input type="date" value={visitDraft.visit_date} onChange={(e) => setVisitDraft({ ...visitDraft, visit_date: e.target.value })} className="w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Visit Time</Label>
+                  <Input type="time" value={visitDraft.visit_time} onChange={(e) => setVisitDraft({ ...visitDraft, visit_time: e.target.value })} className="w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Mode of Communication</Label>
+                  <select value={visitDraft.mode_of_communication} onChange={(e) => setVisitDraft({ ...visitDraft, mode_of_communication: e.target.value })} className="w-full px-3 py-2 border border-input rounded-lg h-10">
+                    <option value="">Select</option>
+                    <option>Phone</option>
+                    <option>Email</option>
+                    <option>In-Person</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Visited By</Label>
+                  <select value={visitDraft.visited_by} onChange={(e) => setVisitDraft({ ...visitDraft, visited_by: e.target.value })} className="w-full px-3 py-2 border border-input rounded-lg h-10">
+                    <option value="">Select</option>
+                    <option>John Doe</option>
+                    <option>Jane Smith</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Purpose</Label>
+                  <Input value={visitDraft.purpose} onChange={(e) => setVisitDraft({ ...visitDraft, purpose: e.target.value })} className="w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Next Visit</Label>
+                  <select value={visitNextVisit} onChange={(e) => { setVisitNextVisit(e.target.value); setVisitDraft({ ...visitDraft, next_visit: e.target.value }); }} className="w-full px-3 py-2 border border-input rounded-lg h-10">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+                {visitNextVisit === "Yes" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Next Followup Date</Label>
+                      <Input type="date" value={visitDraft.next_followup_date} onChange={(e) => setVisitDraft({ ...visitDraft, next_followup_date: e.target.value })} className="w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Assign To</Label>
+                      <select value={visitDraft.assign_to} onChange={(e) => setVisitDraft({ ...visitDraft, assign_to: e.target.value })} className="w-full px-3 py-2 border border-input rounded-lg h-10">
+                        <option value="">Select</option>
+                        <option>John Doe</option>
+                        <option>Jane Smith</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-sm font-semibold">Notes</Label>
+                  <textarea className="w-full px-3 py-2 border border-input rounded-lg" rows={3} value={visitDraft.visit_notes} onChange={(e) => setVisitDraft({ ...visitDraft, visit_notes: e.target.value })}></textarea>
+                </div>
               </div>
             </div>
-            <div className="flex gap-3 mt-6">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setVisitModal(false)}>Cancel</Button>
-              <Button type="button" className="flex-1 material-button text-black" onClick={saveVisit}>Save</Button>
+            <div className="flex items-center justify-start gap-3 p-6 border-t border-border">
+              <Button type="button" className="bg-primary text-black" onClick={handleAddVisit}>Save</Button>
+              <Button type="button" variant="outline" onClick={() => setVisitModal(false)}>Discard</Button>
             </div>
           </div>
         </div>

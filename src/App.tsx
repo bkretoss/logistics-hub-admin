@@ -15,6 +15,7 @@ import NewProspect from "@/pages/NewProspect";
 import Leads from "@/pages/Leads";
 import NewLead from "@/pages/NewLead";
 import EditLead from "@/pages/EditLead";
+import ViewOpportunity from "@/pages/ViewOpportunity";
 import Opportunity from "@/pages/Opportunity";
 import NewOpportunity from "@/pages/NewOpportunity";
 import Quotes from "@/pages/Quotes";
@@ -70,6 +71,8 @@ const App = () => (
             <Route path="/sales/leads/edit/:id" element={<ProtectedRoute><AppLayout><EditLead /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/opportunity" element={<ProtectedRoute><AppLayout><Opportunity /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/opportunity/new" element={<ProtectedRoute><AppLayout><NewOpportunity /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/opportunity/view/:id" element={<ProtectedRoute><AppLayout><ViewOpportunity /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/opportunity/edit/:id" element={<ProtectedRoute><AppLayout><NewRateRequest /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/rate-requests" element={<ProtectedRoute><AppLayout><RateRequests /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/rate-requests/new" element={<ProtectedRoute><AppLayout><NewRateRequest /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/rate-requests/edit/:id" element={<ProtectedRoute><AppLayout><NewRateRequest /></AppLayout></ProtectedRoute>} />
