@@ -30,6 +30,7 @@ const EditLead = () => {
   const { id } = useParams<{ id: string }>();
 
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [rating, setRating] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -43,6 +44,7 @@ const EditLead = () => {
         setFetching(true);
         const res = await getLeadApi(id!);
         const l = res.data?.data ?? res.data;
+        setRating(l.rating ?? null);
         setFormData({
           customer:                        l.customer                        ?? '',
           target:                          l.target                          ?? '',
@@ -119,6 +121,7 @@ const EditLead = () => {
         ...formData,
         expected_annual_revenue: formData.expected_annual_revenue ? Number(formData.expected_annual_revenue) : undefined,
         company_turnover: formData.company_turnover ? Number(formData.company_turnover) : undefined,
+        ...(rating !== null && { rating }),
       });
       toast({ title: 'Success', description: 'Lead updated successfully!', variant: 'success' });
       navigate('/sales/leads');
