@@ -22,6 +22,7 @@ const NewOpportunity = () => {
   }, []);
   const [hasNextVisit, setHasNextVisit] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [serviceLines, setServiceLines] = useState([{ id: 1, service: "", containerType: "", containerQuantity: 1 }]);
   const [vendorRates, setVendorRates] = useState([{ id: 1, vendor_agent: "", currency: "USD", rate_total: "" }]);
   const [customerVisits, setCustomerVisits] = useState<any[]>([]);
@@ -196,6 +197,7 @@ const NewOpportunity = () => {
       const payload = buildPayload();
       console.log("Submitting payload:", payload);
       await createRateRequestApi(payload);
+      setSubmitted(true);
       toast({ title: "Success", description: "Opportunity created successfully", variant: "success" });
       setTimeout(() => {
         navigate("/sales/opportunity");
@@ -811,7 +813,7 @@ const NewOpportunity = () => {
             <Button type="button" className="bg-red-400 text-black hover:bg-red-350" onClick={() => navigate("/sales/opportunity")}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="material-button text-black">
+            <Button type="submit" disabled={loading || submitted} className="material-button text-black">
               {loading ? "Saving..." : "Save Rate Request"}
             </Button>
           </div>
