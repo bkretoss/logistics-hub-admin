@@ -234,7 +234,7 @@ const ViewOperation = () => {
   const [roroOpen, setRoroOpen] = useState(false);
   const PACK_TYPES = ["Boxes", "Pallets", "Cartons", "Bags", "Drums", "Crates", "Bundles"];
   const SI_WEIGHT_UNITS = ["Kg", "Lbs", "MT"];
-  const SI_COMMODITY_TYPES = ["General", "Hazardous", "Perishable", "Fragile", "Oversized", "Valuable"];
+  const SI_COMMODITY_TYPES = ["General", "Hazardous", "Perishable", "Frozen cargo", "Oversized", "Valuable"];
   const SEAL_TYPE_OPTIONS = ["Original", "Telex", "Seaway Bill", "Express Release"];
   const initSi = {
     sNo: "10",
@@ -252,6 +252,14 @@ const ViewOperation = () => {
     commodityType: "",
     commodityCode: "",
     commodityDesc: "",
+    unNo: "",
+    unNoEnabled: false,
+    dgClass: "",
+    dgClassEnabled: false,
+    oversizedEnabled: false,
+    dimension: "",
+    frozenEnabled: false,
+    temperature: "",
     manifestSeal: "",
     actualLinerSeal: "",
     customSeal: "",
@@ -274,6 +282,24 @@ const ViewOperation = () => {
   const [siEditIndex, setSiEditIndex] = useState<number | null>(null);
   const siChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setSiForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const toggleSiHazard = (field: "unNoEnabled" | "dgClassEnabled") =>
+    setSiForm((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+      ...(prev[field] ? { [field === "unNoEnabled" ? "unNo" : "dgClass"]: "" } : {}),
+    }));
+  const toggleSiOversized = () =>
+    setSiForm((prev) => ({
+      ...prev,
+      oversizedEnabled: !prev.oversizedEnabled,
+      ...(!prev.oversizedEnabled ? {} : { dimension: "" }),
+    }));
+  const toggleSiFrozen = () =>
+    setSiForm((prev) => ({
+      ...prev,
+      frozenEnabled: !prev.frozenEnabled,
+      ...(!prev.frozenEnabled ? {} : { temperature: "" }),
+    }));
   const openSiEdit = (index: number) => {
     setSiEditIndex(index);
     setSiForm({ ...siRows[index] });
@@ -285,10 +311,15 @@ const ViewOperation = () => {
     setSiEditIndex(null);
   };
   const saveSi = () => {
+    const payload = { ...siForm };
+    if (!payload.unNoEnabled) payload.unNo = "";
+    if (!payload.dgClassEnabled) payload.dgClass = "";
+    if (!payload.oversizedEnabled) payload.dimension = "";
+    if (!payload.frozenEnabled) payload.temperature = "";
     if (siEditIndex !== null) {
-      setSiRows((prev) => prev.map((r, i) => (i === siEditIndex ? siForm : r)));
+      setSiRows((prev) => prev.map((r, i) => (i === siEditIndex ? payload : r)));
     } else {
-      setSiRows((prev) => [...prev, siForm]);
+      setSiRows((prev) => [...prev, payload]);
     }
     closeSiModal();
   };
@@ -873,7 +904,6 @@ const ViewOperation = () => {
                 <Field label="Do No#" value="" />
                 <Field label="BL Place of Issue" value="" />
                 <Field label="On Board Date" value="" />
-                <Field label="BL Mark No" value={op.blMarksNo} />
                 <div className="py-1.5">
                   <span className="text-sm font-semibold text-foreground">Notes</span>
                   <p className="text-sm text-cyan-600 mt-1">{op.note}</p>
@@ -2877,6 +2907,128 @@ const ViewOperation = () => {
                   />
                 </div>
               </div>
+
+              {/* Frozen cargo field: Temperature */}
+              {siForm.commodityType === "Frozen cargo" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-foreground w-32 shrink-0">Temperature</label>
+                    <button
+                      type="button"
+                      onClick={toggleSiFrozen}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                        siForm.frozenEnabled ? "bg-[#00BCD4]" : "bg-muted-foreground/30"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                          siForm.frozenEnabled ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                    <input
+                      name="temperature"
+                      value={siForm.temperature}
+                      onChange={siChange}
+                      disabled={!siForm.frozenEnabled}
+                      placeholder={siForm.frozenEnabled ? "Enter Temperature" : ""}
+                      className={`flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background transition-opacity ${
+                        !siForm.frozenEnabled ? "opacity-40 cursor-not-allowed" : ""
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Oversized field: Dimension */}
+              {siForm.commodityType === "Oversized" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-foreground w-32 shrink-0">Dimension</label>
+                    <button
+                      type="button"
+                      onClick={toggleSiOversized}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                        siForm.oversizedEnabled ? "bg-[#00BCD4]" : "bg-muted-foreground/30"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                          siForm.oversizedEnabled ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                    <input
+                      name="dimension"
+                      value={siForm.dimension}
+                      onChange={siChange}
+                      disabled={!siForm.oversizedEnabled}
+                      placeholder={siForm.oversizedEnabled ? "Enter Dimension" : ""}
+                      className={`flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background transition-opacity ${
+                        !siForm.oversizedEnabled ? "opacity-40 cursor-not-allowed" : ""
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Hazardous fields: UN No + DG Class */}
+              {siForm.commodityType === "Hazardous" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-foreground w-32 shrink-0">UN No</label>
+                    <button
+                      type="button"
+                      onClick={() => toggleSiHazard("unNoEnabled")}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                        siForm.unNoEnabled ? "bg-[#00BCD4]" : "bg-muted-foreground/30"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                          siForm.unNoEnabled ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                    <input
+                      name="unNo"
+                      value={siForm.unNo}
+                      onChange={siChange}
+                      disabled={!siForm.unNoEnabled}
+                      placeholder={siForm.unNoEnabled ? "Enter UN No" : ""}
+                      className={`flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background transition-opacity ${
+                        !siForm.unNoEnabled ? "opacity-40 cursor-not-allowed" : ""
+                      }`}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-foreground w-32 shrink-0">DG Class</label>
+                    <button
+                      type="button"
+                      onClick={() => toggleSiHazard("dgClassEnabled")}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                        siForm.dgClassEnabled ? "bg-[#00BCD4]" : "bg-muted-foreground/30"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                          siForm.dgClassEnabled ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                    <input
+                      name="dgClass"
+                      value={siForm.dgClass}
+                      onChange={siChange}
+                      disabled={!siForm.dgClassEnabled}
+                      placeholder={siForm.dgClassEnabled ? "Enter DG Class" : ""}
+                      className={`flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background transition-opacity ${
+                        !siForm.dgClassEnabled ? "opacity-40 cursor-not-allowed" : ""
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Row 8: Commodity Desc (full width) */}
               <div className="flex items-start gap-2">
