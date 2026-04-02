@@ -237,6 +237,7 @@ const Opportunity = () => {
     { label: "TOTAL RATE REQUESTS", value: opportunities.length,                                        icon: Target,    iconColor: "text-blue-500",   bg: "bg-blue-50"   },
     { label: "OPEN",                value: opportunities.filter(o => o.status === "Open").length,       icon: DollarSign,iconColor: "text-green-500",  bg: "bg-green-50"  },
     { label: "ACTIVE",              value: opportunities.filter(o => o.status === "Active").length,     icon: TrendingUp,iconColor: "text-yellow-500", bg: "bg-yellow-50" },
+    { label: "CREATED",             value: opportunities.filter(o => o.status === "Created").length,    icon: Calendar,  iconColor: "text-purple-500", bg: "bg-purple-50" },
     { label: "CLOSING THIS MONTH",  value: opportunities.filter(o => o.status === "Closed").length,     icon: Calendar,  iconColor: "text-cyan-500",   bg: "bg-cyan-50"   },
   ];
 
@@ -270,7 +271,7 @@ const Opportunity = () => {
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {stats.map((s, i) => (
           <div key={i} className="bg-card rounded-xl p-5 material-elevation-1 hover:material-elevation-2 transition-all duration-300">
             <div className="flex items-center gap-4">

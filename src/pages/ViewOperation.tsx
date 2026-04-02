@@ -68,7 +68,7 @@ const TABS = [
   "Job Details",
   "Subledgers",
   "Dimension's",
-  "Shipping Instructions",
+  "Cargo details",
   "Costing",
   "Shipping Bill / BOE",
   "House's List",
@@ -1321,10 +1321,10 @@ const ViewOperation = () => {
       )}
 
       {/* Shipping Instructions card */}
-      {(activeTab === "Shipping Instructions" || activeTab === "Show All") && (
+      {(activeTab === "Cargo details" || activeTab === "Show All") && (
         <div className="material-card material-elevation-1 overflow-hidden">
           <div className="bg-white px-6 py-3 border-b border-border flex items-center justify-between">
-            <h2 className="text-lg font-bold text-primary">Shipping Instructions</h2>
+            <h2 className="text-lg font-bold text-primary">Cargo details</h2>
             <Button
               size="sm"
               variant="outline"

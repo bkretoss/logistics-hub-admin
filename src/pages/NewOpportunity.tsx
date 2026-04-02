@@ -647,59 +647,6 @@ const NewOpportunity = () => {
             </div>
           </div>
 
-          {/* Vendor Rate Comparison */}
-          <div>
-            <h2 className="text-lg font-bold text-primary mb-4">Vendor Rate Comparison</h2>
-            <div className="border border-border rounded-lg p-4 space-y-3">
-              <div className="grid grid-cols-3 gap-4 font-semibold text-sm">
-                <div>Agent</div>
-                <div>Currency</div>
-                <div>Rate Total</div>
-              </div>
-              {vendorRates.map((vr) => (
-                <div key={vr.id} className="grid grid-cols-3 gap-4 items-center">
-                  <Input
-                    placeholder="Vendor Agent"
-                    value={vr.vendor_agent}
-                    onChange={(e) => setVendorRates(vendorRates.map(r => r.id === vr.id ? { ...r, vendor_agent: e.target.value } : r))}
-                  />
-                  <select
-                    value={vr.currency}
-                    onChange={(e) => setVendorRates(vendorRates.map(r => r.id === vr.id ? { ...r, currency: e.target.value } : r))}
-                    className="w-full px-3 py-2 border border-input rounded-lg"
-                  >
-                    <option>USD</option>
-                    <option>INR</option>
-                    <option>EUR</option>
-                  </select>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      value={vr.rate_total}
-                      onChange={(e) => setVendorRates(vendorRates.map(r => r.id === vr.id ? { ...r, rate_total: e.target.value } : r))}
-                      className="flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setVendorRates(vendorRates.filter(r => r.id !== vr.id))}
-                      className="p-2 text-destructive hover:bg-destructive/10 rounded"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setVendorRates([...vendorRates, { id: Date.now(), vendor_agent: "", currency: "USD", rate_total: "" }])}
-                className="text-primary text-sm font-medium hover:underline"
-              >
-                Add a line
-              </button>
-            </div>
-          </div>
-
           {/* Customer Visit Information */}
           <div>
             <h2 className="text-lg font-bold text-primary mb-4">Customer Visit Information</h2>

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getLeadApi, updateLeadApi } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
+import { SHIPMENT_TYPES, TRANSPORT_MODES } from '@/pages/Leads';
 
 type FieldErrors = Record<string, string>;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15,7 +16,7 @@ const EMPTY_FORM = {
   customer: '', target: '', lead_source: '',
   date: new Date().toISOString().split('T')[0],
   lead_owner: '', company: 'Relay Logistics (Private Limited)',
-  sales_team: '', status: '', shipment_type: '', transport_mode: '',
+  sales_team: '', status: 'Open', shipment_type: '', transport_mode: '',
   origin_port: '', target_date: '', business_service: '', destination_port: '',
   expected_annual_revenue: '', expected_annual_revenue_currency: 'USD',
   expected_annual_volume_commodity: '', nature_of_business: '',
@@ -242,10 +243,9 @@ const EditLead = () => {
                 <Label htmlFor="status" className="text-sm font-semibold">Status <span className="text-destructive">*</span></Label>
                 <select id="status" name="status" value={formData.status} onChange={handleChange} className={`w-full px-3 py-2 border rounded-lg ${selectErr('status')}`}>
                   <option value="">Select</option>
-                  <option value="Unverified">Unverified</option>
-                  <option value="Qualified">Qualified</option>
-                  <option value="Disqualified">Disqualified</option>
                   <option value="Open">Open</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Quote">Quote</option>
                   <option value="Active">Active</option>
                   <option value="Closed">Closed</option>
                   <option value="Future Prospect">Future Prospect</option>
@@ -261,7 +261,11 @@ const EditLead = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-1">
                 <Label htmlFor="shipment_type" className="text-sm font-semibold">Shipment Type</Label>
-                <Input id="shipment_type" name="shipment_type" value={formData.shipment_type} onChange={handleChange} />
+                <select id="shipment_type" name="shipment_type" value={formData.shipment_type} onChange={handleChange}
+                  className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {SHIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="target_date" className="text-sm font-semibold">Target Date <span className="text-destructive">*</span></Label>
@@ -270,7 +274,11 @@ const EditLead = () => {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="transport_mode" className="text-sm font-semibold">Transport Mode</Label>
-                <Input id="transport_mode" name="transport_mode" value={formData.transport_mode} onChange={handleChange} />
+                <select id="transport_mode" name="transport_mode" value={formData.transport_mode} onChange={handleChange}
+                  className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select Transport Mode</option>
+                  {TRANSPORT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="business_service" className="text-sm font-semibold">Business Service</Label>

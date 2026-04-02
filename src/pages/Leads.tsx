@@ -4,7 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   Plus, Search, Grid3x3, List, ArrowUpDown,
   MapPin, DollarSign, Clock, Building2,
-  ChevronDown, Eye, Edit, Trash2, Star, Loader2,
+  Eye, Edit, Trash2, Star, Loader2, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { getLeadsApi, deleteLeadApi, updateLeadApi, updateLeadStatusApi, updateLeadRatingApi } from "@/services/api";
+import { getLeadsApi, deleteLeadApi, updateLeadStatusApi, updateLeadRatingApi } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Lead {
@@ -42,17 +42,26 @@ interface Lead {
 
 // ─── Status config ─────────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { color: string; bg: string; dot: string }> = {
-  Qualified:       { color: "text-green-600",  bg: "bg-green-50",   dot: "bg-green-500"  },
-  Unverified:      { color: "text-gray-500",   bg: "bg-gray-100",   dot: "bg-gray-400"   },
-  Open:            { color: "text-blue-600",   bg: "bg-blue-50",    dot: "bg-blue-500"   },
-  Active:          { color: "text-teal-600",   bg: "bg-teal-50",    dot: "bg-teal-500"   },
-  Closed:          { color: "text-red-500",    bg: "bg-red-50",     dot: "bg-red-400"    },
-  Disqualified:    { color: "text-orange-500", bg: "bg-orange-50",  dot: "bg-orange-400" },
-  "Future Prospect": { color: "text-purple-600", bg: "bg-purple-50", dot: "bg-purple-500" },
+  Open:              { color: "text-blue-600",   bg: "bg-blue-50",    dot: "bg-blue-500"   },
+  "Follow-up":       { color: "text-yellow-600", bg: "bg-yellow-50",  dot: "bg-yellow-500" },
+  Quote:             { color: "text-indigo-600", bg: "bg-indigo-50",  dot: "bg-indigo-500" },
+  Active:            { color: "text-teal-600",   bg: "bg-teal-50",    dot: "bg-teal-500"   },
+  Closed:            { color: "text-red-500",    bg: "bg-red-50",     dot: "bg-red-400"    },
+  "Future Prospect": { color: "text-purple-600", bg: "bg-purple-50",  dot: "bg-purple-500" },
 };
 const getStatus = (s: string) => STATUS_MAP[s] ?? STATUS_MAP["Open"];
 
-export const STATUS_OPTIONS = ["Unverified", "Qualified", "Disqualified", "Open", "Active", "Closed", "Future Prospect"];
+export const STATUS_OPTIONS = ["Open", "Follow-up", "Quote", "Active", "Closed", "Future Prospect"];
+export const SHIPMENT_TYPES = ["FCL", "LCL", "FTL", "LTL"];
+export const TRANSPORT_MODES = ["SEA", "AIR", "LAND", "RAIL"];
+
+const SHIPMENT_MAP: Record<string, { color: string; bg: string; dot: string }> = {
+  FCL: { color: "text-blue-600",   bg: "bg-blue-50",   dot: "bg-blue-500"   },
+  LCL: { color: "text-green-600",  bg: "bg-green-50",  dot: "bg-green-500"  },
+  FTL: { color: "text-orange-600", bg: "bg-orange-50", dot: "bg-orange-500" },
+  LTL: { color: "text-purple-600", bg: "bg-purple-50", dot: "bg-purple-500" },
+};
+const getShipment = (s?: string) => (s && SHIPMENT_MAP[s]) ? SHIPMENT_MAP[s] : { color: "text-slate-500", bg: "bg-slate-100", dot: "bg-slate-400" };
 
 // ─── Star rating ───────────────────────────────────────────────────────────────
 const StarRating = ({ rating, onRate, updating }: { rating: number; onRate?: (r: number) => void; updating?: boolean }) => {
@@ -213,15 +222,15 @@ const Leads = () => {
 
   // ── Derived stats ────────────────────────────────────────────────────────────
   const stats = [
-    { label: "TOTAL LEADS",  value: leads.length,                                          icon: Building2, iconColor: "text-blue-500",   bg: "bg-blue-50"   },
-    { label: "QUALIFIED",    value: leads.filter(l => l.status === "Qualified").length,    icon: DollarSign,iconColor: "text-green-500",  bg: "bg-green-50"  },
-    { label: "OPEN",         value: leads.filter(l => l.status === "Open").length,         icon: Clock,     iconColor: "text-yellow-500", bg: "bg-yellow-50" },
-    { label: "ACTIVE",       value: leads.filter(l => l.status === "Active").length,       icon: MapPin,    iconColor: "text-teal-500",   bg: "bg-teal-50"   },
-    { label: "CLOSED",       value: leads.filter(l => l.status === "Closed").length,       icon: Trash2,    iconColor: "text-red-500",    bg: "bg-red-50"    },
+    { label: "TOTAL LEADS",      value: leads.length,                                              icon: Building2, iconColor: "text-blue-500",   bg: "bg-blue-50"   },
+    { label: "OPEN",             value: leads.filter(l => l.status === "Open").length,             icon: Clock,     iconColor: "text-blue-500",   bg: "bg-blue-50"   },
+    { label: "ACTIVE",           value: leads.filter(l => l.status === "Active").length,           icon: MapPin,    iconColor: "text-teal-500",   bg: "bg-teal-50"   },
+    { label: "CLOSED",           value: leads.filter(l => l.status === "Closed").length,           icon: Trash2,    iconColor: "text-red-500",    bg: "bg-red-50"    },
+    { label: "FUTURE PROSPECT",  value: leads.filter(l => l.status === "Future Prospect").length,  icon: DollarSign,iconColor: "text-purple-500", bg: "bg-purple-50" },
   ];
 
   // ── Filters ──────────────────────────────────────────────────────────────────
-  const filterLabels = ["All", "Qualified", "Open", "Active", "Disqualified", "Future Prospect"];
+  const filterLabels = ["All", "Open", "Follow-up", "Quote", "Active", "Closed", "Future Prospect"];
   const filteredLeads = leads.filter(l => {
     const matchFilter = activeFilter === "All" || l.status === activeFilter;
     const q = searchTerm.toLowerCase();
@@ -385,7 +394,7 @@ const Leads = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      {["DATE","CUSTOMER","TARGET","LEAD SOURCE","LEAD OWNER","COMPANY","SALES TEAM","STATUS","ACTIONS"].map(h => (
+                      {["DATE","CUSTOMER","TARGET","LEAD SOURCE","LEAD OWNER","COMPANY","SALES TEAM","SHIPMENT TYPE","STATUS","ACTIONS"].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground tracking-widest whitespace-nowrap">
                           {h}
                         </th>
@@ -394,9 +403,10 @@ const Leads = () => {
                   </thead>
                   <tbody>
                     {filteredLeads.length === 0 ? (
-                      <tr><td colSpan={9} className="text-center py-16 text-muted-foreground">No leads found.</td></tr>
+                      <tr><td colSpan={11} className="text-center py-16 text-muted-foreground">No leads found.</td></tr>
                     ) : filteredLeads.map((lead, idx) => {
                       const st = getStatus(lead.status);
+                      const sh = getShipment(lead.shipment_type);
                       return (
                         <tr
                           key={lead.id}
@@ -430,6 +440,18 @@ const Leads = () => {
 
                           {/* SALES TEAM */}
                           <td className="px-4 py-4 text-sm text-foreground">{lead.sales_team || '-'}</td>
+
+                          {/* SHIPMENT TYPE */}
+                          <td className="px-4 py-4">
+                            {lead.shipment_type ? (
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${sh.color} ${sh.bg}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${sh.dot}`} />
+                                {lead.shipment_type}
+                              </span>
+                            ) : <span className="text-sm text-muted-foreground">-</span>}
+                          </td>
+
+                          
 
                           {/* STATUS */}
                           <td className="px-4 py-4">

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { createLeadApi } from '@/services/api';
+import { SHIPMENT_TYPES, TRANSPORT_MODES } from '@/pages/Leads';
 
 type FieldErrors = Record<string, string>;
 
@@ -239,10 +240,9 @@ const NewLead = () => {
                 <select id="status" name="status" value={formData.status} onChange={handleChange}
                   className={`w-full px-3 py-2 border rounded-lg ${selectErrClass('status')}`}>
                   <option value="">Select</option>
-                  <option value="Unverified">Unverified</option>
-                  <option value="Qualified">Qualified</option>
-                  <option value="Disqualified">Disqualified</option>
                   <option value="Open">Open</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Quote">Quote</option>
                   <option value="Active">Active</option>
                   <option value="Closed">Closed</option>
                   <option value="Future Prospect">Future Prospect</option>
@@ -260,7 +260,11 @@ const NewLead = () => {
 
               <div className="space-y-1">
                 <Label htmlFor="shipment_type" className="text-sm font-semibold">Shipment Type</Label>
-                <Input id="shipment_type" name="shipment_type" value={formData.shipment_type} onChange={handleChange} />
+                <select id="shipment_type" name="shipment_type" value={formData.shipment_type} onChange={handleChange}
+                  className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {SHIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
 
               <div className="space-y-1">
@@ -272,7 +276,11 @@ const NewLead = () => {
 
               <div className="space-y-1">
                 <Label htmlFor="transport_mode" className="text-sm font-semibold">Transport Mode</Label>
-                <Input id="transport_mode" name="transport_mode" value={formData.transport_mode} onChange={handleChange} />
+                <select id="transport_mode" name="transport_mode" value={formData.transport_mode} onChange={handleChange}
+                  className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select Transport Mode</option>
+                  {TRANSPORT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
 
               <div className="space-y-1">

@@ -317,8 +317,25 @@ const NewRateRequest = () => {
     setLoading(true);
 
     try {
-      const { lead, ...rest } = form;
-      const payload = { ...rest, lead_ref: lead };
+      const payload = {
+        date: form.date,
+        location: form.location,
+        lead: form.lead,
+        sales_team: form.sales_team,
+        opportunity_source: form.opportunity_source,
+        opportunity_type: form.opportunity_type,
+        type: form.type,
+        sales_agent: form.sales_agent,
+        company: form.company,
+        pricing_team: form.pricing_team,
+        shipping_providers: form.shipping_providers,
+        status: form.status,
+        shipment_details: form.shipment_details,
+        party_details: form.party_details,
+        vendor_rates: form.vendor_rates.map(({ id: _id, ...r }) => r),
+        additional_services: form.additional_services.map(({ id: _id, ...s }) => s),
+        customer_visits: form.customer_visits.map(({ id: _id, ...v }) => v),
+      };
       if (id) {
         await updateRateRequestApi(id, payload);
         toast({ title: "Success", description: "Rate Request updated successfully", variant: "success" });
@@ -545,59 +562,6 @@ const NewRateRequest = () => {
             </div>
           </div>
 
-          {/* Vendor Rates */}
-          <div>
-            <h3 className="text-lg font-bold text-primary mb-4">Vendor Rate Comparison</h3>
-            <div className="border border-border rounded-lg p-4 space-y-3">
-              <div className="grid grid-cols-3 gap-4 font-semibold text-sm">
-                <div>Agent</div>
-                <div>Currency</div>
-                <div>Rate Total</div>
-              </div>
-              {form.vendor_rates.map((vr) => (
-                <div key={vr.id} className="grid grid-cols-3 gap-4 items-center">
-                  <Input
-                    placeholder="Vendor Agent"
-                    value={vr.vendor_agent}
-                    onChange={(e) => setForm((prev) => ({ ...prev, vendor_rates: prev.vendor_rates.map((r) => r.id === vr.id ? { ...r, vendor_agent: e.target.value } : r) }))}
-                  />
-                  <select
-                    value={vr.currency}
-                    onChange={(e) => setForm((prev) => ({ ...prev, vendor_rates: prev.vendor_rates.map((r) => r.id === vr.id ? { ...r, currency: e.target.value } : r) }))}
-                    className="w-full px-3 py-2 border border-input rounded-lg"
-                  >
-                    <option>USD</option>
-                    <option>INR</option>
-                    <option>EUR</option>
-                  </select>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      value={vr.rate_total}
-                      onChange={(e) => setForm((prev) => ({ ...prev, vendor_rates: prev.vendor_rates.map((r) => r.id === vr.id ? { ...r, rate_total: parseFloat(e.target.value) || 0 } : r) }))}
-                      className="flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeVendorRate(vr.id)}
-                      className="p-2 text-destructive hover:bg-destructive/10 rounded"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setForm((prev) => ({ ...prev, vendor_rates: [...prev.vendor_rates, { id: Date.now(), vendor_agent: "", currency: "USD", rate_total: 0 }] }))}
-                className="text-primary text-sm font-medium hover:underline"
-              >
-                Add a line
-              </button>
-            </div>
-          </div>
-
           {/* Customer Visits */}
           <div>
             <h3 className="text-lg font-bold text-primary mb-4">Customer Visit Information</h3>
@@ -760,7 +724,7 @@ const NewRateRequest = () => {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Next Visit</Label>
-                  <select value={visitNextVisit} onChange={(e) => { setVisitNextVisit(e.target.value); setVisitDraft({ ...visitDraft, next_visit: e.target.value }); }} className="w-full px-3 py-2 border border-input rounded-lg h-10">
+                  <select value={visitNextVisit} onChange={(e) => { setVisitNextVisit(e.target.value); if (e.target.value === "No") setVisitDraft((d) => ({ ...d, next_visit: "", next_followup_date: "", assign_to: "" })); }} className="w-full px-3 py-2 border border-input rounded-lg h-10">
                     <option value="No">No</option>
                     <option value="Yes">Yes</option>
                   </select>
@@ -768,12 +732,16 @@ const NewRateRequest = () => {
                 {visitNextVisit === "Yes" && (
                   <>
                     <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Next Visit Date</Label>
+                      <Input type="date" value={visitDraft.next_visit} onChange={(e) => setVisitDraft((d) => ({ ...d, next_visit: e.target.value }))} className="w-full" />
+                    </div>
+                    <div className="space-y-2">
                       <Label className="text-sm font-semibold">Next Followup Date</Label>
-                      <Input type="date" value={visitDraft.next_followup_date} onChange={(e) => setVisitDraft({ ...visitDraft, next_followup_date: e.target.value })} className="w-full" />
+                      <Input type="date" value={visitDraft.next_followup_date} onChange={(e) => setVisitDraft((d) => ({ ...d, next_followup_date: e.target.value }))} className="w-full" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold">Assign To</Label>
-                      <select value={visitDraft.assign_to} onChange={(e) => setVisitDraft({ ...visitDraft, assign_to: e.target.value })} className="w-full px-3 py-2 border border-input rounded-lg h-10">
+                      <select value={visitDraft.assign_to} onChange={(e) => setVisitDraft((d) => ({ ...d, assign_to: e.target.value }))} className="w-full px-3 py-2 border border-input rounded-lg h-10">
                         <option value="">Select</option>
                         <option>John Doe</option>
                         <option>Jane Smith</option>
