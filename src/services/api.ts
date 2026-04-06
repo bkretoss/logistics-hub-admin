@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  // baseURL: "http://localhost:8080/api",
+  // baseURL: "http://localhost:8001/api",
   baseURL: "https://logistic.kretoss.in/api",
   headers: { "Content-Type": "application/json" },
 });
@@ -44,5 +44,25 @@ export const getOpportunityApi          = (id: string)                     => ap
 export const updateRateRequestApi       = (id: string, data: Record<string, unknown>) => api.put(`/rate-requests/${id}`, data);
 export const deleteOpportunityApi       = (id: number)                     => api.delete(`/rate-requests/${id}`);
 export const updateOpportunityStatusApi = (id: number, status: string)     => api.put(`/rate-requests/status/${id}`, { status });
+
+export const getShipmentTypesApi    = ()                               => api.get('/shipment-types');
+export const getShipmentTypeApi     = (id: number)                     => api.get(`/shipment-types/${id}`);
+export const createShipmentTypeApi  = (data: Record<string, unknown>)  => api.post('/shipment-types', data);
+export const updateShipmentTypeApi  = (id: number, data: Record<string, unknown>) => api.put(`/shipment-types/${id}`, data);
+export const deleteShipmentTypeApi  = (id: number)                     => api.delete(`/shipment-types/${id}`);
+
+export const getTransportModesApi    = ()                               => api.get('/transport-modes');
+export const getTransportModeApi     = (id: number)                     => api.get(`/transport-modes/${id}`);
+export const createTransportModeApi  = (data: Record<string, unknown>)  => api.post('/transport-modes', data);
+export const updateTransportModeApi  = (id: number, data: Record<string, unknown>) => api.put(`/transport-modes/${id}`, data);
+export const deleteTransportModeApi  = (id: number)                     => api.delete(`/transport-modes/${id}`);
+export const updateTransportModeStatusApi = (id: number, status: number) => api.patch(`/transport-modes/status/${id}`, { status });
+
+export const getCurrenciesApi    = ()                               => api.get('/currencies');
+export const getCurrencyApi      = (id: number)                     => api.get(`/currencies/${id}`);
+export const createCurrencyApi   = (data: Record<string, unknown>)  => api.post('/currencies', data);
+export const updateCurrencyApi   = (id: number, data: Record<string, unknown>) => api.put(`/currencies/${id}`, data);
+export const deleteCurrencyApi   = (id: number)                     => api.delete(`/currencies/${id}`);
+export const updateCurrencyStatusApi = (id: number, status: number) => api.patch(`/currencies/${id}/status`, { status });
 
 export default api;

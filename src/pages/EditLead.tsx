@@ -5,9 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { getLeadApi, updateLeadApi } from '@/services/api';
+import { getLeadApi, updateLeadApi, getShipmentTypesApi, getTransportModesApi } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
-import { SHIPMENT_TYPES, TRANSPORT_MODES } from '@/pages/Leads';
 
 type FieldErrors = Record<string, string>;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -16,7 +15,7 @@ const EMPTY_FORM = {
   customer: '', target: '', lead_source: '',
   date: new Date().toISOString().split('T')[0],
   lead_owner: '', company: 'Relay Logistics (Private Limited)',
-  sales_team: '', status: 'Open', shipment_type: '', transport_mode: '',
+  sales_team: '', status: 'Open', shipment_type: '', shipment_type_id: '' as number | '', transport_mode: '', transport_mode_id: '' as number | '',
   origin_port: '', target_date: '', business_service: '', destination_port: '',
   expected_annual_revenue: '', expected_annual_revenue_currency: 'USD',
   expected_annual_volume_commodity: '', nature_of_business: '',
@@ -38,6 +37,54 @@ const EditLead = () => {
   const [fetchError, setFetchError] = useState('');
   const [globalError, setGlobalError] = useState('');
 
+  const [shipmentTypes, setShipmentTypes]               = useState<{ id: number; name: string }[]>([]);
+  const [shipmentTypesLoading, setShipmentTypesLoading] = useState(false);
+  const [shipmentTypesError, setShipmentTypesError]     = useState('');
+
+  const [transportModes, setTransportModes]               = useState<{ id: number; name: string }[]>([]);
+  const [transportModesLoading, setTransportModesLoading] = useState(false);
+  const [transportModesError, setTransportModesError]     = useState('');
+
+  useEffect(() => {
+    const fetchShipmentTypes = async () => {
+      setShipmentTypesLoading(true);
+      try {
+        const res = await getShipmentTypesApi();
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setShipmentTypes(
+          raw
+            .filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active')
+            .map(r => ({ id: r.id, name: r.name }))
+        );
+      } catch {
+        setShipmentTypesError('Failed to load shipment types.');
+      } finally {
+        setShipmentTypesLoading(false);
+      }
+    };
+    fetchShipmentTypes();
+  }, []);
+
+  useEffect(() => {
+    const fetchTransportModes = async () => {
+      setTransportModesLoading(true);
+      try {
+        const res = await getTransportModesApi();
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setTransportModes(
+          raw
+            .filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active')
+            .map(r => ({ id: r.id, name: r.name }))
+        );
+      } catch {
+        setTransportModesError('Failed to load transport modes.');
+      } finally {
+        setTransportModesLoading(false);
+      }
+    };
+    fetchTransportModes();
+  }, []);
+
   // ── Load existing lead ──────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
@@ -56,7 +103,9 @@ const EditLead = () => {
           sales_team:                      l.sales_team                      ?? '',
           status:                          l.status                          ?? '',
           shipment_type:                   l.shipment_type                   ?? '',
+          shipment_type_id:                l.shipment_type_id                ?? '' as number | '',
           transport_mode:                  l.transport_mode                  ?? '',
+          transport_mode_id:               l.transport_mode_id               ?? '' as number | '',
           origin_port:                     l.origin_port                     ?? '',
           target_date:                     l.target_date ? l.target_date.split('-').reverse().join('-') : '',
           business_service:                l.business_service                ?? '',
@@ -151,7 +200,15 @@ const EditLead = () => {
   // ── Change handler ──────────────────────────────────────────────────────────
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'shipment_type'
+        ? { shipment_type_id: shipmentTypes.find(s => s.name === value)?.id ?? '' }
+        : name === 'transport_mode'
+        ? { transport_mode_id: transportModes.find(m => m.name === value)?.id ?? '' }
+        : {}),
+    }));
     if (fieldErrors[name]) setFieldErrors(prev => ({ ...prev, [name]: '' }));
     if (globalError) setGlobalError('');
   };
@@ -262,10 +319,17 @@ const EditLead = () => {
               <div className="space-y-1">
                 <Label htmlFor="shipment_type" className="text-sm font-semibold">Shipment Type</Label>
                 <select id="shipment_type" name="shipment_type" value={formData.shipment_type} onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-lg">
-                  <option value="">Select</option>
-                  {SHIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  disabled={shipmentTypesLoading}
+                  className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                  <option value="">{shipmentTypesLoading ? 'Loading...' : 'Select'}</option>
+                  {shipmentTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                 </select>
+                {shipmentTypesError && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <span className="inline-block w-1 h-1 rounded-full bg-red-500 shrink-0" />
+                    {shipmentTypesError}
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="target_date" className="text-sm font-semibold">Target Date <span className="text-destructive">*</span></Label>
@@ -273,12 +337,20 @@ const EditLead = () => {
                 <ErrMsg field="target_date" />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="transport_mode" className="text-sm font-semibold">Transport Mode</Label>
+                <Label htmlFor="transport_mode" className="text-sm font-semibold">Transport Mode <span className="text-destructive">*</span></Label>
                 <select id="transport_mode" name="transport_mode" value={formData.transport_mode} onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-lg">
-                  <option value="">Select Transport Mode</option>
-                  {TRANSPORT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                  disabled={transportModesLoading}
+                  className={`w-full px-3 py-2 border rounded-lg disabled:opacity-60 ${selectErr('transport_mode_id')}`}>
+                  <option value="">{transportModesLoading ? 'Loading...' : 'Select Transport Mode'}</option>
+                  {transportModes.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
                 </select>
+                {transportModesError && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <span className="inline-block w-1 h-1 rounded-full bg-red-500 shrink-0" />
+                    {transportModesError}
+                  </p>
+                )}
+                <ErrMsg field="transport_mode_id" />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="business_service" className="text-sm font-semibold">Business Service</Label>

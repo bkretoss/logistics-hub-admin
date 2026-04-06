@@ -22,6 +22,7 @@ import {
   X,
   Bell,
   UserSquare,
+  Package,
 } from "lucide-react";
 
 interface MenuItem {
@@ -82,6 +83,15 @@ const menuItems: MenuItem[] = [
     children: [
       { title: "Branch Master List", icon: Database, path: "/admin/branch-master" },
       { title: "User Master List",   icon: Users,    path: "/admin/user-master"   },
+    ],
+  },
+  {
+    title: "Master",
+    icon: Package,
+    children: [
+      { title: "Shipment Type",      icon: Package,    path: "/master/shipment-type"  },
+      { title: "Transport Mode Type", icon: Truck,     path: "/master/transport-mode" },
+      { title: "Currency",           icon: DollarSign, path: "/master/currency"       },
     ],
   },
 ];

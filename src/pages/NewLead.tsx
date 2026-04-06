@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { createLeadApi } from '@/services/api';
-import { SHIPMENT_TYPES, TRANSPORT_MODES } from '@/pages/Leads';
+import { createLeadApi, getShipmentTypesApi, getTransportModesApi } from '@/services/api';
 
 type FieldErrors = Record<string, string>;
 
@@ -25,7 +24,9 @@ const NewLead = () => {
     sales_team: '',
     status: '',
     shipment_type: '',
+    shipment_type_id: '' as number | '',
     transport_mode: '',
+    transport_mode_id: '' as number | '',
     origin_port: '',
     target_date: '',
     business_service: '',
@@ -54,13 +55,62 @@ const NewLead = () => {
   const [loading, setLoading] = useState(false);
   const [globalError, setGlobalError] = useState('');
 
+  const [shipmentTypes, setShipmentTypes]           = useState<{ id: number; name: string }[]>([]);
+  const [shipmentTypesLoading, setShipmentTypesLoading] = useState(false);
+  const [shipmentTypesError, setShipmentTypesError]     = useState('');
+
+  useEffect(() => {
+    const fetchShipmentTypes = async () => {
+      setShipmentTypesLoading(true);
+      try {
+        const res = await getShipmentTypesApi();
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setShipmentTypes(
+          raw
+            .filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active')
+            .map(r => ({ id: r.id, name: r.name }))
+        );
+      } catch {
+        setShipmentTypesError('Failed to load shipment types.');
+      } finally {
+        setShipmentTypesLoading(false);
+      }
+    };
+    fetchShipmentTypes();
+  }, []);
+
+  const [transportModes, setTransportModes]               = useState<{ id: number; name: string }[]>([]);
+  const [transportModesLoading, setTransportModesLoading] = useState(false);
+  const [transportModesError, setTransportModesError]     = useState('');
+
+  useEffect(() => {
+    const fetchTransportModes = async () => {
+      setTransportModesLoading(true);
+      try {
+        const res = await getTransportModesApi();
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setTransportModes(
+          raw
+            .filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active')
+            .map(r => ({ id: r.id, name: r.name }))
+        );
+      } catch {
+        setTransportModesError('Failed to load transport modes.');
+      } finally {
+        setTransportModesLoading(false);
+      }
+    };
+    fetchTransportModes();
+  }, []);
+
   // ── Validation rules ────────────────────────────────────────────────────────
   const validate = (): FieldErrors => {
     const errs: FieldErrors = {};
-    if (!formData.customer.trim())   errs.customer     = 'Customer is required.';
-    if (!formData.date)              errs.date         = 'Date is required.';
-    if (!formData.status)            errs.status       = 'Status is required.';
-    if (!formData.target_date)       errs.target_date  = 'Target Date is required.';
+    if (!formData.customer.trim())   errs.customer          = 'Customer is required.';
+    if (!formData.date)              errs.date              = 'Date is required.';
+    if (!formData.status)            errs.status            = 'Status is required.';
+    if (!formData.target_date)       errs.target_date       = 'Target Date is required.';
+    if (!formData.transport_mode_id) errs.transport_mode_id = 'Transport Mode is required.';
     if (formData.email && !EMAIL_RE.test(formData.email))
                                      errs.email      = 'Enter a valid email address.';
     if (formData.expected_annual_revenue && isNaN(Number(formData.expected_annual_revenue)))
@@ -136,7 +186,16 @@ const NewLead = () => {
   // ── Change handler — clears per-field error on edit ─────────────────────────
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+      // keep shipment_type_id in sync when shipment_type name changes
+      ...(name === 'shipment_type'
+        ? { shipment_type_id: shipmentTypes.find(s => s.name === value)?.id ?? '' }
+        : name === 'transport_mode'
+        ? { transport_mode_id: transportModes.find(m => m.name === value)?.id ?? '' }
+        : {}),
+    }));
     if (fieldErrors[name]) setFieldErrors(prev => ({ ...prev, [name]: '' }));
     if (globalError) setGlobalError('');
   };
@@ -261,10 +320,19 @@ const NewLead = () => {
               <div className="space-y-1">
                 <Label htmlFor="shipment_type" className="text-sm font-semibold">Shipment Type</Label>
                 <select id="shipment_type" name="shipment_type" value={formData.shipment_type} onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-lg">
-                  <option value="">Select</option>
-                  {SHIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  disabled={shipmentTypesLoading}
+                  className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                  <option value="">
+                    {shipmentTypesLoading ? 'Loading...' : 'Select'}
+                  </option>
+                  {shipmentTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                 </select>
+                {shipmentTypesError && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <span className="inline-block w-1 h-1 rounded-full bg-red-500 shrink-0" />
+                    {shipmentTypesError}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -275,12 +343,20 @@ const NewLead = () => {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="transport_mode" className="text-sm font-semibold">Transport Mode</Label>
+                <Label htmlFor="transport_mode" className="text-sm font-semibold">Transport Mode <span className="text-destructive">*</span></Label>
                 <select id="transport_mode" name="transport_mode" value={formData.transport_mode} onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-lg">
-                  <option value="">Select Transport Mode</option>
-                  {TRANSPORT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                  disabled={transportModesLoading}
+                  className={`w-full px-3 py-2 border rounded-lg disabled:opacity-60 ${selectErrClass('transport_mode_id')}`}>
+                  <option value="">{transportModesLoading ? 'Loading...' : 'Select Transport Mode'}</option>
+                  {transportModes.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
                 </select>
+                {transportModesError && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <span className="inline-block w-1 h-1 rounded-full bg-red-500 shrink-0" />
+                    {transportModesError}
+                  </p>
+                )}
+                <ErrMsg field="transport_mode_id" />
               </div>
 
               <div className="space-y-1">
