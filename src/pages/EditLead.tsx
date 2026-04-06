@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { getLeadApi, updateLeadApi, getShipmentTypesApi, getTransportModesApi } from '@/services/api';
+import { getLeadApi, updateLeadApi, getShipmentTypesApi, getTransportModesApi, getCurrenciesApi, getCountriesApi, getEmployeesApi } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 
 type FieldErrors = Record<string, string>;
@@ -15,7 +15,7 @@ const EMPTY_FORM = {
   customer: '', target: '', lead_source: '',
   date: new Date().toISOString().split('T')[0],
   lead_owner: '', company: 'Relay Logistics (Private Limited)',
-  sales_team: '', status: 'Open', shipment_type: '', shipment_type_id: '' as number | '', transport_mode: '', transport_mode_id: '' as number | '',
+  sales_team: '' as number | '', status: 'Open', shipment_type: '', shipment_type_id: '' as number | '', transport_mode: '', transport_mode_id: '' as number | '',
   origin_port: '', target_date: '', business_service: '', destination_port: '',
   expected_annual_revenue: '', expected_annual_revenue_currency: 'USD',
   expected_annual_volume_commodity: '', nature_of_business: '',
@@ -44,6 +44,36 @@ const EditLead = () => {
   const [transportModes, setTransportModes]               = useState<{ id: number; name: string }[]>([]);
   const [transportModesLoading, setTransportModesLoading] = useState(false);
   const [transportModesError, setTransportModesError]     = useState('');
+
+  const [currencies, setCurrencies]             = useState<{ id: number; code: string }[]>([]);
+  const [currenciesLoading, setCurrenciesLoading] = useState(false);
+
+  const [countryCurrencies, setCountryCurrencies]               = useState<{ id: number; currency_code: string }[]>([]);
+  const [countryCurrenciesLoading, setCountryCurrenciesLoading] = useState(false);
+
+  const [employees, setEmployees]               = useState<{ id: number; name: string }[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [employeesError, setEmployeesError]     = useState('');
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      setEmployeesLoading(true);
+      try {
+        const res = await getEmployeesApi();
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setEmployees(
+          raw
+            .filter(r => r.status === 1)
+            .map(r => ({ id: r.id, name: [r.first_name, r.last_name].filter(Boolean).join(' ') }))
+        );
+      } catch {
+        setEmployeesError('Unable to load employee list');
+      } finally {
+        setEmployeesLoading(false);
+      }
+    };
+    fetchEmployees();
+  }, []);
 
   useEffect(() => {
     const fetchShipmentTypes = async () => {
@@ -85,6 +115,46 @@ const EditLead = () => {
     fetchTransportModes();
   }, []);
 
+  useEffect(() => {
+    const fetchCurrencies = async () => {
+      setCurrenciesLoading(true);
+      try {
+        const res = await getCurrenciesApi();
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        const active = raw
+          .filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active')
+          .map(r => ({ id: r.id, code: r.code }));
+        setCurrencies(active);
+      } catch {
+        // silently fall back to saved value
+      } finally {
+        setCurrenciesLoading(false);
+      }
+    };
+    fetchCurrencies();
+  }, []);
+
+  useEffect(() => {
+    const fetchCountryCurrencies = async () => {
+      setCountryCurrenciesLoading(true);
+      try {
+        const res = await getCountriesApi();
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setCountryCurrencies(
+          raw
+            .filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active')
+            .filter(r => r.currency_code)
+            .map(r => ({ id: r.id, currency_code: r.currency_code }))
+        );
+      } catch {
+        // silently fall back
+      } finally {
+        setCountryCurrenciesLoading(false);
+      }
+    };
+    fetchCountryCurrencies();
+  }, []);
+
   // ── Load existing lead ──────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
@@ -100,7 +170,7 @@ const EditLead = () => {
           date:                            l.date ? l.date.split('-').reverse().join('-') : new Date().toISOString().split('T')[0],
           lead_owner:                      l.lead_owner                      ?? '',
           company:                         l.company                         ?? '',
-          sales_team:                      l.sales_team                      ?? '',
+          sales_team:                      l.sales_team != null ? Number(l.sales_team) : '' as number | '',
           status:                          l.status                          ?? '',
           shipment_type:                   l.shipment_type                   ?? '',
           shipment_type_id:                l.shipment_type_id                ?? '' as number | '',
@@ -202,7 +272,7 @@ const EditLead = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'sales_team' ? (value === '' ? '' : Number(value)) : value,
       ...(name === 'shipment_type'
         ? { shipment_type_id: shipmentTypes.find(s => s.name === value)?.id ?? '' }
         : name === 'transport_mode'
@@ -288,12 +358,21 @@ const EditLead = () => {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="sales_team" className="text-sm font-semibold">Sales Team</Label>
-                <select id="sales_team" name="sales_team" value={formData.sales_team} onChange={handleChange} className={`w-full px-3 py-2 border rounded-lg ${selectErr('sales_team')}`}>
-                  <option value="">Select</option>
-                  <option value="Team A">Team A</option>
-                  <option value="Team B">Team B</option>
-                  <option value="North America">North America</option>
+                <select id="sales_team" name="sales_team" value={formData.sales_team} onChange={handleChange}
+                  disabled={employeesLoading}
+                  className={`w-full px-3 py-2 border rounded-lg disabled:opacity-60 ${selectErr('sales_team')}`}>
+                  <option value="">{employeesLoading ? 'Loading...' : 'Select Employee'}</option>
+                  {!employeesLoading && employees.length === 0 && !employeesError && (
+                    <option disabled>No Sales Team Members Available</option>
+                  )}
+                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                 </select>
+                {employeesError && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <span className="inline-block w-1 h-1 rounded-full bg-red-500 shrink-0" />
+                    {employeesError}
+                  </p>
+                )}
                 <ErrMsg field="sales_team" />
               </div>
               <div className="space-y-1">
@@ -365,10 +444,24 @@ const EditLead = () => {
                 <Input id="destination_port" name="destination_port" value={formData.destination_port} onChange={handleChange} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="expected_annual_revenue" className="text-sm font-semibold">Expected Annual Revenue</Label>
+                <Label htmlFor="expected_annual_revenue" className="text-sm font-semibold">
+                  Expected Annual Revenue
+                  {formData.expected_annual_revenue_currency && (
+                    <span className="ml-1 text-muted-foreground font-normal">({formData.expected_annual_revenue_currency})</span>
+                  )}
+                </Label>
                 <div className="flex gap-2">
-                  <select name="expected_annual_revenue_currency" value={formData.expected_annual_revenue_currency} onChange={handleChange} className="w-20 px-3 py-2 border border-input rounded-lg">
-                    <option>USD</option><option>INR</option>
+                  <select
+                    name="expected_annual_revenue_currency"
+                    value={formData.expected_annual_revenue_currency}
+                    onChange={handleChange}
+                    disabled={countryCurrenciesLoading}
+                    className="w-24 px-2 py-2 border border-input rounded-lg text-sm bg-background disabled:opacity-60"
+                  >
+                    {countryCurrenciesLoading
+                      ? <option>...</option>
+                      : countryCurrencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code}</option>)
+                    }
                   </select>
                   <Input id="expected_annual_revenue" name="expected_annual_revenue" value={formData.expected_annual_revenue} onChange={handleChange} className={`flex-1 ${errBorder('expected_annual_revenue')}`} />
                 </div>
@@ -386,10 +479,24 @@ const EditLead = () => {
             <h2 className="text-lg font-bold text-primary mb-4">Revenue & Volume</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-1">
-                <Label htmlFor="company_turnover" className="text-sm font-semibold">Company Turnover</Label>
+                <Label htmlFor="company_turnover" className="text-sm font-semibold">
+                  Company Turnover
+                  {formData.company_turnover_currency && (
+                    <span className="ml-1 text-muted-foreground font-normal">({formData.company_turnover_currency})</span>
+                  )}
+                </Label>
                 <div className="flex gap-2">
-                  <select name="company_turnover_currency" value={formData.company_turnover_currency} onChange={handleChange} className="w-20 px-3 py-2 border border-input rounded-lg">
-                    <option>USD</option><option>INR</option>
+                  <select
+                    name="company_turnover_currency"
+                    value={formData.company_turnover_currency}
+                    onChange={handleChange}
+                    disabled={countryCurrenciesLoading}
+                    className="w-24 px-2 py-2 border border-input rounded-lg text-sm bg-background disabled:opacity-60"
+                  >
+                    {countryCurrenciesLoading
+                      ? <option>...</option>
+                      : countryCurrencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code}</option>)
+                    }
                   </select>
                   <Input id="company_turnover" name="company_turnover" value={formData.company_turnover} onChange={handleChange} className={`flex-1 ${errBorder('company_turnover')}`} />
                 </div>

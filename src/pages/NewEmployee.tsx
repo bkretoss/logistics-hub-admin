@@ -1,145 +1,287 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { employeeStore, type Employee } from './EmployeeMasterList';
-import { branchStore } from './BranchMasterList';
+import { useToast } from '@/hooks/use-toast';
+import { getEmployeeApi, createEmployeeApi, updateEmployeeApi } from '@/services/api';
 
-const TITLES        = ['Mr', 'Mrs', 'Ms', 'Dr', 'Prof'];
-const SEXES         = ['Male', 'Female', 'Other'];
-const MARITAL       = ['--Select--', 'Single', 'Married', 'Divorced', 'Widowed'];
-const NATIONALITIES = ['--Select--', 'Indian', 'American', 'British', 'Emirati', 'Singaporean', 'Canadian', 'Australian'];
-const CURRENCIES    = ['--Select--', 'INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD'];
-const POSITIONS     = ['--Select--', 'Logistics Manager', 'Operations Executive', 'Warehouse Supervisor', 'HR Coordinator', 'Finance Analyst', 'Sales Executive', 'IT Administrator'];
-const DESIGNATIONS  = ['--Select--', 'Manager', 'Senior Executive', 'Executive', 'Supervisor', 'Analyst', 'Coordinator', 'Assistant'];
-const DEPARTMENTS   = ['--Select--', 'Operations', 'HR', 'Finance', 'Sales', 'IT', 'Procurement', 'Accounting'];
-const INCENTIVE_COA = ['--Select--', 'Accounts Receivable', 'Accounts Payable', 'Cash', 'Bank', 'Revenue', 'Expense', 'Salary Payable'];
-const USERNAMES     = ['--Select--', 'admin', 'hr_user', 'ops_user', 'finance_user', 'sales_user'];
+// ── Static option lists ────────────────────────────────────────────────────────
+const TITLES       = ['Mr', 'Mrs', 'Ms', 'Dr', 'Prof'];
+const SEXES        = ['Male', 'Female', 'Other'];
+const MARITAL      = ['Single', 'Married', 'Divorced', 'Widowed'];
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+const CURRENCIES   = ['USD', 'EUR', 'GBP', 'AED', 'INR', 'SGD', 'CAD', 'AUD'];
 
-type EmployeeForm = Omit<Employee, 'id'>;
+// ── Date helpers ──────────────────────────────────────────────────────────────
+// API returns DD-MM-YYYY → convert to YYYY-MM-DD for <input type="date">
+const apiToInput = (d?: string | null): string => {
+  if (!d) return '';
+  const m = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : d; // already YYYY-MM-DD → pass through
+};
+// <input type="date"> gives YYYY-MM-DD → API expects YYYY-MM-DD (per cURL payload)
+const inputToApi = (d: string): string | null => d || null;
 
-const EMPTY_FORM: EmployeeForm = {
-  empId: '', loginId: '', position: '', identificationNo: '', branch: '',
-  nameTitle: 'Mr', firstName: '', middleName: '', lastName: '',
-  spouseName: '', dob: '', placeOfBirth: '', nationality: '--Select--',
-  religion: '', sex: 'Male', maritalStatus: '--Select--', marriageDate: '',
-  bloodGroup: '', joiningDate: '', confirmationDate: '',
-  notificationDate: '', leavingDate: '', ctcCurrency: '--Select--',
-  ctcAmount: '', contactNo: '', temporaryAddress: '', permanentAddress: '',
-  designation: '--Select--', jobDescription: '', department: '--Select--',
-  division: '', reportingManager: '', note: '',
-  incentiveCoa: '--Select--', userName: '--Select--', employeePhoto: '',
+// ── Types ──────────────────────────────────────────────────────────────────────
+interface EmployeeForm {
+  emp_id: string;
+  login_id: string;
+  position: string;
+  identification_no: string;
+  branch: string;
+  name_title: string;
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  spouse_name: string;
+  dob: string;
+  place_of_birth: string;
+  nationality: string;
+  religion: string;
+  sex: string;
+  marital_status: string;
+  marriage_date: string;
+  blood_group: string;
+  joining_date: string;
+  confirmation_date: string;
+  notification_date: string;
+  leaving_date: string;
+  ctc_currency: string;
+  ctc_amount: string;
+  contact_no: string;
+  temporary_address: string;
+  permanent_address: string;
+  designation: string;
+  department: string;
+  division: string;
+  reporting_manager: string;
+  job_description: string;
+  note: string;
+  incentive_coa: string;
+  user_name: string;
+  profile_image: string | null;
+  status: number;
+}
+
+const EMPTY: EmployeeForm = {
+  emp_id: '', login_id: '', position: '', identification_no: '', branch: '',
+  name_title: 'Mr', first_name: '', middle_name: '', last_name: '',
+  spouse_name: '', dob: '', place_of_birth: '', nationality: '',
+  religion: '', sex: 'Male', marital_status: '', marriage_date: '',
+  blood_group: '', joining_date: '', confirmation_date: '',
+  notification_date: '', leaving_date: '', ctc_currency: '',
+  ctc_amount: '', contact_no: '', temporary_address: '', permanent_address: '',
+  designation: '', department: '', division: '', reporting_manager: '',
+  job_description: '', note: '', incentive_coa: '', user_name: '',
+  profile_image: null, status: 1,
 };
 
-// Map Employee record → form (all fields align 1:1 since EmployeeForm = Omit<Employee,'id'>)
-const employeeToForm = (emp: Employee): EmployeeForm => {
-  const { id: _id, ...rest } = emp;
-  return {
-    ...EMPTY_FORM,
-    ...rest,
-    // Restore '--Select--' sentinel for fields that were stored as empty
-    position:     rest.position     || '--Select--',
-    nationality:  rest.nationality  || '--Select--',
-    maritalStatus:rest.maritalStatus|| '--Select--',
-    ctcCurrency:  rest.ctcCurrency  || '--Select--',
-    designation:  rest.designation  || '--Select--',
-    department:   rest.department   || '--Select--',
-    incentiveCoa: rest.incentiveCoa || '--Select--',
-    userName:     rest.userName     || '--Select--',
-  };
-};
-
-// ── Field wrappers ────────────────────────────────────────────────────────────
+// ── Field layout helpers ───────────────────────────────────────────────────────
 const Field = ({ label, required, error, children }: {
   label: string; required?: boolean; error?: string; children: React.ReactNode;
 }) => (
-  <div className="flex items-center gap-3">
-    <Label className="text-sm font-semibold w-36 shrink-0">
+  <div className="flex flex-col gap-1.5">
+    <Label className="text-sm font-semibold text-foreground">
       {label}{required && <span className="text-destructive ml-1">*</span>}
     </Label>
-    <div className="flex-1">
-      {children}
-      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+    {children}
+    {error && <p className="text-xs text-destructive">{error}</p>}
+  </div>
+);
+
+const inputCls = (err?: string) =>
+  `w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${err ? 'border-destructive' : 'border-input'}`;
+
+// ── Section wrapper ────────────────────────────────────────────────────────────
+const Section = ({ title, color, children }: { title: string; color: string; children: React.ReactNode }) => (
+  <div className="material-card material-elevation-1 overflow-hidden">
+    <div className={`${color} px-6 py-3`}>
+      <h2 className="text-base font-bold text-white">{title}</h2>
+    </div>
+    <div className="p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+        {children}
+      </div>
     </div>
   </div>
 );
 
-const FieldTop = ({ label, required, error, children }: {
-  label: string; required?: boolean; error?: string; children: React.ReactNode;
-}) => (
-  <div className="flex items-start gap-3">
-    <Label className="text-sm font-semibold w-36 shrink-0 pt-2">
-      {label}{required && <span className="text-destructive ml-1">*</span>}
-    </Label>
-    <div className="flex-1">
-      {children}
-      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
-    </div>
-  </div>
-);
-
-const sel = (err?: string) =>
-  `w-full px-3 py-2 border rounded-lg text-sm bg-background ${err ? 'border-destructive' : 'border-input'}`;
-
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Component ──────────────────────────────────────────────────────────────────
 const NewEmployee = () => {
-  const navigate      = useNavigate();
-  const { id }        = useParams<{ id: string }>();
-  const editEmployee  = id ? employeeStore.data.find(e => e.id === Number(id)) : undefined;
-  const isEdit        = !!editEmployee;
+  const navigate   = useNavigate();
+  const { id }     = useParams<{ id: string }>();
+  const { toast }  = useToast();
+  const isEdit     = !!id;
+  const fileRef    = useRef<HTMLInputElement>(null);
 
-  const [form, setForm]     = useState<EmployeeForm>(() => editEmployee ? employeeToForm(editEmployee) : EMPTY_FORM);
-  const [errors, setErrors] = useState<Partial<Record<keyof EmployeeForm, string>>>({});
+  const [form, setForm]           = useState<EmployeeForm>(EMPTY);
+  const [errors, setErrors]       = useState<Partial<Record<keyof EmployeeForm, string>>>({});
+  const [saving, setSaving]       = useState(false);
+  const [loadingEdit, setLoading] = useState(isEdit);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // Re-sync if navigating between edit routes without unmounting
+  // ── Load employee for edit ─────────────────────────────────────────────────
   useEffect(() => {
-    if (editEmployee) setForm(employeeToForm(editEmployee));
-    else              setForm(EMPTY_FORM);
-    setErrors({});
+    if (!id) { setForm(EMPTY); setErrors({}); setImagePreview(null); return; }
+    setLoading(true);
+    getEmployeeApi(Number(id))
+      .then(res => {
+        const d = res.data?.data ?? res.data;
+        setForm({
+          emp_id:            d.emp_id            ?? '',
+          login_id:          d.login_id          ?? '',
+          position:          d.position          ?? '',
+          identification_no: d.identification_no ?? '',
+          branch:            d.branch            ?? '',
+          name_title:        d.name_title        ?? 'Mr',
+          first_name:        d.first_name        ?? '',
+          middle_name:       d.middle_name       ?? '',
+          last_name:         d.last_name         ?? '',
+          spouse_name:       d.spouse_name       ?? '',
+          dob:               apiToInput(d.dob),
+          place_of_birth:    d.place_of_birth    ?? '',
+          nationality:       d.nationality       ?? '',
+          religion:          d.religion          ?? '',
+          sex:               d.sex               ?? 'Male',
+          marital_status:    d.marital_status    ?? '',
+          marriage_date:     apiToInput(d.marriage_date),
+          blood_group:       d.blood_group       ?? '',
+          joining_date:      apiToInput(d.joining_date),
+          confirmation_date: apiToInput(d.confirmation_date),
+          notification_date: apiToInput(d.notification_date),
+          leaving_date:      apiToInput(d.leaving_date),
+          ctc_currency:      d.ctc_currency      ?? '',
+          ctc_amount:        d.ctc_amount        ?? '',
+          contact_no:        d.contact_no        ?? '',
+          temporary_address: d.temporary_address ?? '',
+          permanent_address: d.permanent_address ?? '',
+          designation:       d.designation       ?? '',
+          department:        d.department        ?? '',
+          division:          d.division          ?? '',
+          reporting_manager: d.reporting_manager ?? '',
+          job_description:   d.job_description   ?? '',
+          note:              d.note              ?? '',
+          incentive_coa:     d.incentive_coa     ?? '',
+          user_name:         d.user_name         ?? '',
+          profile_image:     d.profile_image     ?? null,
+          status:            d.status            ?? 1,
+        });
+        if (d.profile_image) setImagePreview(d.profile_image);
+      })
+      .catch(() => toast({ title: 'Error', description: 'Failed to load employee details.', variant: 'destructive' }))
+      .finally(() => setLoading(false));
   }, [id]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const set = (name: keyof EmployeeForm, value: string | number | null) => {
     setForm(prev => ({ ...prev, [name]: value }));
-    if (errors[name as keyof EmployeeForm])
-      setErrors(prev => ({ ...prev, [name]: '' }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    set(e.target.name as keyof EmployeeForm, e.target.value);
+
+  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const base64 = ev.target?.result as string;
+      setImagePreview(base64);
+      setForm(prev => ({ ...prev, profile_image: base64 }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setImagePreview(null);
+    setForm(prev => ({ ...prev, profile_image: null }));
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   const validate = () => {
     const e: Partial<Record<keyof EmployeeForm, string>> = {};
-    if (!form.position || form.position === '--Select--') e.position         = 'Position is required';
-    if (!form.identificationNo.trim())                    e.identificationNo = 'Identification No is required';
-    if (!form.firstName.trim())                           e.firstName        = 'First Name is required';
-    if (!form.department || form.department === '--Select--') e.department   = 'Department is required';
+    if (!form.first_name.trim())        e.first_name        = 'First Name is required';
+    if (!form.identification_no.trim()) e.identification_no = 'Identification No is required';
+    if (!form.department.trim())        e.department        = 'Department is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
+    setSaving(true);
+    try {
+      // Build payload matching the exact API structure from the cURL
+      const payload: Record<string, unknown> = {
+        emp_id:            form.emp_id            || undefined,
+        login_id:          form.login_id          || undefined,
+        position:          form.position          || undefined,
+        identification_no: form.identification_no,
+        branch:            form.branch            || undefined,
+        name_title:        form.name_title,
+        first_name:        form.first_name,
+        middle_name:       form.middle_name       || undefined,
+        last_name:         form.last_name         || undefined,
+        spouse_name:       form.spouse_name       || undefined,
+        dob:               inputToApi(form.dob),
+        place_of_birth:    form.place_of_birth    || undefined,
+        nationality:       form.nationality       || undefined,
+        religion:          form.religion          || undefined,
+        sex:               form.sex,
+        marital_status:    form.marital_status    || undefined,
+        marriage_date:     inputToApi(form.marriage_date),
+        blood_group:       form.blood_group       || undefined,
+        joining_date:      inputToApi(form.joining_date),
+        confirmation_date: inputToApi(form.confirmation_date),
+        notification_date: inputToApi(form.notification_date),
+        leaving_date:      inputToApi(form.leaving_date),
+        ctc_currency:      form.ctc_currency      || undefined,
+        ctc_amount:        form.ctc_amount ? parseFloat(form.ctc_amount) : undefined,
+        contact_no:        form.contact_no        || undefined,
+        temporary_address: form.temporary_address || undefined,
+        permanent_address: form.permanent_address || undefined,
+        designation:       form.designation       || undefined,
+        department:        form.department,
+        division:          form.division          || undefined,
+        reporting_manager: form.reporting_manager || undefined,
+        job_description:   form.job_description   || undefined,
+        note:              form.note              || undefined,
+        incentive_coa:     form.incentive_coa     || undefined,
+        user_name:         form.user_name         || undefined,
+        profile_image:     form.profile_image     ?? null,
+        status:            form.status,
+      };
 
-    if (isEdit && editEmployee) {
-      // Update existing record in store
-      const updated = employeeStore.data.map(e =>
-        e.id === editEmployee.id ? { ...form, id: editEmployee.id } : e
-      );
-      employeeStore.set(updated);
-    } else {
-      // Add new record — generate empId and id
-      const nextId    = Math.max(0, ...employeeStore.data.map(e => e.id)) + 1;
-      const newEmpId  = form.empId.trim() || `EMP${String(nextId).padStart(3, '0')}`;
-      employeeStore.set([...employeeStore.data, { ...form, id: nextId, empId: newEmpId }]);
+      if (isEdit) {
+        await updateEmployeeApi(Number(id), payload);
+        toast({ title: 'Success', description: 'Employee updated successfully.', variant: 'success' });
+      } else {
+        await createEmployeeApi(payload);
+        toast({ title: 'Success', description: 'Employee created successfully.', variant: 'success' });
+      }
+      navigate('/hr/employee-master');
+    } catch {
+      toast({ title: 'Error', description: `Failed to ${isEdit ? 'update' : 'create'} employee.`, variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
-
-    navigate('/hr/employee-master');
-    window.scrollTo(0, 0);
   };
 
+  // ── Loading state ──────────────────────────────────────────────────────────
+  if (loadingEdit) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+        <span className="inline-block w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+        Loading employee details...
+      </div>
+    );
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
 
@@ -148,247 +290,272 @@ const NewEmployee = () => {
         <Button variant="outline" size="icon" onClick={() => navigate('/hr/employee-master')}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <div className="flex-1">
+        <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">
             {isEdit ? 'Edit Employee' : 'New Employee'}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {isEdit
-              ? `Editing ${[editEmployee?.nameTitle, editEmployee?.firstName, editEmployee?.lastName].filter(Boolean).join(' ')}`
-              : 'Create a new employee record'}
+            {isEdit ? 'Update employee information' : 'Create a new employee record'}
           </p>
         </div>
       </div>
 
-      {/* ── Employee Details ── */}
-      <div className="material-card material-elevation-1 overflow-hidden">
-        <div className="bg-[#4CAF50] px-6 py-3">
-          <h2 className="text-base font-bold text-white">Employee Details</h2>
+      {/* ── Employee Details ─────────────────────────────────────────────────── */}
+      <Section title="Employee Details" color="bg-[#4CAF50]">
+
+        <Field label="EMP ID">
+          <Input name="emp_id" value={form.emp_id} onChange={handleChange}
+            placeholder="e.g. EMP-001" className={inputCls()} />
+        </Field>
+
+        <Field label="Login ID">
+          <Input name="login_id" value={form.login_id} onChange={handleChange}
+            placeholder="e.g. john.doe" className={inputCls()} />
+        </Field>
+
+        <Field label="Position">
+          <Input name="position" value={form.position} onChange={handleChange}
+            placeholder="e.g. Senior Manager" className={inputCls()} />
+        </Field>
+
+        <Field label="Identification No" required error={errors.identification_no}>
+          <Input name="identification_no" value={form.identification_no} onChange={handleChange}
+            placeholder="e.g. ID-987654321" className={inputCls(errors.identification_no)} />
+        </Field>
+
+        <Field label="Branch">
+          <Input name="branch" value={form.branch} onChange={handleChange}
+            placeholder="e.g. Head Office" className={inputCls()} />
+        </Field>
+
+        <Field label="Name Title">
+          <select name="name_title" value={form.name_title} onChange={handleChange} className={inputCls()}>
+            {TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </Field>
+
+        <Field label="First Name" required error={errors.first_name}>
+          <Input name="first_name" value={form.first_name} onChange={handleChange}
+            placeholder="First name" className={inputCls(errors.first_name)} />
+        </Field>
+
+        <Field label="Middle Name">
+          <Input name="middle_name" value={form.middle_name} onChange={handleChange}
+            placeholder="Middle name" className={inputCls()} />
+        </Field>
+
+        <Field label="Last Name">
+          <Input name="last_name" value={form.last_name} onChange={handleChange}
+            placeholder="Last name" className={inputCls()} />
+        </Field>
+
+        <Field label="Spouse Name">
+          <Input name="spouse_name" value={form.spouse_name} onChange={handleChange}
+            placeholder="Spouse name" className={inputCls()} />
+        </Field>
+
+        <Field label="Date of Birth">
+          <Input name="dob" type="date" value={form.dob} onChange={handleChange} className={inputCls()} />
+        </Field>
+
+        <Field label="Place of Birth">
+          <Input name="place_of_birth" value={form.place_of_birth} onChange={handleChange}
+            placeholder="e.g. New York" className={inputCls()} />
+        </Field>
+
+        <Field label="Nationality">
+          <Input name="nationality" value={form.nationality} onChange={handleChange}
+            placeholder="e.g. American" className={inputCls()} />
+        </Field>
+
+        <Field label="Religion">
+          <Input name="religion" value={form.religion} onChange={handleChange}
+            placeholder="e.g. Christian" className={inputCls()} />
+        </Field>
+
+        <Field label="Sex">
+          <select name="sex" value={form.sex} onChange={handleChange} className={inputCls()}>
+            {SEXES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Marital Status">
+          <select name="marital_status" value={form.marital_status} onChange={handleChange} className={inputCls()}>
+            <option value="">-- Select --</option>
+            {MARITAL.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Marriage Date">
+          <Input name="marriage_date" type="date" value={form.marriage_date} onChange={handleChange} className={inputCls()} />
+        </Field>
+
+        <Field label="Blood Group">
+          <select name="blood_group" value={form.blood_group} onChange={handleChange} className={inputCls()}>
+            <option value="">-- Select --</option>
+            {BLOOD_GROUPS.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Joining Date">
+          <Input name="joining_date" type="date" value={form.joining_date} onChange={handleChange} className={inputCls()} />
+        </Field>
+
+        <Field label="Confirmation Date">
+          <Input name="confirmation_date" type="date" value={form.confirmation_date} onChange={handleChange} className={inputCls()} />
+        </Field>
+
+        <Field label="Notification Date">
+          <Input name="notification_date" type="date" value={form.notification_date} onChange={handleChange} className={inputCls()} />
+        </Field>
+
+        <Field label="Leaving Date">
+          <Input name="leaving_date" type="date" value={form.leaving_date} onChange={handleChange} className={inputCls()} />
+        </Field>
+
+        <Field label="CTC Currency">
+          <select name="ctc_currency" value={form.ctc_currency} onChange={handleChange} className={inputCls()}>
+            <option value="">-- Select --</option>
+            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+
+        <Field label="CTC Amount">
+          <Input name="ctc_amount" type="number" min="0" step="0.01"
+            value={form.ctc_amount} onChange={handleChange}
+            placeholder="e.g. 75000.00" className={inputCls()} />
+        </Field>
+
+        <Field label="Contact No">
+          <Input name="contact_no" type="tel" value={form.contact_no} onChange={handleChange}
+            placeholder="e.g. +1-555-123-4567" className={inputCls()} />
+        </Field>
+
+        {/* Temporary Address — spans full row on lg */}
+        <div className="lg:col-span-1 flex flex-col gap-1.5">
+          <Label className="text-sm font-semibold text-foreground">Temporary Address</Label>
+          <Textarea name="temporary_address" value={form.temporary_address} onChange={handleChange}
+            rows={3} className="resize-y" placeholder="Temporary address" />
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
 
-            <Field label="EMP ID">
-              <Input name="empId" value={form.empId} onChange={handleChange}
-                placeholder={isEdit ? '' : 'Auto-generated if blank'} />
-            </Field>
-
-            <Field label="Login ID">
-              <Input name="loginId" value={form.loginId} onChange={handleChange} />
-            </Field>
-
-            <Field label="Position" required error={errors.position}>
-              <select name="position" value={form.position} onChange={handleChange} className={sel(errors.position)}>
-                {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </Field>
-
-            <Field label="Identification No" required error={errors.identificationNo}>
-              <Input name="identificationNo" value={form.identificationNo} onChange={handleChange}
-                className={errors.identificationNo ? 'border-destructive' : ''} />
-            </Field>
-
-            <Field label="Branch">
-              <select name="branch" value={form.branch} onChange={handleChange} className={sel()}>
-                <option value="">--Select--</option>
-                {branchStore.data.map(b => (
-                  <option key={b.id} value={b.name}>{b.name}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Name Title">
-              <select name="nameTitle" value={form.nameTitle} onChange={handleChange} className={sel()}>
-                {TITLES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </Field>
-
-            <Field label="First Name" required error={errors.firstName}>
-              <Input name="firstName" value={form.firstName} onChange={handleChange}
-                className={errors.firstName ? 'border-destructive' : ''} />
-            </Field>
-
-            <Field label="Middle Name">
-              <Input name="middleName" value={form.middleName} onChange={handleChange} />
-            </Field>
-
-            <Field label="Last Name">
-              <Input name="lastName" value={form.lastName} onChange={handleChange} />
-            </Field>
-
-            <Field label="Spouse Name">
-              <Input name="spouseName" value={form.spouseName} onChange={handleChange} />
-            </Field>
-
-            <Field label="DOB">
-              <Input name="dob" type="date" value={form.dob} onChange={handleChange} />
-            </Field>
-
-            <Field label="Place of Birth">
-              <Input name="placeOfBirth" value={form.placeOfBirth} onChange={handleChange} />
-            </Field>
-
-            <Field label="Nationality">
-              <select name="nationality" value={form.nationality} onChange={handleChange} className={sel()}>
-                {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </Field>
-
-            <Field label="Religion">
-              <Input name="religion" value={form.religion} onChange={handleChange} />
-            </Field>
-
-            <Field label="Sex" required>
-              <select name="sex" value={form.sex} onChange={handleChange} className={sel()}>
-                {SEXES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </Field>
-
-            <Field label="Marital Status">
-              <select name="maritalStatus" value={form.maritalStatus} onChange={handleChange} className={sel()}>
-                {MARITAL.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </Field>
-
-            <Field label="Marriage Date">
-              <Input name="marriageDate" type="date" value={form.marriageDate} onChange={handleChange} />
-            </Field>
-
-            <Field label="Blood Group">
-              <Input name="bloodGroup" value={form.bloodGroup} onChange={handleChange} placeholder="e.g. O+" />
-            </Field>
-
-            <Field label="Joining Date">
-              <Input name="joiningDate" type="date" value={form.joiningDate} onChange={handleChange} />
-            </Field>
-
-            <Field label="Confirmation Date">
-              <Input name="confirmationDate" type="date" value={form.confirmationDate} onChange={handleChange} />
-            </Field>
-
-            <Field label="Notification Date">
-              <Input name="notificationDate" type="date" value={form.notificationDate} onChange={handleChange} />
-            </Field>
-
-            <Field label="Leaving Date">
-              <Input name="leavingDate" type="date" value={form.leavingDate} onChange={handleChange} />
-            </Field>
-
-            <Field label="CTC Currency">
-              <select name="ctcCurrency" value={form.ctcCurrency} onChange={handleChange} className={sel()}>
-                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
-
-            <Field label="CTC Amount">
-              <Input name="ctcAmount" type="number" min="0" value={form.ctcAmount} onChange={handleChange} />
-            </Field>
-
-            <Field label="Contact No">
-              <Input name="contactNo" type="tel" value={form.contactNo} onChange={handleChange} />
-            </Field>
-
-            <FieldTop label="Temporary Address">
-              <Textarea name="temporaryAddress" value={form.temporaryAddress} onChange={handleChange} rows={3} className="resize-y" />
-            </FieldTop>
-
-            <FieldTop label="Permanent Address">
-              <Textarea name="permanentAddress" value={form.permanentAddress} onChange={handleChange} rows={3} className="resize-y" />
-            </FieldTop>
-
-          </div>
+        <div className="lg:col-span-1 flex flex-col gap-1.5">
+          <Label className="text-sm font-semibold text-foreground">Permanent Address</Label>
+          <Textarea name="permanent_address" value={form.permanent_address} onChange={handleChange}
+            rows={3} className="resize-y" placeholder="Permanent address" />
         </div>
-      </div>
 
-      {/* ── Job Details ── */}
-      <div className="material-card material-elevation-1 overflow-hidden">
-        <div className="bg-[#90A4AE] px-6 py-3">
-          <h2 className="text-base font-bold text-white">Job Details</h2>
+      </Section>
+
+      {/* ── Job Details ──────────────────────────────────────────────────────── */}
+      <Section title="Job Details" color="bg-[#90A4AE]">
+
+        <Field label="Designation">
+          <Input name="designation" value={form.designation} onChange={handleChange}
+            placeholder="e.g. Team Lead" className={inputCls()} />
+        </Field>
+
+        <Field label="Department" required error={errors.department}>
+          <Input name="department" value={form.department} onChange={handleChange}
+            placeholder="e.g. Operations" className={inputCls(errors.department)} />
+        </Field>
+
+        <Field label="Division">
+          <Input name="division" value={form.division} onChange={handleChange}
+            placeholder="e.g. Logistics" className={inputCls()} />
+        </Field>
+
+        <Field label="Reporting Manager">
+          <Input name="reporting_manager" value={form.reporting_manager} onChange={handleChange}
+            placeholder="e.g. Michael Smith" className={inputCls()} />
+        </Field>
+
+        <div className="lg:col-span-1 flex flex-col gap-1.5">
+          <Label className="text-sm font-semibold text-foreground">Job Description</Label>
+          <Textarea name="job_description" value={form.job_description} onChange={handleChange}
+            rows={3} className="resize-y" placeholder="Describe the role..." />
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
 
-            <Field label="Designation">
-              <select name="designation" value={form.designation} onChange={handleChange} className={sel()}>
-                {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </Field>
-
-            <Field label="Department" required error={errors.department}>
-              <select name="department" value={form.department} onChange={handleChange} className={sel(errors.department)}>
-                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </Field>
-
-            <Field label="Division">
-              <Input name="division" value={form.division} onChange={handleChange} />
-            </Field>
-
-            <Field label="Reporting Manager">
-              <Input name="reportingManager" value={form.reportingManager} onChange={handleChange} />
-            </Field>
-
-            <FieldTop label="Job Description">
-              <Textarea name="jobDescription" value={form.jobDescription} onChange={handleChange} rows={3} className="resize-y" />
-            </FieldTop>
-
-            <FieldTop label="Note">
-              <Textarea name="note" value={form.note} onChange={handleChange} rows={3} className="resize-y" />
-            </FieldTop>
-
-          </div>
+        <div className="lg:col-span-1 flex flex-col gap-1.5">
+          <Label className="text-sm font-semibold text-foreground">Note</Label>
+          <Textarea name="note" value={form.note} onChange={handleChange}
+            rows={3} className="resize-y" placeholder="Additional notes..." />
         </div>
-      </div>
 
-      {/* ── Additional Details ── */}
-      <div className="material-card material-elevation-1 overflow-hidden">
-        <div className="bg-[#00BCD4] px-6 py-3">
-          <h2 className="text-base font-bold text-white">Additional Details</h2>
-        </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+      </Section>
 
-            <Field label="Incentive COA">
-              <select name="incentiveCoa" value={form.incentiveCoa} onChange={handleChange} className={sel()}>
-                {INCENTIVE_COA.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
+      {/* ── Additional Details ───────────────────────────────────────────────── */}
+      <Section title="Additional Details" color="bg-[#00BCD4]">
 
-            <Field label="User Name">
-              <select name="userName" value={form.userName} onChange={handleChange} className={sel()}>
-                {USERNAMES.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </Field>
+        <Field label="Incentive COA">
+          <Input name="incentive_coa" value={form.incentive_coa} onChange={handleChange}
+            placeholder="e.g. COA-2024" className={inputCls()} />
+        </Field>
 
-            <div className="flex items-center gap-3">
-              <Label className="text-sm font-semibold w-36 shrink-0">Employee Photo</Label>
-              <div className="flex items-center gap-3 flex-1">
-                <label className="inline-flex items-center gap-2 px-4 py-2 border border-input rounded-lg text-sm font-medium bg-background hover:bg-muted cursor-pointer transition-colors whitespace-nowrap">
-                  Choose File
-                  <input type="file" accept="image/*" className="hidden"
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      setForm(prev => ({ ...prev, employeePhoto: file ? file.name : '' }));
-                    }} />
-                </label>
-                <span className="text-sm text-muted-foreground truncate">
-                  {form.employeePhoto || 'No file chosen'}
-                </span>
+        <Field label="User Name">
+          <Input name="user_name" value={form.user_name} onChange={handleChange}
+            placeholder="e.g. johndoe_admin" className={inputCls()} />
+        </Field>
+
+        <Field label="Status">
+          <select
+            value={form.status}
+            onChange={e => set('status', Number(e.target.value))}
+            className={inputCls()}
+          >
+            <option value={1}>Active</option>
+            <option value={0}>Inactive</option>
+          </select>
+        </Field>
+
+        {/* Profile Image */}
+        <div className="lg:col-span-3 flex flex-col gap-2">
+          <Label className="text-sm font-semibold text-foreground">Profile Image</Label>
+          <div className="flex items-center gap-4">
+            {imagePreview ? (
+              <div className="relative w-20 h-20 rounded-full overflow-hidden ring-2 ring-border shrink-0">
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </div>
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-muted border-2 border-dashed border-border flex items-center justify-center shrink-0">
+                <Upload className="w-6 h-6 text-muted-foreground" />
+              </div>
+            )}
+            <div>
+              <label className="inline-flex items-center gap-2 px-4 py-2 border border-input rounded-lg text-sm font-medium bg-background hover:bg-muted cursor-pointer transition-colors">
+                <Upload className="w-4 h-4" />
+                {imagePreview ? 'Change Photo' : 'Upload Photo'}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImage}
+                />
+              </label>
+              <p className="text-xs text-muted-foreground mt-1">JPG, PNG or GIF. Max 2MB.</p>
             </div>
-
           </div>
         </div>
-      </div>
 
-      {/* Action buttons */}
+      </Section>
+
+      {/* ── Action buttons ───────────────────────────────────────────────────── */}
       <div className="flex items-center justify-end gap-3 pb-4">
-        <Button type="button" className="bg-red-400 text-black hover:bg-red-350"
-          onClick={() => navigate('/hr/employee-master')}>
+        <Button type="button" variant="outline" onClick={() => navigate('/hr/employee-master')}>
           Cancel
         </Button>
-        <Button type="button" className="material-button text-black" onClick={handleSave}>
-          {isEdit ? 'Update' : 'Save'}
+        <Button type="button" className="material-button text-black" onClick={handleSave} disabled={saving}>
+          {saving
+            ? <><span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />{isEdit ? 'Updating...' : 'Saving...'}</>
+            : isEdit ? 'Update Employee' : 'Save Employee'
+          }
         </Button>
       </div>
 

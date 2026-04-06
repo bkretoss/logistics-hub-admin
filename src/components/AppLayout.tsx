@@ -91,7 +91,8 @@ const menuItems: MenuItem[] = [
     children: [
       { title: "Shipment Type",      icon: Package,    path: "/master/shipment-type"  },
       { title: "Transport Mode Type", icon: Truck,     path: "/master/transport-mode" },
-      { title: "Currency",           icon: DollarSign, path: "/master/currency"       },
+      { title: "Country",           icon: DollarSign, path: "/master/country"       },
+      { title: "Cargo Type",         icon: Package,    path: "/master/cargo-type"     },
     ],
   },
 ];

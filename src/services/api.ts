@@ -58,11 +58,32 @@ export const updateTransportModeApi  = (id: number, data: Record<string, unknown
 export const deleteTransportModeApi  = (id: number)                     => api.delete(`/transport-modes/${id}`);
 export const updateTransportModeStatusApi = (id: number, status: number) => api.patch(`/transport-modes/status/${id}`, { status });
 
+// Country APIs
+export const getCountriesApi    = ()                               => api.get('/countries');
+export const getCountryApi      = (id: number)                     => api.get(`/countries/${id}`);
+export const createCountryApi   = (data: Record<string, unknown>)  => api.post('/countries', data);
+export const updateCountryApi   = (id: number, data: Record<string, unknown>) => api.put(`/countries/${id}`, data);
+export const deleteCountryApi   = (id: number)                     => api.delete(`/countries/${id}`);
+export const updateCountryStatusApi = (id: number, status: number) => api.patch(`/countries/${id}/status`, { status });
+
+// Currency APIs (kept for backward compatibility)
 export const getCurrenciesApi    = ()                               => api.get('/currencies');
 export const getCurrencyApi      = (id: number)                     => api.get(`/currencies/${id}`);
 export const createCurrencyApi   = (data: Record<string, unknown>)  => api.post('/currencies', data);
 export const updateCurrencyApi   = (id: number, data: Record<string, unknown>) => api.put(`/currencies/${id}`, data);
 export const deleteCurrencyApi   = (id: number)                     => api.delete(`/currencies/${id}`);
 export const updateCurrencyStatusApi = (id: number, status: number) => api.patch(`/currencies/${id}/status`, { status });
+
+export const getEmployeesApi     = ()                               => api.get('/employees');
+export const getEmployeeApi      = (id: number)                     => api.get(`/employees/${id}`);
+export const createEmployeeApi   = (data: Record<string, unknown>)  => api.post('/employees', data);
+export const updateEmployeeApi   = (id: number, data: Record<string, unknown>) => api.put(`/employees/${id}`, data);
+export const deleteEmployeeApi   = (id: number)                     => api.delete(`/employees/${id}`);
+
+export const getCargoTypesApi    = ()                               => api.get('/cargo-types');
+export const getCargoTypeApi     = (id: number)                     => api.get(`/cargo-types/${id}`);
+export const createCargoTypeApi  = (data: Record<string, unknown>)  => api.post('/cargo-types', data);
+export const updateCargoTypeApi  = (id: number, data: Record<string, unknown>) => api.put(`/cargo-types/${id}`, data);
+export const deleteCargoTypeApi  = (id: number)                     => api.delete(`/cargo-types/${id}`);
 
 export default api;

@@ -39,6 +39,8 @@ import ViewRateRequest from "@/pages/ViewRateRequest";
 import ShipmentTypeList from "@/pages/ShipmentTypeList";
 import TransportModeList from "@/pages/TransportModeList";
 import CurrencyList from "@/pages/CurrencyList";
+import CountryList from "@/pages/CountryList";
+import CargoTypeList from "@/pages/CargoTypeList";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -104,10 +106,13 @@ const App = () => (
             <Route path="/admin/user-master/edit/:id" element={<ProtectedRoute><AppLayout><NewUser /></AppLayout></ProtectedRoute>} />
             <Route path="/admin/shipment-type" element={<ProtectedRoute><AppLayout><ShipmentTypeList /></AppLayout></ProtectedRoute>} />
             <Route path="/admin/transport-mode" element={<ProtectedRoute><AppLayout><TransportModeList /></AppLayout></ProtectedRoute>} />
-            <Route path="/admin/currency" element={<ProtectedRoute><AppLayout><CurrencyList /></AppLayout></ProtectedRoute>} />
+            <Route path="/admin/currency" element={<Navigate to="/admin/country" replace />} />
+            <Route path="/admin/country" element={<ProtectedRoute><AppLayout><CountryList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/shipment-type" element={<ProtectedRoute><AppLayout><ShipmentTypeList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/transport-mode" element={<ProtectedRoute><AppLayout><TransportModeList /></AppLayout></ProtectedRoute>} />
-            <Route path="/master/currency" element={<ProtectedRoute><AppLayout><CurrencyList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/currency" element={<Navigate to="/master/country" replace />} />
+            <Route path="/master/country" element={<ProtectedRoute><AppLayout><CountryList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/cargo-type" element={<ProtectedRoute><AppLayout><CargoTypeList /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master" element={<ProtectedRoute><AppLayout><CustomerMasterList /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master/new" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master/edit/:id" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
