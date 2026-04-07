@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, Eye, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
   getCargoTypesApi,
@@ -263,117 +263,125 @@ const CargoTypeList = () => {
       </div>
 
       {/* Create / Edit Modal */}
-      <Dialog open={modalOpen} onOpenChange={open => { if (!open) setModalOpen(false); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Cargo Type' : 'Add Cargo Type'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            {/* Cargo Type Name */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Cargo Type Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setNameError(''); }}
-                placeholder="Enter cargo type name"
-                className={`w-full px-3 py-2 border rounded-lg text-sm bg-background transition-colors ${
-                  nameError ? 'border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500' : 'border-input'
-                }`}
-              />
-              {nameError && (
-                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                  <span>⚠</span> {nameError}
-                </p>
-              )}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setModalOpen(false)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">{editing ? 'Edit Cargo Type' : 'Add Cargo Type'}</h3>
+              <button onClick={() => setModalOpen(false)} className="p-2 hover:bg-muted rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Description</label>
-              <textarea
-                value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Enter description (optional)"
-                rows={3}
-                className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-none"
-              />
+            <div className="overflow-y-auto flex-1 px-6 py-5">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0">
+                    <span className="text-destructive mr-1">*</span>Cargo Type Name
+                  </Label>
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setNameError(''); }}
+                      placeholder="Enter cargo type name"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm bg-background ${
+                        nameError ? 'border-destructive' : 'border-input'
+                      }`}
+                    />
+                    {nameError && <p className="text-xs text-destructive mt-1">⚠ {nameError}</p>}
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0 pt-2">Description</Label>
+                  <textarea
+                    value={form.description}
+                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="Enter description (optional)"
+                    rows={3}
+                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background resize-none"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Status</Label>
+                  <select
+                    value={form.status}
+                    onChange={e => setForm(f => ({ ...f, status: e.target.value as 'active' | 'inactive' }))}
+                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
             </div>
-
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Status</label>
-              <select
-                value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value as 'active' | 'inactive' }))}
-                className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
               <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving} className="text-black">
                 {saving ? 'Saving...' : editing ? 'Update' : 'Save'}
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* View Modal */}
-      <Dialog open={viewItem !== null} onOpenChange={open => { if (!open) setViewItem(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cargo Type Details</DialogTitle>
-          </DialogHeader>
-          {viewItem && (
-            <div className="space-y-4 mt-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cargo Type Name</span>
-                  <span className="text-sm text-foreground">{viewItem.name}</span>
+      {viewItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setViewItem(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">View Cargo Type</h3>
+              <button onClick={() => setViewItem(null)} className="p-2 hover:bg-muted rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-5">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Cargo Type Name</Label>
+                  <span className="flex-1 text-sm text-foreground">{viewItem.name}</span>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit ${
+                <div className="flex items-start gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0 pt-1">Description</Label>
+                  <span className="flex-1 text-sm text-foreground">{viewItem.description || '—'}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Status</Label>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                     viewItem.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}>{viewItem.status === 'active' ? 'Active' : 'Inactive'}</span>
                 </div>
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</span>
-                <span className="text-sm text-foreground">{viewItem.description || '—'}</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Created Date</span>
-                <span className="text-sm text-foreground">{formatDate(viewItem.created_at)}</span>
-              </div>
-              <div className="flex justify-end pt-2">
-                <Button variant="outline" onClick={() => setViewItem(null)}>Close</Button>
-              </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <div className="flex justify-end px-6 py-4 border-t border-border shrink-0">
+              <Button variant="outline" onClick={() => setViewItem(null)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation */}
-      <Dialog open={deleteId !== null} onOpenChange={open => { if (!open) setDeleteId(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete Cargo Type</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">Are you sure you want to delete this cargo type? This action cannot be undone.</p>
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={handleDelete}>Delete</Button>
+      {deleteId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">Delete Cargo Type</h3>
+              <button onClick={() => setDeleteId(null)} className="p-2 hover:bg-muted rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this cargo type? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
+              <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
+              <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={handleDelete}>Delete</Button>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 };

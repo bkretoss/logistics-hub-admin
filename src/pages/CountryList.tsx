@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, Eye, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
   getCountriesApi,
@@ -37,41 +37,6 @@ const formatDate = (d: string) => {
 const PAGE_SIZE = 10;
 const emptyForm = { country_name: '', country_code: '', currency_name: '', currency_code: '', symbol: '', description: '', status: 'Active' as 'Active' | 'Inactive' };
 type FormType = typeof emptyForm;
-
-const Field = ({
-  label, name, placeholder, required, form, formErrors, onChange,
-}: {
-  label: string;
-  name: keyof FormType;
-  placeholder?: string;
-  required?: boolean;
-  form: FormType;
-  formErrors: Record<string, string>;
-  onChange: (name: keyof FormType, value: string) => void;
-}) => (
-  <div>
-    <label className="block text-sm font-medium text-foreground mb-1">
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    <input
-      type="text"
-      value={form[name] as string}
-      onChange={e => onChange(name, e.target.value)}
-      placeholder={placeholder}
-      className={`w-full px-3 py-2 border rounded-lg text-sm bg-background ${
-        formErrors[name] ? 'border-red-400' : 'border-input'
-      }`}
-    />
-    {formErrors[name] && <p className="text-xs text-red-500 mt-1">{formErrors[name]}</p>}
-  </div>
-);
-
-const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
-    <span className="text-sm text-foreground">{value || '—'}</span>
-  </div>
-);
 
 const CountryList = () => {
   const { toast } = useToast();
@@ -293,97 +258,163 @@ const CountryList = () => {
       </div>
 
       {/* Create / Edit Modal */}
-      <Dialog open={modalOpen} onOpenChange={open => { if (!open) setModalOpen(false); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Country' : 'Add Country'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Country Name" name="country_name" placeholder="e.g. United States" required form={form} formErrors={formErrors} onChange={handleFieldChange} />
-              <Field label="Country Code" name="country_code" placeholder="e.g. US" form={form} formErrors={formErrors} onChange={handleFieldChange} />
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setModalOpen(false); }} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">{editing ? 'Edit Country' : 'Add Country'}</h3>
+              <button onClick={() => setModalOpen(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Currency Name" name="currency_name" placeholder="e.g. US Dollar" form={form} formErrors={formErrors} onChange={handleFieldChange} />
-              <Field label="Currency Code" name="currency_code" placeholder="e.g. USD" form={form} formErrors={formErrors} onChange={handleFieldChange} />
+            <div className="overflow-y-auto flex-1 px-6 py-5">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0"><span className="text-destructive mr-1">*</span>Country Name</Label>
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={form.country_name}
+                      onChange={e => handleFieldChange('country_name', e.target.value)}
+                      placeholder="e.g. United States"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm bg-background ${
+                        formErrors.country_name ? 'border-destructive' : 'border-input'
+                      }`}
+                    />
+                    {formErrors.country_name && <p className="text-xs text-destructive mt-1">{formErrors.country_name}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Country Code</Label>
+                  <input
+                    type="text"
+                    value={form.country_code}
+                    onChange={e => handleFieldChange('country_code', e.target.value)}
+                    placeholder="e.g. US"
+                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Currency Name</Label>
+                  <input
+                    type="text"
+                    value={form.currency_name}
+                    onChange={e => handleFieldChange('currency_name', e.target.value)}
+                    placeholder="e.g. US Dollar"
+                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Currency Code</Label>
+                  <input
+                    type="text"
+                    value={form.currency_code}
+                    onChange={e => handleFieldChange('currency_code', e.target.value)}
+                    placeholder="e.g. USD"
+                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Symbol</Label>
+                  <input
+                    type="text"
+                    value={form.symbol}
+                    onChange={e => handleFieldChange('symbol', e.target.value)}
+                    placeholder="e.g. $"
+                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background"
+                  />
+                </div>
+                <div className="flex items-start gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0 pt-2">Description</Label>
+                  <textarea
+                    value={form.description}
+                    onChange={e => handleFieldChange('description', e.target.value)}
+                    placeholder="Enter additional information about the country..."
+                    rows={3}
+                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background resize-none"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Status</Label>
+                  <select
+                    value={form.status}
+                    onChange={e => setForm(f => ({ ...f, status: e.target.value as 'Active' | 'Inactive' }))}
+                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <Field label="Symbol" name="symbol" placeholder="e.g. $" form={form} formErrors={formErrors} onChange={handleFieldChange} />
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Description</label>
-              <textarea
-                value={form.description}
-                onChange={e => handleFieldChange('description', e.target.value)}
-                placeholder="Enter additional information about the country..."
-                rows={3}
-                className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Status</label>
-              <select
-                value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value as 'Active' | 'Inactive' }))}
-                className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
               <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving} className="text-black">
-                {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
+                {saving ? 'Saving...' : editing ? 'Update' : 'Save'}
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* View Modal */}
-      <Dialog open={viewItem !== null} onOpenChange={open => { if (!open) setViewItem(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Country Details</DialogTitle>
-          </DialogHeader>
-          {viewItem && (
-            <div className="space-y-4 mt-2">
-              <div className="grid grid-cols-2 gap-4">
-                <DetailRow label="Country Name" value={viewItem.country_name} />
-                <DetailRow label="Country Code" value={viewItem.country_code} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <DetailRow label="Currency Name" value={viewItem.currency_name} />
-                <DetailRow label="Currency Code" value={viewItem.currency_code} />
-              </div>
-              <DetailRow label="Description" value={viewItem.description} />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit ${
+      {viewItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setViewItem(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">View Country</h3>
+              <button onClick={() => setViewItem(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-5">
+              <div className="space-y-4">
+                {[
+                  { label: 'Country Name',  value: viewItem.country_name },
+                  { label: 'Country Code',  value: viewItem.country_code },
+                  { label: 'Currency Name', value: viewItem.currency_name },
+                  { label: 'Currency Code', value: viewItem.currency_code },
+                  { label: 'Symbol',        value: viewItem.symbol },
+                  { label: 'Description',   value: viewItem.description },
+                  { label: 'Created Date',  value: formatDate(viewItem.created_at) },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-right w-32 shrink-0 text-muted-foreground">{label}</span>
+                    <span className="flex-1 text-sm text-foreground">{value || '—'}</span>
+                  </div>
+                ))}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-right w-32 shrink-0 text-muted-foreground">Status</span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                     viewItem.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}>{viewItem.status}</span>
                 </div>
-                <DetailRow label="Created Date" value={formatDate(viewItem.created_at)} />
-              </div>
-              <div className="flex justify-end pt-2">
-                <Button variant="outline" onClick={() => setViewItem(null)}>Close</Button>
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <div className="flex justify-end px-6 py-4 border-t border-border shrink-0">
+              <Button variant="outline" onClick={() => setViewItem(null)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation */}
-      <Dialog open={deleteId !== null} onOpenChange={open => { if (!open) setDeleteId(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Delete Country</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Are you sure you want to delete this country? This action cannot be undone.</p>
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={handleDelete}>Delete</Button>
+      {deleteId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">Delete Country</h3>
+              <button onClick={() => setDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this country? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
+              <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
+              <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={handleDelete}>Delete</Button>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 };
