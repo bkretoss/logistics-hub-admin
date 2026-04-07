@@ -86,4 +86,18 @@ export const createCargoTypeApi  = (data: Record<string, unknown>)  => api.post(
 export const updateCargoTypeApi  = (id: number, data: Record<string, unknown>) => api.put(`/cargo-types/${id}`, data);
 export const deleteCargoTypeApi  = (id: number)                     => api.delete(`/cargo-types/${id}`);
 
+// Designation APIs
+export const getDesignationsApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/designations', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getDesignationApi     = (id: number)                     => api.get(`/designations/${id}`);
+export const createDesignationApi  = (data: Record<string, unknown>)  => api.post('/designations', data);
+export const updateDesignationApi  = (id: number, data: Record<string, unknown>) => api.put(`/designations/${id}`, data);
+export const deleteDesignationApi  = (id: number)                     => api.delete(`/designations/${id}`);
+
+// Department APIs
+export const getDepartmentsApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/departments', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getDepartmentApi     = (id: number)                     => api.get(`/departments/${id}`);
+export const createDepartmentApi  = (data: Record<string, unknown>)  => api.post('/departments', data);
+export const updateDepartmentApi  = (id: number, data: Record<string, unknown>) => api.put(`/departments/${id}`, data);
+export const deleteDepartmentApi  = (id: number)                     => api.delete(`/departments/${id}`);
+
 export default api;

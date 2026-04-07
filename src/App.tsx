@@ -41,6 +41,8 @@ import TransportModeList from "@/pages/TransportModeList";
 import CurrencyList from "@/pages/CurrencyList";
 import CountryList from "@/pages/CountryList";
 import CargoTypeList from "@/pages/CargoTypeList";
+import DesignationList from "@/pages/DesignationList";
+import DepartmentList from "@/pages/DepartmentList";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -113,6 +115,8 @@ const App = () => (
             <Route path="/master/currency" element={<Navigate to="/master/country" replace />} />
             <Route path="/master/country" element={<ProtectedRoute><AppLayout><CountryList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/cargo-type" element={<ProtectedRoute><AppLayout><CargoTypeList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/designation" element={<ProtectedRoute><AppLayout><DesignationList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/department" element={<ProtectedRoute><AppLayout><DepartmentList /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master" element={<ProtectedRoute><AppLayout><CustomerMasterList /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master/new" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master/edit/:id" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />

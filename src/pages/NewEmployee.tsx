@@ -6,14 +6,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getEmployeeApi, createEmployeeApi, updateEmployeeApi } from '@/services/api';
+import { getEmployeeApi, createEmployeeApi, updateEmployeeApi, getCountriesApi, getDesignationsApi } from '@/services/api';
+
+interface CountryOption { id: number; country_name: string; }
+interface CurrencyOption { code: string; name: string; }
+interface DesignationOption { id: number; name: string; }
 
 // ── Static option lists ────────────────────────────────────────────────────────
 const TITLES       = ['Mr', 'Mrs', 'Ms', 'Dr', 'Prof'];
 const SEXES        = ['Male', 'Female', 'Other'];
 const MARITAL      = ['Single', 'Married', 'Divorced', 'Widowed'];
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const CURRENCIES   = ['USD', 'EUR', 'GBP', 'AED', 'INR', 'SGD', 'CAD', 'AUD'];
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 // API returns DD-MM-YYYY → convert to YYYY-MM-DD for <input type="date">
@@ -54,6 +57,7 @@ interface EmployeeForm {
   contact_no: string;
   temporary_address: string;
   permanent_address: string;
+  designation_id: string;
   designation: string;
   department: string;
   division: string;
@@ -74,7 +78,7 @@ const EMPTY: EmployeeForm = {
   blood_group: '', joining_date: '', confirmation_date: '',
   notification_date: '', leaving_date: '', ctc_currency: '',
   ctc_amount: '', contact_no: '', temporary_address: '', permanent_address: '',
-  designation: '', department: '', division: '', reporting_manager: '',
+  designation_id: '', designation: '', department: '', division: '', reporting_manager: '',
   job_description: '', note: '', incentive_coa: '', user_name: '',
   profile_image: null, status: 1,
 };
@@ -122,14 +126,56 @@ const NewEmployee = () => {
   const [saving, setSaving]       = useState(false);
   const [loadingEdit, setLoading] = useState(isEdit);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [countries, setCountries]           = useState<CountryOption[]>([]);
+  const [countriesError, setCountriesError]   = useState('');
+  const [currencies, setCurrencies]           = useState<CurrencyOption[]>([]);
+  const [currenciesError, setCurrenciesError] = useState('');
+  const [designations, setDesignations]       = useState<DesignationOption[]>([]);
 
-  // ── Load employee for edit ─────────────────────────────────────────────────
+  // ── Load active countries (Nationality) + currencies from Country List API ──
   useEffect(() => {
-    if (!id) { setForm(EMPTY); setErrors({}); setImagePreview(null); return; }
-    setLoading(true);
-    getEmployeeApi(Number(id))
+    getCountriesApi()
       .then(res => {
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        const active = raw.filter(c => c.status === 1 || c.status === 'Active' || c.status === 'active');
+        setCountries(active.map(c => ({ id: c.id, country_name: c.country_name })));
+        const seen = new Set<string>();
+        const currencyList: CurrencyOption[] = [];
+        active.forEach(c => {
+          if (c.currency_code && !seen.has(c.currency_code)) {
+            seen.add(c.currency_code);
+            currencyList.push({ code: c.currency_code, name: c.currency_name ?? '' });
+          }
+        });
+        setCurrencies(currencyList);
+      })
+      .catch(() => {
+        setCountriesError('Failed to load countries. Please try again.');
+        setCurrenciesError('Failed to load currencies. Please try again.');
+      });
+  }, []);
+
+  // ── Load active designations + employee data together ─────────────────────────
+  useEffect(() => {
+    const desigPromise = getDesignationsApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const active = raw.filter(r => r.status === 1 || r.status === '1' || r.status === 'active');
+      const list = active.map(r => ({ id: r.id, name: r.name }));
+      setDesignations(list);
+      return list;
+    }).catch(() => [] as DesignationOption[]);
+
+    if (!id) {
+      desigPromise.then(() => { setForm(EMPTY); setErrors({}); setImagePreview(null); });
+      return;
+    }
+
+    setLoading(true);
+    Promise.all([getEmployeeApi(Number(id)), desigPromise])
+      .then(([res, desList]) => {
         const d = res.data?.data ?? res.data;
+        const desigId = d.designation_id ? String(d.designation_id) : '';
+        const desigName = desList.find(x => String(x.id) === desigId)?.name ?? d.designation ?? '';
         setForm({
           emp_id:            d.emp_id            ?? '',
           login_id:          d.login_id          ?? '',
@@ -143,7 +189,7 @@ const NewEmployee = () => {
           spouse_name:       d.spouse_name       ?? '',
           dob:               apiToInput(d.dob),
           place_of_birth:    d.place_of_birth    ?? '',
-          nationality:       d.nationality       ?? '',
+          nationality:       String(d.nationality ?? ''),
           religion:          d.religion          ?? '',
           sex:               d.sex               ?? 'Male',
           marital_status:    d.marital_status    ?? '',
@@ -158,7 +204,8 @@ const NewEmployee = () => {
           contact_no:        d.contact_no        ?? '',
           temporary_address: d.temporary_address ?? '',
           permanent_address: d.permanent_address ?? '',
-          designation:       d.designation       ?? '',
+          designation_id:    desigId,
+          designation:       desigName,
           department:        d.department        ?? '',
           division:          d.division          ?? '',
           reporting_manager: d.reporting_manager ?? '',
@@ -229,7 +276,7 @@ const NewEmployee = () => {
         spouse_name:       form.spouse_name       || undefined,
         dob:               inputToApi(form.dob),
         place_of_birth:    form.place_of_birth    || undefined,
-        nationality:       form.nationality       || undefined,
+        nationality:       form.nationality ? Number(form.nationality) : undefined,
         religion:          form.religion          || undefined,
         sex:               form.sex,
         marital_status:    form.marital_status    || undefined,
@@ -245,6 +292,7 @@ const NewEmployee = () => {
         temporary_address: form.temporary_address || undefined,
         permanent_address: form.permanent_address || undefined,
         designation:       form.designation       || undefined,
+        designation_id:    form.designation_id ? Number(form.designation_id) : undefined,
         department:        form.department,
         division:          form.division          || undefined,
         reporting_manager: form.reporting_manager || undefined,
@@ -364,8 +412,15 @@ const NewEmployee = () => {
         </Field>
 
         <Field label="Nationality">
-          <Input name="nationality" value={form.nationality} onChange={handleChange}
-            placeholder="e.g. American" className={inputCls()} />
+          <select name="nationality" value={form.nationality} onChange={handleChange} className={inputCls()}>
+            <option value="">-- Select --</option>
+            {countriesError
+              ? <option disabled value="">{countriesError}</option>
+              : countries.length === 0
+                ? <option disabled value="">No Countries Available</option>
+                : countries.map(c => <option key={c.id} value={String(c.id)}>{c.country_name}</option>)
+            }
+          </select>
         </Field>
 
         <Field label="Religion">
@@ -416,7 +471,16 @@ const NewEmployee = () => {
         <Field label="CTC Currency">
           <select name="ctc_currency" value={form.ctc_currency} onChange={handleChange} className={inputCls()}>
             <option value="">-- Select --</option>
-            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {currenciesError
+              ? <option disabled value="">{currenciesError}</option>
+              : currencies.length === 0
+                ? <option disabled value="">No Currency Available</option>
+                : currencies.map(c => (
+                    <option key={c.code} value={c.code}>
+                      {c.name ? `${c.code} - ${c.name}` : c.code}
+                    </option>
+                  ))
+            }
           </select>
         </Field>
 
@@ -450,8 +514,20 @@ const NewEmployee = () => {
       <Section title="Job Details" color="bg-[#90A4AE]">
 
         <Field label="Designation">
-          <Input name="designation" value={form.designation} onChange={handleChange}
-            placeholder="e.g. Team Lead" className={inputCls()} />
+          <select
+            name="designation_id"
+            value={form.designation_id}
+            onChange={e => {
+              const selected = designations.find(d => String(d.id) === e.target.value);
+              setForm(prev => ({ ...prev, designation_id: e.target.value, designation: selected?.name ?? '' }));
+            }}
+            className={inputCls()}
+          >
+            <option value="">-- Select Designation --</option>
+            {designations.map(d => (
+              <option key={d.id} value={String(d.id)}>{d.name}</option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Department" required error={errors.department}>

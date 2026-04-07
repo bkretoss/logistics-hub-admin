@@ -4,7 +4,7 @@ import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from 'lu
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { getEmployeesApi, deleteEmployeeApi } from '@/services/api';
+import { getEmployeesApi, deleteEmployeeApi, getDesignationsApi } from '@/services/api';
 import EmployeeViewModal from './EmployeeViewModal';
 
 export interface Employee {
@@ -37,6 +37,7 @@ export interface Employee {
   temporary_address: string;
   permanent_address: string;
   designation: string;
+  designation: number | null;
   department: string;
   division: string;
   reporting_manager: string;
@@ -56,14 +57,26 @@ const COLUMNS = ['EMPLOYEE NAME', 'EMPLOYEE CODE', 'LOGIN / EMAIL', 'PHONE', 'DE
 const EmployeeMasterList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [employees, setEmployees]         = useState<Employee[]>([]);
+  const [designationMap, setDesignationMap] = useState<Record<number, string>>({});
+  const [loading, setLoading]              = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage]             = useState(1);
   const [pageSize, setPageSize]     = useState(10);
   const [viewEmp, setViewEmp]         = useState<Employee | null>(null);
   const [deleteId, setDeleteId]       = useState<number | null>(null);
   const [deleting, setDeleting]       = useState(false);
+
+  useEffect(() => {
+    getDesignationsApi(1, 9999)
+      .then(res => {
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        const map: Record<number, string> = {};
+        raw.forEach(r => { if (r.id && r.name) map[r.id] = r.name; });
+        setDesignationMap(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -79,7 +92,14 @@ const EmployeeMasterList = () => {
 
   useEffect(() => { load(); }, []);
 
-  const filtered = employees.filter(e => {
+  const resolvedEmployees = employees.map(e => ({
+    ...e,
+    designation: e.designation && designationMap[e.designation]
+      ? designationMap[e.designation]
+      : (e.designation || ''),
+  }));
+
+  const filtered = resolvedEmployees.filter(e => {
     const q = searchTerm.toLowerCase();
     return !q ||
       e.emp_id.toLowerCase().includes(q) ||

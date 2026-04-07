@@ -93,6 +93,8 @@ const menuItems: MenuItem[] = [
       { title: "Transport Mode Type", icon: Truck,     path: "/master/transport-mode" },
       { title: "Country",           icon: DollarSign, path: "/master/country"       },
       { title: "Cargo Type",         icon: Package,    path: "/master/cargo-type"     },
+      { title: "Designation",          icon: Users,      path: "/master/designation"    },
+      { title: "Department",            icon: Users,      path: "/master/department"     },
     ],
   },
 ];
