@@ -14,7 +14,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { getLeadsApi, deleteLeadApi, updateLeadStatusApi, updateLeadRatingApi } from "@/services/api";
+import { getLeadsApi, deleteLeadApi, updateLeadStatusApi, updateLeadRatingApi, getEmployeesApi } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Lead {
@@ -96,6 +96,7 @@ const Leads = () => {
   const location  = useLocation();
 
   const [leads,         setLeads]         = useState<Lead[]>([]);
+  const [employees,     setEmployees]     = useState<Record<number, string>>({});
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState("");
   const [viewMode,      setViewMode]      = useState<"grid" | "list">("list");
@@ -106,6 +107,16 @@ const Leads = () => {
   const [deleteDialogOpen,setDeleteDialogOpen]= useState(false);
   const [leadToDelete,    setLeadToDelete]    = useState<Lead | null>(null);
   const [deleting,        setDeleting]        = useState(false);
+
+  // ── Fetch employees ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    getEmployeesApi().then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const map: Record<number, string> = {};
+      raw.forEach(r => { map[r.id] = [r.first_name, r.last_name].filter(Boolean).join(' '); });
+      setEmployees(map);
+    }).catch(() => {});
+  }, []);
 
   // ── Fetch leads ──────────────────────────────────────────────────────────────
   const fetchLeads = useCallback(async () => {
@@ -349,6 +360,7 @@ const Leads = () => {
               <div className="col-span-full text-center py-16 text-muted-foreground">No leads found.</div>
             ) : filteredLeads.map(lead => {
               const st = getStatus(lead.status);
+              const leadId = `LEAD-${String(lead.id).padStart(3, '0')}`;
               return (
                 <div
                   key={lead.id}
@@ -356,6 +368,7 @@ const Leads = () => {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
+                      <p className="text-xs font-semibold text-primary mb-1">{leadId}</p>
                       <h3 className="font-semibold text-foreground text-base">{lead.customer}</h3>
                       <p className="text-sm text-amber-500 font-medium mt-0.5">{lead.target}</p>
                       <StarRating rating={lead.rating} onRate={r => handleRatingChange(lead.id, r)} updating={updatingRating === lead.id} />
@@ -394,7 +407,7 @@ const Leads = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      {["DATE","CUSTOMER","TARGET","LEAD SOURCE","LEAD OWNER","COMPANY","SALES TEAM","SHIPMENT TYPE","STATUS","ACTIONS"].map(h => (
+                      {["DATE","LEAD ID","CUSTOMER","TARGET","LEAD SOURCE","LEAD OWNER","COMPANY","SALES TEAM","SHIPMENT TYPE","STATUS","ACTIONS"].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground tracking-widest whitespace-nowrap">
                           {h}
                         </th>
@@ -407,6 +420,7 @@ const Leads = () => {
                     ) : filteredLeads.map((lead, idx) => {
                       const st = getStatus(lead.status);
                       const sh = getShipment(lead.shipment_type);
+                      const leadId = `LEAD-${String(lead.id).padStart(3, '0')}`;
                       return (
                         <tr
                           key={lead.id}
@@ -415,6 +429,11 @@ const Leads = () => {
                         >
                           {/* DATE */}
                           <td className="px-4 py-4 text-sm text-muted-foreground whitespace-nowrap">{lead.date}</td>
+
+                          {/* LEAD ID */}
+                          <td className="px-4 py-4">
+                            <span className="text-sm text-foreground">{leadId}</span>
+                          </td>
 
                           {/* CUSTOMER */}
                           <td className="px-4 py-4">
@@ -439,7 +458,9 @@ const Leads = () => {
                           <td className="px-4 py-4 text-sm text-foreground">{lead.company || '-'}</td>
 
                           {/* SALES TEAM */}
-                          <td className="px-4 py-4 text-sm text-foreground">{lead.sales_team || '-'}</td>
+                          <td className="px-4 py-4 text-sm text-foreground">
+                            {lead.sales_team ? (employees[Number(lead.sales_team)] ?? lead.sales_team) : '-'}
+                          </td>
 
                           {/* SHIPMENT TYPE */}
                           <td className="px-4 py-4">
@@ -547,12 +568,13 @@ const Leads = () => {
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Lead Details — {selectedLead?.customer}</DialogTitle>
+            <DialogTitle>Lead Details — {selectedLead && `LEAD-${String(selectedLead.id).padStart(3, '0')}`} — {selectedLead?.customer}</DialogTitle>
           </DialogHeader>
           {selectedLead && (
             <div className="space-y-6 text-sm">
               {[
                 { title: "Basic Information", fields: [
+                  ["Lead ID",     `LEAD-${String(selectedLead.id).padStart(3, '0')}`],
                   ["Customer",    selectedLead.customer],
                   ["Date",        selectedLead.date],
                   ["Target",      selectedLead.target],

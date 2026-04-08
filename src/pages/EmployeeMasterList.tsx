@@ -4,7 +4,7 @@ import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from 'lu
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { getEmployeesApi, deleteEmployeeApi, getDesignationsApi } from '@/services/api';
+import { getEmployeesApi, deleteEmployeeApi, getDesignationsApi, getDepartmentsApi } from '@/services/api';
 import EmployeeViewModal from './EmployeeViewModal';
 
 export interface Employee {
@@ -36,9 +36,8 @@ export interface Employee {
   contact_no: string;
   temporary_address: string;
   permanent_address: string;
-  designation: string;
   designation: number | null;
-  department: string;
+  department: number | string | null;
   division: string;
   reporting_manager: string;
   job_description: string;
@@ -59,6 +58,7 @@ const EmployeeMasterList = () => {
   const { toast } = useToast();
   const [employees, setEmployees]         = useState<Employee[]>([]);
   const [designationMap, setDesignationMap] = useState<Record<number, string>>({});
+  const [departmentMap, setDepartmentMap]   = useState<Record<number, string>>({});
   const [loading, setLoading]              = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage]             = useState(1);
@@ -74,6 +74,14 @@ const EmployeeMasterList = () => {
         const map: Record<number, string> = {};
         raw.forEach(r => { if (r.id && r.name) map[r.id] = r.name; });
         setDesignationMap(map);
+      })
+      .catch(() => {});
+    getDepartmentsApi(1, 9999)
+      .then(res => {
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        const map: Record<number, string> = {};
+        raw.forEach(r => { if (r.id && r.name) map[r.id] = r.name; });
+        setDepartmentMap(map);
       })
       .catch(() => {});
   }, []);
@@ -94,9 +102,12 @@ const EmployeeMasterList = () => {
 
   const resolvedEmployees = employees.map(e => ({
     ...e,
-    designation: e.designation && designationMap[e.designation]
-      ? designationMap[e.designation]
+    designation: e.designation && designationMap[e.designation as number]
+      ? designationMap[e.designation as number]
       : (e.designation || ''),
+    department: e.department && departmentMap[e.department as number]
+      ? departmentMap[e.department as number]
+      : (e.department || ''),
   }));
 
   const filtered = resolvedEmployees.filter(e => {

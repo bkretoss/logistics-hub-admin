@@ -32,11 +32,11 @@ const NewLead = () => {
     business_service: '',
     destination_port: '',
     expected_annual_revenue: '',
-    expected_annual_revenue_currency: 'USD',
+    expected_annual_revenue_currency: '' as number | '',
     expected_annual_volume_commodity: '',
     nature_of_business: '',
     company_turnover: '',
-    company_turnover_currency: 'USD',
+    company_turnover_currency: '' as number | '',
     remarks: '',
     address: '',
     state: '',
@@ -143,13 +143,7 @@ const NewLead = () => {
           .filter(r => r.currency_code)
           .map(r => ({ id: r.id, currency_code: r.currency_code }));
         setCountryCurrencies(active);
-        if (active.length > 0) {
-          setFormData(prev => ({
-            ...prev,
-            expected_annual_revenue_currency: prev.expected_annual_revenue_currency || active[0].currency_code,
-            company_turnover_currency: prev.company_turnover_currency || active[0].currency_code,
-          }));
-        }
+
       } catch {
         // silently fall back
       } finally {
@@ -264,7 +258,7 @@ const NewLead = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'sales_team' ? (value === '' ? '' : Number(value)) : value,
+      [name]: name === 'sales_team' || name === 'expected_annual_revenue_currency' || name === 'company_turnover_currency' ? (value === '' ? '' : Number(value)) : value,
       // keep shipment_type_id in sync when shipment_type name changes
       ...(name === 'shipment_type'
         ? { shipment_type_id: shipmentTypes.find(s => s.name === value)?.id ?? '' }
@@ -462,7 +456,7 @@ const NewLead = () => {
                 <Label htmlFor="expected_annual_revenue" className="text-sm font-semibold">
                   Expected Annual Revenue
                   {formData.expected_annual_revenue_currency && (
-                    <span className="ml-1 text-muted-foreground font-normal">({formData.expected_annual_revenue_currency})</span>
+                    <span className="ml-1 text-muted-foreground font-normal">({currencies.find(c => c.id === formData.expected_annual_revenue_currency)?.code})</span>
                   )}
                 </Label>
                 <div className="flex gap-2">
@@ -473,9 +467,9 @@ const NewLead = () => {
                     disabled={countryCurrenciesLoading}
                     className="w-24 px-2 py-2 border border-input rounded-lg text-sm bg-background disabled:opacity-60"
                   >
-                    {countryCurrenciesLoading
+                    {currenciesLoading
                       ? <option>...</option>
-                      : countryCurrencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code}</option>)
+                      : currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)
                     }
                   </select>
                   <Input id="expected_annual_revenue" name="expected_annual_revenue"
@@ -503,7 +497,7 @@ const NewLead = () => {
                 <Label htmlFor="company_turnover" className="text-sm font-semibold">
                   Company Turnover
                   {formData.company_turnover_currency && (
-                    <span className="ml-1 text-muted-foreground font-normal">({formData.company_turnover_currency})</span>
+                    <span className="ml-1 text-muted-foreground font-normal">({currencies.find(c => c.id === formData.company_turnover_currency)?.code})</span>
                   )}
                 </Label>
                 <div className="flex gap-2">
@@ -514,9 +508,9 @@ const NewLead = () => {
                     disabled={countryCurrenciesLoading}
                     className="w-24 px-2 py-2 border border-input rounded-lg text-sm bg-background disabled:opacity-60"
                   >
-                    {countryCurrenciesLoading
+                    {currenciesLoading
                       ? <option>...</option>
-                      : countryCurrencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code}</option>)
+                      : currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)
                     }
                   </select>
                   <Input id="company_turnover" name="company_turnover"

@@ -17,9 +17,9 @@ const EMPTY_FORM = {
   lead_owner: '', company: 'Relay Logistics (Private Limited)',
   sales_team: '' as number | '', status: 'Open', shipment_type: '', shipment_type_id: '' as number | '', transport_mode: '', transport_mode_id: '' as number | '',
   origin_port: '', target_date: '', business_service: '', destination_port: '',
-  expected_annual_revenue: '', expected_annual_revenue_currency: 'USD',
+  expected_annual_revenue: '', expected_annual_revenue_currency: '' as number | string,
   expected_annual_volume_commodity: '', nature_of_business: '',
-  company_turnover: '', company_turnover_currency: 'USD', remarks: '',
+  company_turnover: '', company_turnover_currency: '' as number | string, remarks: '',
   address: '', state: '', city: '', zip: '', contact_person: '',
   email: '', telephone_no: '', mobile_no: '', designation: '',
   department: '', notes: '',
@@ -181,11 +181,11 @@ const EditLead = () => {
           business_service:                l.business_service                ?? '',
           destination_port:                l.destination_port                ?? '',
           expected_annual_revenue:         l.expected_annual_revenue         != null ? String(l.expected_annual_revenue) : '',
-          expected_annual_revenue_currency:l.expected_annual_revenue_currency ?? 'USD',
+          expected_annual_revenue_currency:l.expected_annual_revenue_currency != null ? l.expected_annual_revenue_currency : '',
           expected_annual_volume_commodity:l.expected_annual_volume_commodity ?? '',
           nature_of_business:              l.nature_of_business              ?? '',
           company_turnover:                l.company_turnover                != null ? String(l.company_turnover) : '',
-          company_turnover_currency:       l.company_turnover_currency       ?? 'USD',
+          company_turnover_currency:       l.company_turnover_currency       != null ? l.company_turnover_currency : '',
           remarks:                         l.remarks                         ?? '',
           address:                         l.address                         ?? '',
           state:                           l.state                           ?? '',
@@ -447,7 +447,7 @@ const EditLead = () => {
                 <Label htmlFor="expected_annual_revenue" className="text-sm font-semibold">
                   Expected Annual Revenue
                   {formData.expected_annual_revenue_currency && (
-                    <span className="ml-1 text-muted-foreground font-normal">({formData.expected_annual_revenue_currency})</span>
+                    <span className="ml-1 text-muted-foreground font-normal">({countryCurrencies.find(c => String(c.id) === String(formData.expected_annual_revenue_currency))?.currency_code ?? ''})</span>
                   )}
                 </Label>
                 <div className="flex gap-2">
@@ -458,10 +458,8 @@ const EditLead = () => {
                     disabled={countryCurrenciesLoading}
                     className="w-24 px-2 py-2 border border-input rounded-lg text-sm bg-background disabled:opacity-60"
                   >
-                    {countryCurrenciesLoading
-                      ? <option>...</option>
-                      : countryCurrencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code}</option>)
-                    }
+                    <option value="">{countryCurrenciesLoading ? '...' : 'Select'}</option>
+                    {!countryCurrenciesLoading && countryCurrencies.map(c => <option key={c.id} value={c.id}>{c.currency_code}</option>)}
                   </select>
                   <Input id="expected_annual_revenue" name="expected_annual_revenue" value={formData.expected_annual_revenue} onChange={handleChange} className={`flex-1 ${errBorder('expected_annual_revenue')}`} />
                 </div>
@@ -482,7 +480,7 @@ const EditLead = () => {
                 <Label htmlFor="company_turnover" className="text-sm font-semibold">
                   Company Turnover
                   {formData.company_turnover_currency && (
-                    <span className="ml-1 text-muted-foreground font-normal">({formData.company_turnover_currency})</span>
+                    <span className="ml-1 text-muted-foreground font-normal">({countryCurrencies.find(c => String(c.id) === String(formData.company_turnover_currency))?.currency_code ?? ''})</span>
                   )}
                 </Label>
                 <div className="flex gap-2">
@@ -493,10 +491,8 @@ const EditLead = () => {
                     disabled={countryCurrenciesLoading}
                     className="w-24 px-2 py-2 border border-input rounded-lg text-sm bg-background disabled:opacity-60"
                   >
-                    {countryCurrenciesLoading
-                      ? <option>...</option>
-                      : countryCurrencies.map(c => <option key={c.id} value={c.currency_code}>{c.currency_code}</option>)
-                    }
+                    <option value="">{countryCurrenciesLoading ? '...' : 'Select'}</option>
+                    {!countryCurrenciesLoading && countryCurrencies.map(c => <option key={c.id} value={c.id}>{c.currency_code}</option>)}
                   </select>
                   <Input id="company_turnover" name="company_turnover" value={formData.company_turnover} onChange={handleChange} className={`flex-1 ${errBorder('company_turnover')}`} />
                 </div>

@@ -119,8 +119,18 @@ const CountryList = () => {
       }
       setModalOpen(false);
       load();
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save country.', variant: 'destructive' });
+    } catch (err: any) {
+      const res = err?.response?.data;
+      // Laravel 422 field validation errors
+      if (err?.response?.status === 422 && res?.errors) {
+        const mapped: Record<string, string> = {};
+        Object.entries(res.errors).forEach(([k, v]) => {
+          mapped[k] = Array.isArray(v) ? (v as string[])[0] : String(v);
+        });
+        setFormErrors(mapped);
+      } else {
+        toast({ title: 'Error', description: res?.message ?? 'Failed to save country.', variant: 'destructive' });
+      }
     } finally {
       setSaving(false);
     }
@@ -305,13 +315,16 @@ const CountryList = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <Label className="text-sm font-semibold text-right w-32 shrink-0">Currency Code</Label>
-                  <input
-                    type="text"
-                    value={form.currency_code}
-                    onChange={e => handleFieldChange('currency_code', e.target.value)}
-                    placeholder="e.g. USD"
-                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background"
-                  />
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={form.currency_code}
+                      onChange={e => handleFieldChange('currency_code', e.target.value)}
+                      placeholder="e.g. USD"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm bg-background ${formErrors.currency_code ? 'border-destructive' : 'border-input'}`}
+                    />
+                    {formErrors.currency_code && <p className="text-xs text-destructive mt-1">⚠ {formErrors.currency_code}</p>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Label className="text-sm font-semibold text-right w-32 shrink-0">Symbol</Label>

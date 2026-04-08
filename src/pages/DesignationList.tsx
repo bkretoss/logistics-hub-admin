@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, X, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +39,7 @@ const DesignationList = () => {
   const [nameError, setNameError]       = useState('');
   const [saving, setSaving]             = useState(false);
   const [deleteId, setDeleteId]         = useState<number | null>(null);
+  const [viewItem, setViewItem]         = useState<Designation | null>(null);
 
   const load = async (p: number, q: string, st: string) => {
     setLoading(true);
@@ -256,6 +257,9 @@ const DesignationList = () => {
                   </td>
                   <td className="p-4">
                     <div className="flex items-center justify-end gap-2">
+                      <button className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors" title="View" onClick={() => setViewItem(item)}>
+                        <Eye className="w-4 h-4 text-blue-500" />
+                      </button>
                       <button className="p-1.5 hover:bg-green-50 rounded-lg transition-colors" title="Edit" onClick={() => openEdit(item)}>
                         <Pencil className="w-4 h-4 text-green-500" />
                       </button>
@@ -379,6 +383,43 @@ const DesignationList = () => {
               <Button onClick={handleSave} disabled={saving} className="text-black">
                 {saving ? 'Saving...' : editing ? 'Update' : 'Save'}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Modal */}
+      {viewItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setViewItem(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">View Designation</h3>
+              <button onClick={() => setViewItem(null)} className="p-2 hover:bg-muted rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {[
+                { label: 'Designation Name', value: viewItem.name },
+                { label: 'Description',      value: viewItem.description || '—' },
+                { label: 'Status',           value: viewItem.status === 'active' ? 'Active' : 'Inactive', badge: true },
+                { label: 'Created Date',     value: viewItem.created_at || '—' },
+              ].map(({ label, value, badge }) => (
+                <div key={label} className="flex items-start gap-3">
+                  <span className="text-sm font-semibold text-muted-foreground w-36 shrink-0">{label}</span>
+                  <span className="text-sm text-foreground">
+                    {badge ? (
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        viewItem.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>{value}</span>
+                    ) : value}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end px-6 py-4 border-t border-border">
+              <Button variant="outline" onClick={() => setViewItem(null)}>Close</Button>
             </div>
           </div>
         </div>

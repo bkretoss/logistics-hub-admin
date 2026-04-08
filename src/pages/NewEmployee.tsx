@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getEmployeeApi, createEmployeeApi, updateEmployeeApi, getCountriesApi, getDesignationsApi } from '@/services/api';
+import { getEmployeeApi, createEmployeeApi, updateEmployeeApi, getCountriesApi, getDesignationsApi, getDepartmentsApi, getEmployeesApi, getCoasApi } from '@/services/api';
 
 interface CountryOption { id: number; country_name: string; }
 interface CurrencyOption { code: string; name: string; }
 interface DesignationOption { id: number; name: string; }
+interface DepartmentOption  { id: number; name: string; }
+interface CoaOption         { id: number; name: string; }
 
 // ── Static option lists ────────────────────────────────────────────────────────
 const TITLES       = ['Mr', 'Mrs', 'Ms', 'Dr', 'Prof'];
@@ -59,6 +61,7 @@ interface EmployeeForm {
   permanent_address: string;
   designation_id: string;
   designation: string;
+  department_id: string;
   department: string;
   division: string;
   reporting_manager: string;
@@ -78,7 +81,7 @@ const EMPTY: EmployeeForm = {
   blood_group: '', joining_date: '', confirmation_date: '',
   notification_date: '', leaving_date: '', ctc_currency: '',
   ctc_amount: '', contact_no: '', temporary_address: '', permanent_address: '',
-  designation_id: '', designation: '', department: '', division: '', reporting_manager: '',
+  designation_id: '', designation: '', department_id: '', department: '', division: '', reporting_manager: '',
   job_description: '', note: '', incentive_coa: '', user_name: '',
   profile_image: null, status: 1,
 };
@@ -131,6 +134,8 @@ const NewEmployee = () => {
   const [currencies, setCurrencies]           = useState<CurrencyOption[]>([]);
   const [currenciesError, setCurrenciesError] = useState('');
   const [designations, setDesignations]       = useState<DesignationOption[]>([]);
+  const [departments, setDepartments]         = useState<DepartmentOption[]>([]);
+  const [coas, setCoas]                       = useState<CoaOption[]>([]);
 
   // ── Load active countries (Nationality) + currencies from Country List API ──
   useEffect(() => {
@@ -165,17 +170,43 @@ const NewEmployee = () => {
       return list;
     }).catch(() => [] as DesignationOption[]);
 
+    const deptPromise = getDepartmentsApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const active = raw.filter(r => r.status === 1 || r.status === '1' || r.status === 'active');
+      const list = active.map(r => ({ id: r.id, name: r.name }));
+      setDepartments(list);
+      return list;
+    }).catch(() => [] as DepartmentOption[]);
+
+    getCoasApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setCoas(
+        raw
+          .filter(r => r.status === 1 || r.status === '1' || r.status === 'active')
+          .map(r => ({ id: r.id, name: r.name }))
+      );
+    }).catch(() => {});
+
     if (!id) {
-      desigPromise.then(() => { setForm(EMPTY); setErrors({}); setImagePreview(null); });
+      Promise.all([
+        desigPromise,
+        deptPromise,
+        getEmployeesApi().then(res => {
+          const list: any[] = res.data?.data ?? res.data ?? [];
+          const nums = list
+            .map((e: any) => { const m = String(e.emp_id).match(/^EMP-(\d+)$/i); return m ? parseInt(m[1], 10) : 0; })
+            .filter((n: number) => n > 0);
+          const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+          setForm(prev => ({ ...prev, emp_id: `EMP-${String(next).padStart(3, '0')}` }));
+        }).catch(() => setForm(prev => ({ ...prev, emp_id: 'EMP-001' }))),
+      ]).then(() => { setErrors({}); setImagePreview(null); });
       return;
     }
 
     setLoading(true);
-    Promise.all([getEmployeeApi(Number(id)), desigPromise])
-      .then(([res, desList]) => {
+    Promise.all([getEmployeeApi(Number(id)), desigPromise, deptPromise])
+      .then(([res]) => {
         const d = res.data?.data ?? res.data;
-        const desigId = d.designation_id ? String(d.designation_id) : '';
-        const desigName = desList.find(x => String(x.id) === desigId)?.name ?? d.designation ?? '';
         setForm({
           emp_id:            d.emp_id            ?? '',
           login_id:          d.login_id          ?? '',
@@ -204,9 +235,10 @@ const NewEmployee = () => {
           contact_no:        d.contact_no        ?? '',
           temporary_address: d.temporary_address ?? '',
           permanent_address: d.permanent_address ?? '',
-          designation_id:    desigId,
-          designation:       desigName,
-          department:        d.department        ?? '',
+          designation_id:    String(d.designation ?? ''),
+          designation:       d.designation        ?? '',
+          department_id:     String(d.department  ?? ''),
+          department:        d.department         ?? '',
           division:          d.division          ?? '',
           reporting_manager: d.reporting_manager ?? '',
           job_description:   d.job_description   ?? '',
@@ -253,7 +285,7 @@ const NewEmployee = () => {
     const e: Partial<Record<keyof EmployeeForm, string>> = {};
     if (!form.first_name.trim())        e.first_name        = 'First Name is required';
     if (!form.identification_no.trim()) e.identification_no = 'Identification No is required';
-    if (!form.department.trim())        e.department        = 'Department is required';
+    if (!form.department_id)            e.department_id     = 'Department is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -291,14 +323,13 @@ const NewEmployee = () => {
         contact_no:        form.contact_no        || undefined,
         temporary_address: form.temporary_address || undefined,
         permanent_address: form.permanent_address || undefined,
-        designation:       form.designation       || undefined,
-        designation_id:    form.designation_id ? Number(form.designation_id) : undefined,
-        department:        form.department,
+        designation:       form.designation_id ? Number(form.designation_id) : undefined,
+        department:        form.department_id   ? Number(form.department_id)  : undefined,
         division:          form.division          || undefined,
         reporting_manager: form.reporting_manager || undefined,
         job_description:   form.job_description   || undefined,
         note:              form.note              || undefined,
-        incentive_coa:     form.incentive_coa     || undefined,
+        incentive_coa:     form.incentive_coa ? Number(form.incentive_coa) : undefined,
         user_name:         form.user_name         || undefined,
         profile_image:     form.profile_image     ?? null,
         status:            form.status,
@@ -351,9 +382,9 @@ const NewEmployee = () => {
       {/* ── Employee Details ─────────────────────────────────────────────────── */}
       <Section title="Employee Details" color="bg-[#4CAF50]">
 
-        <Field label="EMP ID">
-          <Input name="emp_id" value={form.emp_id} onChange={handleChange}
-            placeholder="e.g. EMP-001" className={inputCls()} />
+        <Field label="EMP ID (Auto Generated)">
+          <Input name="emp_id" value={form.emp_id} readOnly
+            className={`${inputCls()} bg-muted cursor-not-allowed`} />
         </Field>
 
         <Field label="Login ID">
@@ -517,10 +548,7 @@ const NewEmployee = () => {
           <select
             name="designation_id"
             value={form.designation_id}
-            onChange={e => {
-              const selected = designations.find(d => String(d.id) === e.target.value);
-              setForm(prev => ({ ...prev, designation_id: e.target.value, designation: selected?.name ?? '' }));
-            }}
+            onChange={e => set('designation_id', e.target.value)}
             className={inputCls()}
           >
             <option value="">-- Select Designation --</option>
@@ -530,9 +558,18 @@ const NewEmployee = () => {
           </select>
         </Field>
 
-        <Field label="Department" required error={errors.department}>
-          <Input name="department" value={form.department} onChange={handleChange}
-            placeholder="e.g. Operations" className={inputCls(errors.department)} />
+        <Field label="Department" required error={errors.department_id}>
+          <select
+            name="department_id"
+            value={form.department_id}
+            onChange={e => set('department_id', e.target.value)}
+            className={inputCls(errors.department_id)}
+          >
+            <option value="">-- Select Department --</option>
+            {departments.map(d => (
+              <option key={d.id} value={String(d.id)}>{d.name}</option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Division">
@@ -563,8 +600,17 @@ const NewEmployee = () => {
       <Section title="Additional Details" color="bg-[#00BCD4]">
 
         <Field label="Incentive COA">
-          <Input name="incentive_coa" value={form.incentive_coa} onChange={handleChange}
-            placeholder="e.g. COA-2024" className={inputCls()} />
+          <select
+            name="incentive_coa"
+            value={form.incentive_coa}
+            onChange={handleChange}
+            className={inputCls()}
+          >
+            <option value="">-- Select Incentive COA --</option>
+            {coas.map(c => (
+              <option key={c.id} value={String(c.id)}>{c.name}</option>
+            ))}
+          </select>
         </Field>
 
         <Field label="User Name">

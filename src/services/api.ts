@@ -93,11 +93,32 @@ export const createDesignationApi  = (data: Record<string, unknown>)  => api.pos
 export const updateDesignationApi  = (id: number, data: Record<string, unknown>) => api.put(`/designations/${id}`, data);
 export const deleteDesignationApi  = (id: number)                     => api.delete(`/designations/${id}`);
 
+// Chart of Accounts (COA) APIs
+export const getCoasApi    = ()                               => api.get('/chart-of-accounts');
+export const getCoaApi     = (id: number)                     => api.get(`/chart-of-accounts/${id}`);
+export const createCoaApi  = (data: Record<string, unknown>)  => api.post('/chart-of-accounts', data);
+export const updateCoaApi  = (id: number, data: Record<string, unknown>) => api.put(`/chart-of-accounts/${id}`, data);
+export const deleteCoaApi  = (id: number)                     => api.delete(`/chart-of-accounts/${id}`);
+
+// City APIs
+export const getCitiesApi    = ()                               => api.get('/cities');
+export const getCityApi      = (id: number)                     => api.get(`/cities/${id}`);
+export const createCityApi   = (data: Record<string, unknown>)  => api.post('/cities', data);
+export const updateCityApi   = (id: number, data: Record<string, unknown>) => api.put(`/cities/${id}`, data);
+export const deleteCityApi   = (id: number)                     => api.delete(`/cities/${id}`);
+
 // Department APIs
 export const getDepartmentsApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/departments', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
 export const getDepartmentApi     = (id: number)                     => api.get(`/departments/${id}`);
 export const createDepartmentApi  = (data: Record<string, unknown>)  => api.post('/departments', data);
 export const updateDepartmentApi  = (id: number, data: Record<string, unknown>) => api.put(`/departments/${id}`, data);
 export const deleteDepartmentApi  = (id: number)                     => api.delete(`/departments/${id}`);
+
+// State APIs
+export const getStatesApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/states', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getStateApi     = (id: number)                     => api.get(`/states/${id}`);
+export const createStateApi  = (data: Record<string, unknown>)  => api.post('/states', data);
+export const updateStateApi  = (id: number, data: Record<string, unknown>) => api.put(`/states/${id}`, data);
+export const deleteStateApi  = (id: number)                     => api.delete(`/states/${id}`);
 
 export default api;
