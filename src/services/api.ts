@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  // baseURL: "http://localhost:8001/api",
-  baseURL: "https://logistic.kretoss.in/api",
+  baseURL: "http://localhost:8001/api",
+  // baseURL: "https://logistic.kretoss.in/api",
   headers: { "Content-Type": "application/json" },
 });
 
@@ -120,5 +120,21 @@ export const getStateApi     = (id: number)                     => api.get(`/sta
 export const createStateApi  = (data: Record<string, unknown>)  => api.post('/states', data);
 export const updateStateApi  = (id: number, data: Record<string, unknown>) => api.put(`/states/${id}`, data);
 export const deleteStateApi  = (id: number)                     => api.delete(`/states/${id}`);
+
+// Company APIs
+export const getCompaniesApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/companies', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getCompanyApi      = (id: number)                     => api.get(`/companies/${id}`);
+export const createCompanyApi   = (data: Record<string, unknown>)  => api.post('/companies', data);
+export const updateCompanyApi   = (id: number, data: Record<string, unknown>) => api.put(`/companies/${id}`, data);
+export const deleteCompanyApi   = (id: number)                     => api.delete(`/companies/${id}`);
+export const updateCompanyStatusApi = (id: number, status: number) => api.patch(`/companies/${id}/status`, { status });
+
+// Sales Agent APIs
+export const getSalesAgentsApi        = (page = 1, perPage = 10, search = '', country = '', status = '') => api.get('/sales-agents', { params: { page, per_page: perPage, ...(search && { search }), ...(country && { country }), ...(status && { status }) } });
+export const getSalesAgentApi         = (id: number)                     => api.get(`/sales-agents/${id}`);
+export const createSalesAgentApi      = (data: Record<string, unknown>)  => api.post('/sales-agents', data);
+export const updateSalesAgentApi      = (id: number, data: Record<string, unknown>) => api.put(`/sales-agents/${id}`, data);
+export const deleteSalesAgentApi      = (id: number)                     => api.delete(`/sales-agents/${id}`);
+export const updateSalesAgentStatusApi = (id: number, status: number)    => api.patch(`/sales-agents/${id}/status`, { status });
 
 export default api;

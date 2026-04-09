@@ -145,8 +145,8 @@ const EmployeeMasterList = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Employee Master</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage and configure your employee records</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Sales Team</h1>
+          <p className="text-muted-foreground text-sm mt-1">Manage and configure your sales team records</p>
         </div>
         <Button className="gap-2 material-button material-elevation-2 hover:material-elevation-3 text-black"
           onClick={() => navigate('/hr/employee-master/new')}>

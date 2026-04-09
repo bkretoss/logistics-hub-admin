@@ -371,10 +371,10 @@ const NewEmployee = () => {
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">
-            {isEdit ? 'Edit Employee' : 'New Employee'}
+            {isEdit ? 'Edit Sales Team Member' : 'New Sales Team Member'}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {isEdit ? 'Update employee information' : 'Create a new employee record'}
+            {isEdit ? 'Update sales team member information' : 'Create a new sales team member record'}
           </p>
         </div>
       </div>

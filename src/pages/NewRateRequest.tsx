@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { createRateRequestApi, updateRateRequestApi, getOpportunityApi, getLeadsApi } from "@/services/api";
+import { createRateRequestApi, updateRateRequestApi, getOpportunityApi, getLeadsApi, getCompaniesApi } from "@/services/api";
 
 interface VendorRate {
   id: number;
@@ -161,8 +161,18 @@ const NewRateRequest = () => {
   const { id } = useParams<{ id: string }>();
   const [form, setForm] = useState<RateRequestForm>(initialForm);
   const [leads, setLeads] = useState<{ id: number }[]>([]);
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
+
+  useEffect(() => {
+    setCompaniesLoading(true);
+    getCompaniesApi(1, 9999).then((res) => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setCompanies(raw.filter(r => r.status === 1 || r.status === '1' || r.status === 'active' || r.status === 'Active').map(r => ({ id: r.id, name: r.name })));
+    }).catch(() => {}).finally(() => setCompaniesLoading(false));
+  }, []);
 
   useEffect(() => {
     getLeadsApi().then((res) => {
@@ -412,7 +422,10 @@ const NewRateRequest = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Company</Label>
-                <Input placeholder="Company" value={form.company} onChange={(e) => handleBasicChange("company", e.target.value)} />
+                <select value={form.company} onChange={(e) => handleBasicChange("company", e.target.value)} disabled={companiesLoading} className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                  <option value="">{companiesLoading ? 'Loading...' : 'Select Company'}</option>
+                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Pricing Team</Label>

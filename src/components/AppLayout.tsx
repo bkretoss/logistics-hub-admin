@@ -63,13 +63,7 @@ const menuItems: MenuItem[] = [
   { title: "Procurement", icon: ShoppingCart, path: "/procurement" },
   { title: "Schedules", icon: Calendar, path: "/schedules" },
   { title: "Accounting", icon: DollarSign, path: "/accounting" },
-  {
-    title: "HR",
-    icon: UserSquare,
-    children: [
-      { title: "Employee Master", icon: Users, path: "/hr/employee-master" },
-    ],
-  },
+
   {
     title: "Setting",
     icon: Settings,
@@ -98,6 +92,8 @@ const menuItems: MenuItem[] = [
       { title: "Cargo Type",         icon: Package,    path: "/master/cargo-type"     },
       { title: "Designation",          icon: Users,      path: "/master/designation"    },
       { title: "Department",            icon: Users,      path: "/master/department"     },
+      { title: "Company",               icon: Package,    path: "/master/company"        },
+      { title: "Sales Team",            icon: Users,      path: "/hr/employee-master"    },
     ],
   },
 ];
@@ -176,6 +172,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [companyOpen, setCompanyOpen] = useState(false);
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
 
   // Derive the active top-level menu from the current route
   const getActiveTopMenu = () => {
@@ -205,6 +202,11 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   ];
 
   const handleLogout = () => {
+    setProfileOpen(false);
+    setLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
     logout();
     navigate("/login");
   };
@@ -325,6 +327,28 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </header>
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
+
+      {/* Logout Confirmation */}
+      {logoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setLogoutConfirm(false)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h3 className="text-lg font-bold text-foreground">Confirm Logout</h3>
+              <button onClick={() => setLogoutConfirm(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-muted-foreground">Are you sure you want to sign out?</p>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border">
+              <button onClick={() => setLogoutConfirm(false)} className="px-4 py-2 rounded-lg border border-input text-sm font-medium hover:bg-muted">Cancel</button>
+              <button onClick={confirmLogout} className="px-4 py-2 rounded-lg bg-destructive text-white text-sm font-medium hover:bg-destructive/90 flex items-center gap-2">
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

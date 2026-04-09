@@ -46,6 +46,7 @@ import DepartmentList from "@/pages/DepartmentList";
 import StateList from "@/pages/StateList";
 import CityList from "@/pages/CityList";
 import CoaList from "@/pages/CoaList";
+import CompanyList from '@/pages/CompanyList';
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -120,6 +121,7 @@ const App = () => (
             <Route path="/master/cargo-type" element={<ProtectedRoute><AppLayout><CargoTypeList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/designation" element={<ProtectedRoute><AppLayout><DesignationList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/department" element={<ProtectedRoute><AppLayout><DepartmentList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/company" element={<ProtectedRoute><AppLayout><CompanyList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/state" element={<ProtectedRoute><AppLayout><StateList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/city" element={<ProtectedRoute><AppLayout><CityList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/coa" element={<ProtectedRoute><AppLayout><CoaList /></AppLayout></ProtectedRoute>} />

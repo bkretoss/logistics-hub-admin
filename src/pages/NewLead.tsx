@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { createLeadApi, getShipmentTypesApi, getTransportModesApi, getCurrenciesApi, getCountriesApi, getEmployeesApi } from '@/services/api';
+import { createLeadApi, getShipmentTypesApi, getTransportModesApi, getCurrenciesApi, getCountriesApi, getStatesApi, getCitiesApi, getEmployeesApi, getDesignationsApi, getDepartmentsApi } from '@/services/api';
 
 type FieldErrors = Record<string, string>;
 
@@ -39,15 +39,16 @@ const NewLead = () => {
     company_turnover_currency: '' as number | '',
     remarks: '',
     address: '',
-    state: '',
-    city: '',
+    country_id: '' as number | '',
+    state_id: '' as number | '',
+    city_id: '' as number | '',
     zip: '',
     contact_person: '',
     email: '',
     telephone_no: '',
     mobile_no: '',
-    designation: '',
-    department: '',
+    designation: '' as number | '',
+    department: '' as number | '',
     notes: '',
   });
 
@@ -113,6 +114,18 @@ const NewLead = () => {
   const [countryCurrencies, setCountryCurrencies]           = useState<{ id: number; currency_code: string }[]>([]);
   const [countryCurrenciesLoading, setCountryCurrenciesLoading] = useState(false);
 
+  const [countries, setCountries]               = useState<{ id: number; name: string }[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
+  const [allStates, setAllStates]               = useState<{ id: number; name: string; country_id: number }[]>([]);
+  const [statesLoading, setStatesLoading]       = useState(false);
+  const [allCities, setAllCities]               = useState<{ id: number; name: string; state_id: number }[]>([]);
+  const [citiesLoading, setCitiesLoading]       = useState(false);
+
+  const [designations, setDesignations]             = useState<{ id: number; name: string }[]>([]);
+  const [designationsLoading, setDesignationsLoading] = useState(false);
+  const [departments, setDepartments]               = useState<{ id: number; name: string }[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+
   useEffect(() => {
     const fetchCurrencies = async () => {
       setCurrenciesLoading(true);
@@ -135,22 +148,69 @@ const NewLead = () => {
   useEffect(() => {
     const fetchCountryCurrencies = async () => {
       setCountryCurrenciesLoading(true);
+      setCountriesLoading(true);
       try {
         const res = await getCountriesApi();
         const raw: any[] = res.data?.data ?? res.data ?? [];
-        const active = raw
-          .filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active')
-          .filter(r => r.currency_code)
-          .map(r => ({ id: r.id, currency_code: r.currency_code }));
-        setCountryCurrencies(active);
-
+        const active = raw.filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active');
+        setCountryCurrencies(active.filter(r => r.currency_code).map(r => ({ id: r.id, currency_code: r.currency_code })));
+        setCountries(raw.map(r => ({ id: r.id, name: r.country_name })));
       } catch {
         // silently fall back
       } finally {
         setCountryCurrenciesLoading(false);
+        setCountriesLoading(false);
       }
     };
     fetchCountryCurrencies();
+  }, []);
+
+  useEffect(() => {
+    const fetch = async () => {
+      setStatesLoading(true);
+      try {
+        const res = await getStatesApi(1, 1000);
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setAllStates(raw.map(r => ({ id: r.id, name: r.name, country_id: Number(r.country_id) })));
+      } catch {} finally { setStatesLoading(false); }
+    };
+    fetch();
+  }, []);
+
+  useEffect(() => {
+    const fetch = async () => {
+      setCitiesLoading(true);
+      try {
+        const res = await getCitiesApi();
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setAllCities(raw.map(r => ({ id: r.id, name: r.name, state_id: Number(r.state_id) })));
+      } catch {} finally { setCitiesLoading(false); }
+    };
+    fetch();
+  }, []);
+
+  useEffect(() => {
+    const fetch = async () => {
+      setDesignationsLoading(true);
+      try {
+        const res = await getDesignationsApi(1, 1000);
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setDesignations(raw.filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active').map(r => ({ id: r.id, name: r.name })));
+      } catch {} finally { setDesignationsLoading(false); }
+    };
+    fetch();
+  }, []);
+
+  useEffect(() => {
+    const fetch = async () => {
+      setDepartmentsLoading(true);
+      try {
+        const res = await getDepartmentsApi(1, 1000);
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setDepartments(raw.filter(r => r.status === 1 || r.status === 'active' || r.status === 'Active').map(r => ({ id: r.id, name: r.name })));
+      } catch {} finally { setDepartmentsLoading(false); }
+    };
+    fetch();
   }, []);
 
   useEffect(() => {
@@ -258,8 +318,8 @@ const NewLead = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'sales_team' || name === 'expected_annual_revenue_currency' || name === 'company_turnover_currency' ? (value === '' ? '' : Number(value)) : value,
-      // keep shipment_type_id in sync when shipment_type name changes
+      [name]: ['sales_team','country_id','state_id','city_id','designation','department','expected_annual_revenue_currency','company_turnover_currency'].includes(name) ? (value === '' ? '' : Number(value)) : value,
+      ...(name === 'country_id' ? { state_id: '', city_id: '' } : name === 'state_id' ? { city_id: '' } : {}),
       ...(name === 'shipment_type'
         ? { shipment_type_id: shipmentTypes.find(s => s.name === value)?.id ?? '' }
         : name === 'transport_mode'
@@ -456,7 +516,7 @@ const NewLead = () => {
                 <Label htmlFor="expected_annual_revenue" className="text-sm font-semibold">
                   Expected Annual Revenue
                   {formData.expected_annual_revenue_currency && (
-                    <span className="ml-1 text-muted-foreground font-normal">({currencies.find(c => c.id === formData.expected_annual_revenue_currency)?.code})</span>
+                    <span className="ml-1 text-muted-foreground font-normal">({countryCurrencies.find(c => String(c.id) === String(formData.expected_annual_revenue_currency))?.currency_code ?? ''})</span>
                   )}
                 </Label>
                 <div className="flex gap-2">
@@ -467,10 +527,8 @@ const NewLead = () => {
                     disabled={countryCurrenciesLoading}
                     className="w-24 px-2 py-2 border border-input rounded-lg text-sm bg-background disabled:opacity-60"
                   >
-                    {currenciesLoading
-                      ? <option>...</option>
-                      : currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)
-                    }
+                    <option value="">{countryCurrenciesLoading ? '...' : 'Select'}</option>
+                    {!countryCurrenciesLoading && countryCurrencies.map(c => <option key={c.id} value={c.id}>{c.currency_code}</option>)}
                   </select>
                   <Input id="expected_annual_revenue" name="expected_annual_revenue"
                     value={formData.expected_annual_revenue} onChange={handleChange}
@@ -480,7 +538,7 @@ const NewLead = () => {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="expected_annual_volume_commodity" className="text-sm font-semibold">Expected Annual Volume Commodity</Label>
+                <Label htmlFor="expected_annual_volume_commodity" className="text-sm font-semibold">Expected Annual Volume</Label>
                 <Input id="expected_annual_volume_commodity" name="expected_annual_volume_commodity"
                   value={formData.expected_annual_volume_commodity} onChange={handleChange} />
               </div>
@@ -497,7 +555,7 @@ const NewLead = () => {
                 <Label htmlFor="company_turnover" className="text-sm font-semibold">
                   Company Turnover
                   {formData.company_turnover_currency && (
-                    <span className="ml-1 text-muted-foreground font-normal">({currencies.find(c => c.id === formData.company_turnover_currency)?.code})</span>
+                    <span className="ml-1 text-muted-foreground font-normal">({countryCurrencies.find(c => String(c.id) === String(formData.company_turnover_currency))?.currency_code ?? ''})</span>
                   )}
                 </Label>
                 <div className="flex gap-2">
@@ -508,10 +566,8 @@ const NewLead = () => {
                     disabled={countryCurrenciesLoading}
                     className="w-24 px-2 py-2 border border-input rounded-lg text-sm bg-background disabled:opacity-60"
                   >
-                    {currenciesLoading
-                      ? <option>...</option>
-                      : currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)
-                    }
+                    <option value="">{countryCurrenciesLoading ? '...' : 'Select'}</option>
+                    {!countryCurrenciesLoading && countryCurrencies.map(c => <option key={c.id} value={c.id}>{c.currency_code}</option>)}
                   </select>
                   <Input id="company_turnover" name="company_turnover"
                     value={formData.company_turnover} onChange={handleChange}
@@ -566,13 +622,33 @@ const NewLead = () => {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="state" className="text-sm font-semibold">State</Label>
-                <Input id="state" name="state" value={formData.state} onChange={handleChange} />
+                <Label htmlFor="country_id" className="text-sm font-semibold">Country</Label>
+                <select id="country_id" name="country_id" value={formData.country_id} onChange={handleChange}
+                  disabled={countriesLoading}
+                  className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                  <option value="">{countriesLoading ? 'Loading...' : 'Select Country'}</option>
+                  {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="city" className="text-sm font-semibold">City</Label>
-                <Input id="city" name="city" value={formData.city} onChange={handleChange} />
+                <Label htmlFor="state_id" className="text-sm font-semibold">State</Label>
+                <select id="state_id" name="state_id" value={formData.state_id} onChange={handleChange}
+                  disabled={statesLoading || !formData.country_id}
+                  className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                  <option value="">{statesLoading ? 'Loading...' : 'Select State'}</option>
+                  {allStates.filter(s => s.country_id === Number(formData.country_id)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="city_id" className="text-sm font-semibold">City</Label>
+                <select id="city_id" name="city_id" value={formData.city_id} onChange={handleChange}
+                  disabled={citiesLoading || !formData.state_id}
+                  className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                  <option value="">{citiesLoading ? 'Loading...' : 'Select City'}</option>
+                  {allCities.filter(c => c.state_id === Number(formData.state_id)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </div>
 
               <div className="space-y-1">
@@ -582,12 +658,22 @@ const NewLead = () => {
 
               <div className="space-y-1">
                 <Label htmlFor="designation" className="text-sm font-semibold">Designation</Label>
-                <Input id="designation" name="designation" value={formData.designation} onChange={handleChange} />
+                <select id="designation" name="designation" value={formData.designation} onChange={handleChange}
+                  disabled={designationsLoading}
+                  className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                  <option value="">{designationsLoading ? 'Loading...' : 'Select Designation'}</option>
+                  {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
               </div>
 
               <div className="space-y-1">
                 <Label htmlFor="department" className="text-sm font-semibold">Department</Label>
-                <Input id="department" name="department" value={formData.department} onChange={handleChange} />
+                <select id="department" name="department" value={formData.department} onChange={handleChange}
+                  disabled={departmentsLoading}
+                  className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                  <option value="">{departmentsLoading ? 'Loading...' : 'Select Department'}</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
               </div>
 
               <div className="space-y-1">

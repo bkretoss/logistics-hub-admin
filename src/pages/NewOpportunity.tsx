@@ -5,13 +5,47 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createRateRequestApi, getLeadsApi } from "@/services/api";
+import { createRateRequestApi, getLeadsApi, getCitiesApi, getEmployeesApi, getCompaniesApi } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const NewOpportunity = () => {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<{ id: number }[]>([]);
+  const [cities, setCities] = useState<{ id: number; name: string }[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [employees, setEmployees] = useState<{ id: number; name: string }[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
+
+  useEffect(() => {
+    setCompaniesLoading(true);
+    getCompaniesApi(1, 9999).then((res) => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setCompanies(raw.filter(r => r.status === 1 || r.status === '1' || r.status === 'active' || r.status === 'Active').map(r => ({ id: r.id, name: r.name })));
+    }).catch(() => {}).finally(() => setCompaniesLoading(false));
+  }, []);
+
+  useEffect(() => {
+    setCitiesLoading(true);
+    getCitiesApi().then((res) => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setCities(raw.map(r => ({ id: r.id, name: r.name })));
+    }).catch(() => {}).finally(() => setCitiesLoading(false));
+  }, []);
+
+  useEffect(() => {
+    setEmployeesLoading(true);
+    getEmployeesApi().then((res) => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setEmployees(raw.filter(r => r.status === 1).map(r => ({ id: r.id, name: [r.first_name, r.last_name].filter(Boolean).join(' ') })));
+    }).catch(() => {}).finally(() => setEmployeesLoading(false));
+  }, []);
 
   useEffect(() => {
     getLeadsApi().then((res) => {
@@ -46,7 +80,7 @@ const NewOpportunity = () => {
     opportunityType: "New Client",
     type: "Shipment",
     sales_agent: "",
-    company: "Relay Logistics Private Limited",
+    company: "",
     pricing_team: "",
     shipping_providers: "",
     status: "Open",
@@ -257,13 +291,32 @@ const NewOpportunity = () => {
               <Label htmlFor="location" className="text-sm font-semibold">
                 Location
               </Label>
-              <select id="location" name="location" value={formData.location} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
-                <option value="">Select</option>
-                <option>New York</option>
-                <option>Los Angeles</option>
-                <option>Chicago</option>
-                <option>Dubai</option>
-              </select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="w-full flex items-center justify-between px-3 py-2 border border-input rounded-lg text-sm bg-background disabled:opacity-60" disabled={citiesLoading}>
+                    <span className={formData.location ? '' : 'text-muted-foreground'}>
+                      {citiesLoading ? 'Loading...' : (formData.location || 'Select City')}
+                    </span>
+                    <ChevronsUpDown className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[250px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search city..." />
+                    <CommandList>
+                      <CommandEmpty>No city found.</CommandEmpty>
+                      <CommandGroup>
+                        {cities.map(c => (
+                          <CommandItem key={c.id} value={c.name} onSelect={(val) => setFormData(prev => ({ ...prev, location: val }))}>
+                            <Check className={cn('mr-2 w-4 h-4', formData.location === c.name ? 'opacity-100' : 'opacity-0')} />
+                            {c.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label htmlFor="lead" className="text-sm font-semibold">
@@ -281,10 +334,9 @@ const NewOpportunity = () => {
               <Label htmlFor="salesTeam" className="text-sm font-semibold">
                 Sales Team
               </Label>
-              <select id="salesTeam" name="sales_team" value={formData.sales_team} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
-                <option value="">Select</option>
-                <option>Team Alpha</option>
-                <option>Team Beta</option>
+              <select id="salesTeam" name="sales_team" value={formData.sales_team} onChange={handleChange} disabled={employeesLoading} className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                <option value="">{employeesLoading ? 'Loading...' : 'Select Employee'}</option>
+                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -340,8 +392,9 @@ const NewOpportunity = () => {
               <Label htmlFor="company" className="text-sm font-semibold">
                 Company
               </Label>
-              <select id="company" name="company" value={formData.company} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
-                <option>Relay Logistics Private Limited</option>
+              <select id="company" name="company" value={formData.company} onChange={handleChange} disabled={companiesLoading} className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+                <option value="">{companiesLoading ? 'Loading...' : 'Select Company'}</option>
+                {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div className="space-y-2">
