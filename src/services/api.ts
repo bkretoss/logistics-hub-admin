@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8001/api",
-  // baseURL: "https://logistic.kretoss.in/api",
+  // baseURL: "http://localhost:8001/api",
+  baseURL: "https://logistic.kretoss.in/api",
   headers: { "Content-Type": "application/json" },
 });
 
@@ -136,5 +136,45 @@ export const createSalesAgentApi      = (data: Record<string, unknown>)  => api.
 export const updateSalesAgentApi      = (id: number, data: Record<string, unknown>) => api.put(`/sales-agents/${id}`, data);
 export const deleteSalesAgentApi      = (id: number)                     => api.delete(`/sales-agents/${id}`);
 export const updateSalesAgentStatusApi = (id: number, status: number)    => api.patch(`/sales-agents/${id}/status`, { status });
+
+// Pricing Team APIs
+export const getPricingTeamApi        = (page = 1, perPage = 10, search = '', company = '', status = '') => api.get('/pricing-teams', { params: { page, per_page: perPage, ...(search && { search }), ...(company && { company }), ...(status && { status }) } });
+export const getPricingTeamMemberApi  = (id: number)                     => api.get(`/pricing-teams/${id}`);
+export const createPricingTeamApi     = (data: Record<string, unknown>)  => api.post('/pricing-teams', data);
+export const updatePricingTeamApi     = (id: number, data: Record<string, unknown>) => api.put(`/pricing-teams/${id}`, data);
+export const deletePricingTeamApi     = (id: number)                     => api.delete(`/pricing-teams/${id}`);
+export const updatePricingTeamStatusApi = (id: number, status: number)   => api.patch(`/pricing-teams/${id}/status`, { status });
+
+// Shipping Provider APIs
+export const getShippingProvidersApi       = (page = 1, perPage = 10, search = '', status = '') => api.get('/shipping-providers', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getShippingProviderApi        = (id: number)                     => api.get(`/shipping-providers/${id}`);
+export const createShippingProviderApi     = (data: Record<string, unknown>)  => api.post('/shipping-providers', data);
+export const updateShippingProviderApi     = (id: number, data: Record<string, unknown>) => api.put(`/shipping-providers/${id}`, data);
+export const deleteShippingProviderApi     = (id: number)                     => api.delete(`/shipping-providers/${id}`);
+export const updateShippingProviderStatusApi = (id: number, status: number)   => api.patch(`/shipping-providers/${id}/status`, { status });
+
+// Service Mode APIs
+export const getServiceModesApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/service-modes', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getServiceModeApi     = (id: number)                     => api.get(`/service-modes/${id}`);
+export const createServiceModeApi  = (data: Record<string, unknown>)  => api.post('/service-modes', data);
+export const updateServiceModeApi  = (id: number, data: Record<string, unknown>) => api.put(`/service-modes/${id}`, data);
+export const deleteServiceModeApi  = (id: number)                     => api.delete(`/service-modes/${id}`);
+export const updateServiceModeStatusApi = (id: number, status: number) => api.patch(`/service-modes/${id}/status`, { status });
+
+// Commodity APIs
+export const getCommoditiesApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/commodities', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getCommodityApi      = (id: number)                     => api.get(`/commodities/${id}`);
+export const createCommodityApi   = (data: Record<string, unknown>)  => api.post('/commodities', data);
+export const updateCommodityApi   = (id: number, data: Record<string, unknown>) => api.put(`/commodities/${id}`, data);
+export const deleteCommodityApi   = (id: number)                     => api.delete(`/commodities/${id}`);
+export const updateCommodityStatusApi = (id: number, status: number) => api.patch(`/commodities/${id}/status`, { status });
+
+// Incoterm APIs
+export const getIncotermsApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/incoterms', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getIncotermApi     = (id: number)                     => api.get(`/incoterms/${id}`);
+export const createIncotermApi  = (data: Record<string, unknown>)  => api.post('/incoterms', data);
+export const updateIncotermApi  = (id: number, data: Record<string, unknown>) => api.put(`/incoterms/${id}`, data);
+export const deleteIncotermApi  = (id: number)                     => api.delete(`/incoterms/${id}`);
+export const updateIncotermStatusApi = (id: number, status: number) => api.patch(`/incoterms/status/${id}`, { status });
 
 export default api;

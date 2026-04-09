@@ -47,6 +47,11 @@ import StateList from "@/pages/StateList";
 import CityList from "@/pages/CityList";
 import CoaList from "@/pages/CoaList";
 import CompanyList from '@/pages/CompanyList';
+import PricingTeamList from '@/pages/PricingTeamList';
+import ShippingProviderList from '@/pages/ShippingProviderList';
+import IncotermList from '@/pages/IncotermList';
+import CommodityList from '@/pages/CommodityList';
+import ServiceModeList from '@/pages/ServiceModeList';
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -125,6 +130,11 @@ const App = () => (
             <Route path="/master/state" element={<ProtectedRoute><AppLayout><StateList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/city" element={<ProtectedRoute><AppLayout><CityList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/coa" element={<ProtectedRoute><AppLayout><CoaList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/pricing-team" element={<ProtectedRoute><AppLayout><PricingTeamList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/shipping-provider" element={<ProtectedRoute><AppLayout><ShippingProviderList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/incoterm" element={<ProtectedRoute><AppLayout><IncotermList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/commodity" element={<ProtectedRoute><AppLayout><CommodityList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/service-mode" element={<ProtectedRoute><AppLayout><ServiceModeList /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master" element={<ProtectedRoute><AppLayout><CustomerMasterList /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master/new" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master/edit/:id" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />

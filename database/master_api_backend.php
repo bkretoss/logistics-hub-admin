@@ -246,3 +246,119 @@ class CargoTypeController extends Controller
         return response()->json(['success' => true, 'statusCode' => 200, 'message' => 'Cargo type deleted successfully']);
     }
 }
+
+
+// ============================================================
+// Pricing Team — routes/api.php
+// ============================================================
+// Route::get('/pricing-team',        [PricingTeamController::class, 'index']);
+// Route::get('/pricing-team/{id}',   [PricingTeamController::class, 'show']);
+// Route::post('/pricing-team',       [PricingTeamController::class, 'store']);
+// Route::put('/pricing-team/{id}',   [PricingTeamController::class, 'update']);
+// Route::delete('/pricing-team/{id}',[PricingTeamController::class, 'destroy']);
+// Route::patch('/pricing-team/{id}/status', [PricingTeamController::class, 'updateStatus']);
+
+// ============================================================
+// PricingTeamController.php
+// ============================================================
+// Migration: create_pricing_team_table
+//   $table->id();
+//   $table->string('name');
+//   $table->string('email')->unique();
+//   $table->unsignedBigInteger('company_id');
+//   $table->foreign('company_id')->references('id')->on('companies');
+//   $table->text('description')->nullable();
+//   $table->tinyInteger('status')->default(1); // 1=active, 0=inactive
+//   $table->timestamps();
+// ============================================================
+/*
+class PricingTeamController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = PricingTeam::with('company')
+            ->orderBy('id', 'desc');
+
+        if ($request->search) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+        if ($request->company) {
+            $query->where('company_id', $request->company);
+        }
+        if ($request->status !== null && $request->status !== '') {
+            $query->where('status', $request->status);
+        }
+
+        $data = $query->get()->map(function ($item) {
+            return array_merge($item->toArray(), [
+                'company_name' => $item->company?->name,
+            ]);
+        });
+
+        return response()->json(['data' => $data]);
+    }
+
+    public function show($id)
+    {
+        $record = PricingTeam::with('company')->findOrFail($id);
+        return response()->json(['data' => array_merge($record->toArray(), [
+            'company_name' => $record->company?->name,
+        ])]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name'       => 'required|string|max:255',
+            'email'      => 'required|email|unique:pricing_team,email',
+            'company_id' => 'required|exists:companies,id',
+            'status'     => 'nullable|in:0,1',
+        ]);
+
+        $record = PricingTeam::create([
+            'name'        => trim($request->name),
+            'email'       => trim($request->email),
+            'company_id'  => $request->company_id,
+            'description' => $request->description,
+            'status'      => $request->status ?? 1,
+        ]);
+
+        return response()->json(['data' => $record], 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $record = PricingTeam::findOrFail($id);
+
+        $request->validate([
+            'name'       => 'required|string|max:255',
+            'email'      => 'required|email|unique:pricing_team,email,' . $id,
+            'company_id' => 'required|exists:companies,id',
+            'status'     => 'nullable|in:0,1',
+        ]);
+
+        $record->update([
+            'name'        => trim($request->name),
+            'email'       => trim($request->email),
+            'company_id'  => $request->company_id,
+            'description' => $request->description,
+            'status'      => $request->status ?? $record->status,
+        ]);
+
+        return response()->json(['data' => $record]);
+    }
+
+    public function destroy($id)
+    {
+        PricingTeam::findOrFail($id)->delete();
+        return response()->json(['message' => 'Deleted successfully']);
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $record = PricingTeam::findOrFail($id);
+        $record->update(['status' => $request->status]);
+        return response()->json(['data' => $record]);
+    }
+}
+*/
