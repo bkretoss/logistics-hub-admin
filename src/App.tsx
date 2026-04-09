@@ -18,6 +18,7 @@ import EditLead from "@/pages/EditLead";
 import ViewOpportunity from "@/pages/ViewOpportunity";
 import Opportunity from "@/pages/Opportunity";
 import NewOpportunity from "@/pages/NewOpportunity";
+import EditOpportunity from "@/pages/EditOpportunity";
 import Quotes from "@/pages/Quotes";
 import NewQuote from "@/pages/NewQuote";
 import Operations from "@/pages/Operations";
@@ -43,6 +44,7 @@ import CountryList from "@/pages/CountryList";
 import CargoTypeList from "@/pages/CargoTypeList";
 import DesignationList from "@/pages/DesignationList";
 import DepartmentList from "@/pages/DepartmentList";
+import ProspectMasterList from "@/pages/ProspectMasterList";
 import StateList from "@/pages/StateList";
 import CityList from "@/pages/CityList";
 import CoaList from "@/pages/CoaList";
@@ -52,6 +54,9 @@ import ShippingProviderList from '@/pages/ShippingProviderList';
 import IncotermList from '@/pages/IncotermList';
 import CommodityList from '@/pages/CommodityList';
 import ServiceModeList from '@/pages/ServiceModeList';
+import SalesAgentList from '@/pages/SalesAgentList';
+import CustomerVisitList from '@/pages/CustomerVisitList';
+import NewCustomerVisit from '@/pages/NewCustomerVisit';
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -88,13 +93,16 @@ const App = () => (
             <Route path="/sales/opportunity" element={<ProtectedRoute><AppLayout><Opportunity /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/opportunity/new" element={<ProtectedRoute><AppLayout><NewOpportunity /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/opportunity/view/:id" element={<ProtectedRoute><AppLayout><ViewOpportunity /></AppLayout></ProtectedRoute>} />
-            <Route path="/sales/opportunity/edit/:id" element={<ProtectedRoute><AppLayout><NewRateRequest /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/opportunity/edit/:id" element={<ProtectedRoute><AppLayout><EditOpportunity /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/rate-requests" element={<ProtectedRoute><AppLayout><RateRequests /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/rate-requests/new" element={<ProtectedRoute><AppLayout><NewRateRequest /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/rate-requests/edit/:id" element={<ProtectedRoute><AppLayout><NewRateRequest /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/rate-requests/view/:id" element={<ProtectedRoute><AppLayout><ViewRateRequest /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/quotes" element={<ProtectedRoute><AppLayout><Quotes /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/quotes/new" element={<ProtectedRoute><AppLayout><NewQuote /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/customer-visits" element={<ProtectedRoute><AppLayout><CustomerVisitList /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/customer-visits/new" element={<ProtectedRoute><AppLayout><NewCustomerVisit /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/customer-visits/edit/:id" element={<ProtectedRoute><AppLayout><NewCustomerVisit /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/reports" element={<ProtectedPage title="Reports" description="Sales reports and analytics" />} />
             <Route path="/sales/configurations" element={<ProtectedPage title="Configurations" description="Sales module configurations" />} />
             <Route path="/operations" element={<ProtectedRoute><AppLayout><Operations /></AppLayout></ProtectedRoute>} />
@@ -126,6 +134,7 @@ const App = () => (
             <Route path="/master/cargo-type" element={<ProtectedRoute><AppLayout><CargoTypeList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/designation" element={<ProtectedRoute><AppLayout><DesignationList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/department" element={<ProtectedRoute><AppLayout><DepartmentList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/prospects" element={<ProtectedRoute><AppLayout><ProspectMasterList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/company" element={<ProtectedRoute><AppLayout><CompanyList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/state" element={<ProtectedRoute><AppLayout><StateList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/city" element={<ProtectedRoute><AppLayout><CityList /></AppLayout></ProtectedRoute>} />
@@ -135,6 +144,7 @@ const App = () => (
             <Route path="/master/incoterm" element={<ProtectedRoute><AppLayout><IncotermList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/commodity" element={<ProtectedRoute><AppLayout><CommodityList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/service-mode" element={<ProtectedRoute><AppLayout><ServiceModeList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/sales-agent" element={<ProtectedRoute><AppLayout><SalesAgentList /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master" element={<ProtectedRoute><AppLayout><CustomerMasterList /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master/new" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/customer-master/edit/:id" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />

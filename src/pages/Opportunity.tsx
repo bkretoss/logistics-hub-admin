@@ -14,7 +14,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { getOpportunitiesApi, deleteOpportunityApi, updateOpportunityStatusApi, getOpportunityApi } from "@/services/api";
+import { getOpportunitiesApi, deleteOpportunityApi, updateOpportunityStatusApi, getOpportunityApi, getCompaniesApi, getSalesAgentsApi, getCitiesApi, getEmployeesApi, getTransportModesApi, getShipmentTypesApi, getCargoTypesApi, getIncotermsApi, getCommoditiesApi, getServiceModesApi, getCountriesApi, getDesignationsApi, getDepartmentsApi, getProspectsApi, getPricingTeamApi, getShippingProvidersApi, getStatesApi } from "@/services/api";
 
 interface Opportunity {
   id: number;
@@ -101,6 +101,23 @@ const Opportunity = () => {
   const [updatingStatus,    setUpdatingStatus]    = useState<number | null>(null);
   const [viewData,          setViewData]          = useState<any>(null);
   const [viewLoading,       setViewLoading]       = useState(false);
+  const [companyMap,        setCompanyMap]        = useState<Record<string, string>>({});
+  const [salesAgentMap,     setSalesAgentMap]     = useState<Record<string, string>>({});
+  const [cityMap,           setCityMap]           = useState<Record<string, string>>({});
+  const [employeeMap,       setEmployeeMap]       = useState<Record<string, string>>({});
+  const [transportModeMap,  setTransportModeMap]  = useState<Record<string, string>>({});
+  const [shipmentTypeMap,   setShipmentTypeMap]   = useState<Record<string, string>>({});
+  const [cargoTypeMap,      setCargoTypeMap]      = useState<Record<string, string>>({});
+  const [incotermMap,       setIncotermMap]       = useState<Record<string, string>>({});
+  const [commodityMap,      setCommodityMap]      = useState<Record<string, string>>({});
+  const [serviceModeMap,    setServiceModeMap]    = useState<Record<string, string>>({});
+  const [countryMap,        setCountryMap]        = useState<Record<string, string>>({});
+  const [stateMap,          setStateMap]          = useState<Record<string, string>>({});
+  const [designationMap,    setDesignationMap]    = useState<Record<string, string>>({});
+  const [departmentMap,     setDepartmentMap]     = useState<Record<string, string>>({});
+  const [prospectMap,       setProspectMap]       = useState<Record<string, string>>({});
+  const [pricingTeamMap,    setPricingTeamMap]    = useState<Record<string, string>>({});
+  const [shippingProvMap,   setShippingProvMap]   = useState<Record<string, string>>({});
 
   const openViewModal = async (id: number) => {
     setViewDialogOpen(true);
@@ -116,6 +133,51 @@ const Opportunity = () => {
       setViewLoading(false);
     }
   };
+
+  useEffect(() => {
+    getCompaniesApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const map: Record<string, string> = {};
+      raw.forEach(r => { map[String(r.id)] = r.name; });
+      setCompanyMap(map);
+    }).catch(() => {});
+    getSalesAgentsApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const map: Record<string, string> = {};
+      raw.forEach(r => { map[String(r.id)] = r.name; });
+      setSalesAgentMap(map);
+    }).catch(() => {});
+    getCitiesApi().then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const map: Record<string, string> = {};
+      raw.forEach(r => { map[String(r.id)] = r.name; });
+      setCityMap(map);
+    }).catch(() => {});
+    getEmployeesApi().then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const map: Record<string, string> = {};
+      raw.forEach(r => { map[String(r.id)] = [r.first_name, r.last_name].filter(Boolean).join(' '); });
+      setEmployeeMap(map);
+    }).catch(() => {});
+    getTransportModesApi().then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setTransportModeMap(map); }).catch(() => {});
+    getShipmentTypesApi().then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setShipmentTypeMap(map); }).catch(() => {});
+    getCargoTypesApi().then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setCargoTypeMap(map); }).catch(() => {});
+    getIncotermsApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setIncotermMap(map); }).catch(() => {});
+    getCommoditiesApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setCommodityMap(map); }).catch(() => {});
+    getServiceModesApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setServiceModeMap(map); }).catch(() => {});
+    getCountriesApi().then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.country_name ?? r.name; }); setCountryMap(map); }).catch(() => {});
+    getStatesApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setStateMap(map); }).catch(() => {});
+    getDesignationsApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setDesignationMap(map); }).catch(() => {});
+    getDepartmentsApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setDepartmentMap(map); }).catch(() => {});
+    getProspectsApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setProspectMap(map); }).catch(() => {});
+    getPricingTeamApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setPricingTeamMap(map); }).catch(() => {});
+    getShippingProvidersApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const map: Record<string, string> = {}; raw.forEach(r => { map[String(r.id)] = r.name; }); setShippingProvMap(map); }).catch(() => {});
+  }, []);
+
+  const r = (map: Record<string, string>, val: any) => (val != null && val !== '' ? (map[String(val)] ?? String(val)) : "-");
+  const resolveCompany = (val: any) => companyMap[String(val)] ?? val ?? "-";
+  const resolveSalesAgent = (val: any) => salesAgentMap[String(val)] ?? val ?? "-";
+  const resolveCity = (val: any) => cityMap[String(val)] ?? val ?? "-";
 
   const fetchOpportunities = useCallback(async () => {
     try {
@@ -422,14 +484,14 @@ const Opportunity = () => {
                           </td>
 
                           {/* LOCATION */}
-                          <td className="px-4 py-4 text-sm text-muted-foreground">{opp.location || "-"}</td>
+                          <td className="px-4 py-4 text-sm text-muted-foreground">{resolveCity(opp.location) || "-"}</td>
 
                           {/* COMPANY */}
-                          <td className="px-4 py-4 text-sm text-muted-foreground">{opp.company || "-"}</td>
+                          <td className="px-4 py-4 text-sm text-muted-foreground">{resolveCompany(opp.company) || "-"}</td>
 
                           {/* SALES AGENT */}
                           <td className="px-4 py-4">
-                            <span className="text-sm text-amber-500 font-medium">{opp.displaySalesAgent || "-"}</span>
+                            <span className="text-sm text-muted-foreground">{resolveSalesAgent(opp.displaySalesAgent) || "-"}</span>
                           </td>
 
                           {/* STATUS */}
@@ -555,50 +617,50 @@ const Opportunity = () => {
                 <Section title="Basic Details">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <Field label="Date" value={viewData.date} />
-                    <Field label="Location" value={viewData.location} />
+                    <Field label="Location" value={r(cityMap, viewData.location)} />
                     <Field label="Lead Reference" value={viewData.lead_ref} />
-                    <Field label="Sales Team" value={viewData.sales_team} />
+                    <Field label="Sales Team" value={r(employeeMap, viewData.sales_team)} />
                     <Field label="Rate Request Source" value={viewData.opportunity_source} />
                     <Field label="Rate Request Type" value={viewData.opportunity_type} />
                     <Field label="Type" value={viewData.type} />
-                    <Field label="Sales Agent" value={viewData.sales_agent} />
-                    <Field label="Company" value={viewData.company} />
-                    <Field label="Pricing Team" value={viewData.pricing_team} />
-                    <Field label="Shipping Providers" value={viewData.shipping_providers} />
+                    <Field label="Sales Agent" value={r(salesAgentMap, viewData.sales_agent)} />
+                    <Field label="Company" value={r(companyMap, viewData.company)} />
+                    <Field label="Pricing Team" value={r(pricingTeamMap, viewData.pricing_team)} />
+                    <Field label="Shipping Providers" value={r(shippingProvMap, viewData.shipping_providers)} />
                     <Field label="Status" value={viewData.status} />
                   </div>
                 </Section>
                 {/* Shipment Details */}
                 <Section title="Shipment Details">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <Field label="Transport Mode" value={sd.transport_mode} />
-                    <Field label="Shipment Type" value={sd.shipment_type} />
-                    <Field label="Cargo Type" value={sd.cargo_type} />
-                    <Field label="Incoterms" value={sd.incoterms} />
-                    <Field label="Commodity" value={sd.commodity} />
-                    <Field label="Service Mode" value={sd.service_mode} />
+                    <Field label="Transport Mode" value={r(transportModeMap, sd.transport_mode)} />
+                    <Field label="Shipment Type" value={r(shipmentTypeMap, sd.shipment_type)} />
+                    <Field label="Cargo Type" value={r(cargoTypeMap, sd.cargo_type)} />
+                    <Field label="Incoterms" value={r(incotermMap, sd.incoterms)} />
+                    <Field label="Commodity" value={r(commodityMap, sd.commodity)} />
+                    <Field label="Service Mode" value={r(serviceModeMap, sd.service_mode)} />
                     <Field label="Est. Shipment Date" value={sd.estimated_shipment_date} />
                     <Field label="Cargo Status" value={sd.cargo_status} />
-                    <Field label="Origin Country" value={sd.origin_country} />
-                    <Field label="Destination Country" value={sd.destination_country} />
+                    <Field label="Origin Country" value={r(countryMap, sd.origin_country)} />
+                    <Field label="Destination Country" value={r(countryMap, sd.destination_country)} />
                     <div className="col-span-2 md:col-span-3"><Field label="Cargo Description" value={sd.cargo_description} /></div>
                   </div>
                 </Section>
                 {/* Party Details */}
                 <Section title="Party Details">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <Field label="Customer" value={pd.customer} />
+                    <Field label="Customer" value={r(salesAgentMap, pd.customer)} />
                     <Field label="Contact Person" value={pd.contact_person} />
-                    <Field label="Designation" value={pd.designation} />
+                    <Field label="Designation" value={r(designationMap, pd.designation)} />
                     <Field label="Customer Type" value={pd.customer_type} />
-                    <Field label="Prospect" value={pd.prospect} />
-                    <Field label="Department" value={pd.department} />
+                    <Field label="Prospect" value={r(prospectMap, pd.prospect)} />
+                    <Field label="Department" value={r(departmentMap, pd.department)} />
                     <Field label="Street 1" value={pd.address_street1} />
                     <Field label="Street 2" value={pd.address_street2} />
-                    <Field label="State" value={pd.address_state} />
-                    <Field label="City" value={pd.address_city} />
+                    <Field label="State" value={r(stateMap, pd.address_state)} />
+                    <Field label="City" value={r(cityMap, pd.address_city)} />
                     <Field label="ZIP" value={pd.address_zip} />
-                    <Field label="Country" value={pd.address_country} />
+                    <Field label="Country" value={r(countryMap, pd.address_country)} />
                     <Field label="Email" value={pd.email} />
                     <Field label="Telephone No" value={pd.telephone_no} />
                     <Field label="Mobile No" value={pd.mobile_no} />

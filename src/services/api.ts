@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  // baseURL: "http://localhost:8001/api",
-  baseURL: "https://logistic.kretoss.in/api",
+  baseURL: "http://localhost:8001/api",
+  // baseURL: "https://logistic.kretoss.in/api",
   headers: { "Content-Type": "application/json" },
 });
 
@@ -114,6 +114,13 @@ export const createDepartmentApi  = (data: Record<string, unknown>)  => api.post
 export const updateDepartmentApi  = (id: number, data: Record<string, unknown>) => api.put(`/departments/${id}`, data);
 export const deleteDepartmentApi  = (id: number)                     => api.delete(`/departments/${id}`);
 
+// Prospects (Master) APIs
+export const getProspectsApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/prospects', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getProspectApi     = (id: number)                     => api.get(`/prospects/${id}`);
+export const createProspectApi  = (data: Record<string, unknown>)  => api.post('/prospects', data);
+export const updateProspectApi  = (id: number, data: Record<string, unknown>) => api.put(`/prospects/${id}`, data);
+export const deleteProspectApi  = (id: number)                     => api.delete(`/prospects/${id}`);
+
 // State APIs
 export const getStatesApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/states', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
 export const getStateApi     = (id: number)                     => api.get(`/states/${id}`);
@@ -176,5 +183,12 @@ export const createIncotermApi  = (data: Record<string, unknown>)  => api.post('
 export const updateIncotermApi  = (id: number, data: Record<string, unknown>) => api.put(`/incoterms/${id}`, data);
 export const deleteIncotermApi  = (id: number)                     => api.delete(`/incoterms/${id}`);
 export const updateIncotermStatusApi = (id: number, status: number) => api.patch(`/incoterms/status/${id}`, { status });
+
+// Customer Visit APIs
+export const getCustomerVisitsApi   = (page = 1, perPage = 10, search = '') => api.get('/customer-visits', { params: { page, per_page: perPage, ...(search && { search }) } });
+export const getCustomerVisitApi    = (id: number)                            => api.get(`/customer-visits/${id}`);
+export const createCustomerVisitApi = (data: Record<string, unknown>)         => api.post('/customer-visits', data);
+export const updateCustomerVisitApi = (id: number, data: Record<string, unknown>) => api.put(`/customer-visits/${id}`, data);
+export const deleteCustomerVisitApi = (id: number)                            => api.delete(`/customer-visits/${id}`);
 
 export default api;

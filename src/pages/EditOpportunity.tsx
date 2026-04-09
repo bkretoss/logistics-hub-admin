@@ -1,19 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createRateRequestApi, getLeadsApi, getCitiesApi, getStatesApi, getEmployeesApi, getCompaniesApi, getSalesAgentsApi, getPricingTeamApi, getShippingProvidersApi, getTransportModesApi, getShipmentTypesApi, getCargoTypesApi, getIncotermsApi, getCommoditiesApi, getServiceModesApi, getCountriesApi, getDesignationsApi, getDepartmentsApi, getProspectsApi } from "@/services/api";
+import { createRateRequestApi, updateRateRequestApi, getOpportunityApi, getLeadsApi, getCitiesApi, getStatesApi, getEmployeesApi, getCompaniesApi, getSalesAgentsApi, getPricingTeamApi, getShippingProvidersApi, getTransportModesApi, getShipmentTypesApi, getCargoTypesApi, getIncotermsApi, getCommoditiesApi, getServiceModesApi, getCountriesApi, getDesignationsApi, getDepartmentsApi, getProspectsApi } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const NewOpportunity = () => {
+const toInputDate = (val: string): string => {
+  if (!val) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.slice(0, 10);
+  const m = val.match(/(\d{2})[\-\/](\d{2})[\-\/](\d{4})/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return val;
+};
+
+const EditOpportunity = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [leads, setLeads] = useState<{ id: number }[]>([]);
   const [cities, setCities] = useState<{ id: number; name: string }[]>([]);
   const [citiesLoading, setCitiesLoading] = useState(false);
@@ -161,6 +170,70 @@ const NewOpportunity = () => {
 
   });
 
+  const [fetching, setFetching] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      setFetching(true);
+      getOpportunityApi(id)
+        .then((res) => {
+          const raw = res.data?.data ?? res.data;
+          setFormData({
+            date: toInputDate(raw.date) || new Date().toISOString().split("T")[0],
+            location: raw.location || "",
+            lead: (() => { const v = raw.lead_ref ?? raw.lead ?? ""; if (!v) return ""; return /^LEAD-/.test(String(v)) ? String(v) : `LEAD-${String(v).padStart(3, "0")}`; })(),
+            sales_team: raw.sales_team ? String(raw.sales_team) : "",
+            opportunitySource: raw.opportunity_source || "Online",
+            opportunityType: raw.opportunity_type || "New Client",
+            type: raw.type || "Shipment",
+            sales_agent: raw.sales_agent ? String(raw.sales_agent) : "",
+            company: raw.company ? String(raw.company) : "",
+            pricing_team: raw.pricing_team ? String(raw.pricing_team) : "",
+            shipping_providers: raw.shipping_providers ? String(raw.shipping_providers) : "",
+            status: raw.status || "Open",
+            transport_mode: raw.shipment_details?.transport_mode ? String(raw.shipment_details.transport_mode) : "",
+            shipment_type: raw.shipment_details?.shipment_type ? String(raw.shipment_details.shipment_type) : "",
+            cargo_type: raw.shipment_details?.cargo_type ? String(raw.shipment_details.cargo_type) : "",
+            incoterms: raw.shipment_details?.incoterms ? String(raw.shipment_details.incoterms) : "",
+            commodity: raw.shipment_details?.commodity ? String(raw.shipment_details.commodity) : "",
+            service_mode: raw.shipment_details?.service_mode ? String(raw.shipment_details.service_mode) : "",
+            estimated_shipment_date: toInputDate(raw.shipment_details?.estimated_shipment_date) || "",
+            cargo_status: raw.shipment_details?.cargo_status || "Ready to Ship",
+            origin_country: raw.shipment_details?.origin_country ? String(raw.shipment_details.origin_country) : "",
+            destination_country: raw.shipment_details?.destination_country ? String(raw.shipment_details.destination_country) : "",
+            cargo_description: raw.shipment_details?.cargo_description || "",
+            customer: raw.party_details?.customer ? String(raw.party_details.customer) : "",
+            contact_person: raw.party_details?.contact_person || "",
+            designation: raw.party_details?.designation ? String(raw.party_details.designation) : "",
+            customer_type: raw.party_details?.customer_type || "Shipper",
+            prospect: raw.party_details?.prospect || "",
+            department: raw.party_details?.department ? String(raw.party_details.department) : "",
+            address_street1: raw.party_details?.address_street1 || "",
+            address_street2: raw.party_details?.address_street2 || "",
+            address_state: raw.party_details?.address_state ? String(raw.party_details.address_state) : "",
+            address_city: raw.party_details?.address_city ? String(raw.party_details.address_city) : "",
+            address_zip: raw.party_details?.address_zip || "",
+            address_country: raw.party_details?.address_country ? String(raw.party_details.address_country) : "",
+            email: raw.party_details?.email || "",
+            telephone_no: raw.party_details?.telephone_no || "",
+            mobile_no: raw.party_details?.mobile_no || "",
+          });
+
+          if (Array.isArray(raw.vendor_rates) && raw.vendor_rates.length > 0) {
+            setVendorRates(raw.vendor_rates.map((r: any, i: number) => ({ id: r.id ?? i, vendor_agent: r.vendor_agent ?? "", currency: r.currency ?? "USD", rate_total: r.rate_total ?? "" })));
+          }
+          if (Array.isArray(raw.additional_services) && raw.additional_services.length > 0) {
+            setServiceLines(raw.additional_services.map((s: any, i: number) => ({ id: s.id ?? i, service: s.additional_service ?? "", containerType: s.container_type ?? "", containerQuantity: s.container_quantity ?? 1 })));
+          }
+          if (Array.isArray(raw.customer_visits) && raw.customer_visits.length > 0) {
+            setCustomerVisits(raw.customer_visits.map((v: any, i: number) => ({ id: v.id ?? i, visit_date: toInputDate(v.visit_date) ?? "", visit_time: v.visit_time ?? "", next_visit: toInputDate(v.next_visit) ?? "", next_followup_date: toInputDate(v.next_followup_date) ?? "", assign_to: v.assign_to ?? "", mode_of_communication: v.mode_of_communication ?? "", visited_by: v.visited_by ?? "", purpose: v.purpose ?? "", visit_notes: v.visit_notes ?? "" })));
+          }
+        })
+        .catch(() => toast({ title: "Error", description: "Failed to load data", variant: "destructive" }))
+        .finally(() => setFetching(false));
+    }
+  }, [id]);
+
   const addServiceLine = () => {
     setServiceLines([...serviceLines, { id: Date.now(), service: "", containerType: "", containerQuantity: 1 }]);
   };
@@ -217,67 +290,66 @@ const NewOpportunity = () => {
     return res ? Number(res) : null;
   };
 
-  const n = (v: string) => v ? Number(v) : null;
-
   const buildPayload = () => ({
     date: formData.date,
-    location: n(formData.location),
+    location: formData.location ? Number(formData.location) : null,
+    location_id: formData.location ? Number(formData.location) : null,
     lead: formData.lead,
-    sales_team_id: n(formData.sales_team),
-    sales_team: n(formData.sales_team),
+    sales_team_id: formData.sales_team ? Number(formData.sales_team) : null,
+    sales_team: formData.sales_team ? Number(formData.sales_team) : null,
     opportunity_source: formData.opportunitySource,
     opportunity_type: formData.opportunityType,
     type: formData.type,
-    sales_agent_id: n(formData.sales_agent),
-    sales_agent: n(formData.sales_agent),
-    company_id: n(formData.company),
-    company: n(formData.company),
-    pricing_team_id: n(formData.pricing_team),
-    pricing_team: n(formData.pricing_team),
-    shipping_provider_id: n(formData.shipping_providers),
-    shipping_providers: n(formData.shipping_providers),
+    sales_agent_id: formData.sales_agent ? Number(formData.sales_agent) : null,
+    sales_agent: formData.sales_agent ? Number(formData.sales_agent) : null,
+    company_id: formData.company ? Number(formData.company) : null,
+    company: formData.company ? Number(formData.company) : null,
+    pricing_team_id: formData.pricing_team ? Number(formData.pricing_team) : null,
+    pricing_team: formData.pricing_team ? Number(formData.pricing_team) : null,
+    shipping_provider_id: formData.shipping_providers ? Number(formData.shipping_providers) : null,
+    shipping_providers: formData.shipping_providers ? Number(formData.shipping_providers) : null,
     status: formData.status,
     shipment_details: {
-      transport_mode_id: n(formData.transport_mode),
-      transport_mode: n(formData.transport_mode),
-      shipment_type_id: n(formData.shipment_type),
-      shipment_type: n(formData.shipment_type),
-      cargo_type_id: n(formData.cargo_type),
-      cargo_type: n(formData.cargo_type),
-      incoterm_id: n(formData.incoterms),
-      incoterms: n(formData.incoterms),
-      commodity_id: n(formData.commodity),
-      commodity: n(formData.commodity),
-      service_mode_id: n(formData.service_mode),
-      service_mode: n(formData.service_mode),
+      transport_mode_id: resolveIdNum(transportModes, formData.transport_mode),
+      transport_mode: resolveIdNum(transportModes, formData.transport_mode),
+      shipment_type_id: resolveIdNum(shipmentTypes, formData.shipment_type),
+      shipment_type: resolveIdNum(shipmentTypes, formData.shipment_type),
+      cargo_type_id: resolveIdNum(cargoTypes, formData.cargo_type),
+      cargo_type: resolveIdNum(cargoTypes, formData.cargo_type),
+      incoterm_id: resolveIdNum(incoterms, formData.incoterms),
+      incoterms: resolveIdNum(incoterms, formData.incoterms),
+      commodity_id: resolveIdNum(commodities, formData.commodity),
+      commodity: resolveIdNum(commodities, formData.commodity),
+      service_mode_id: resolveIdNum(serviceModes, formData.service_mode),
+      service_mode: resolveIdNum(serviceModes, formData.service_mode),
       estimated_shipment_date: formData.estimated_shipment_date,
       cargo_status: formData.cargo_status,
-      origin_country_id: n(formData.origin_country),
-      origin_country: n(formData.origin_country),
-      destination_country_id: n(formData.destination_country),
-      destination_country: n(formData.destination_country),
+      origin_country_id: resolveIdNum(countries, formData.origin_country),
+      origin_country: resolveIdNum(countries, formData.origin_country),
+      destination_country_id: resolveIdNum(countries, formData.destination_country),
+      destination_country: resolveIdNum(countries, formData.destination_country),
       cargo_description: formData.cargo_description,
     },
     party_details: {
-      customer_id: n(formData.customer),
-      customer: n(formData.customer),
+      customer_id: resolveIdNum(customers, formData.customer),
+      customer: resolveIdNum(customers, formData.customer),
       contact_person: formData.contact_person,
-      designation_id: n(formData.designation),
-      designation: n(formData.designation),
+      designation_id: resolveIdNum(designations, formData.designation),
+      designation: resolveIdNum(designations, formData.designation),
       customer_type: formData.customer_type,
-      prospect_id: n(formData.prospect),
-      prospect: n(formData.prospect),
-      department_id: n(formData.department),
-      department: n(formData.department),
+      prospect: formData.prospect,
+      prospect_id: resolveIdNum(prospects, formData.prospect),
+      department_id: resolveIdNum(departments, formData.department),
+      department: resolveIdNum(departments, formData.department),
       address_street1: formData.address_street1,
       address_street2: formData.address_street2,
-      address_state_id: n(formData.address_state),
-      address_state: n(formData.address_state),
-      address_city_id: n(formData.address_city),
-      address_city: n(formData.address_city),
+      address_state_id: resolveIdNum(allStates, formData.address_state),
+      address_state: resolveIdNum(allStates, formData.address_state),
+      address_city_id: resolveIdNum(allCities, formData.address_city),
+      address_city: resolveIdNum(allCities, formData.address_city),
       address_zip: formData.address_zip,
-      address_country_id: n(formData.address_country),
-      address_country: n(formData.address_country),
+      address_country_id: resolveIdNum(countries, formData.address_country),
+      address_country: resolveIdNum(countries, formData.address_country),
       email: formData.email,
       telephone_no: formData.telephone_no,
       mobile_no: formData.mobile_no,
@@ -292,11 +364,7 @@ const NewOpportunity = () => {
       container_type: s.containerType,
       container_quantity: parseInt(s.containerQuantity.toString()) || 1,
     })),
-    customer_visits: customerVisits.map(({ id: _id, visited_by, assign_to, ...v }) => ({
-      ...v,
-      visited_by_id: visited_by ? Number(visited_by) : null,
-      assign_to_id: assign_to ? Number(assign_to) : null,
-    })),
+    customer_visits: customerVisits.map(({ id: _id, ...v }) => v),
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -316,15 +384,20 @@ const NewOpportunity = () => {
     try {
       const payload = buildPayload();
       console.log("Submitting payload:", payload);
-      await createRateRequestApi(payload);
+      if (id) {
+        await updateRateRequestApi(id, payload);
+        toast({ title: "Success", description: "Opportunity updated successfully", variant: "success" });
+      } else {
+        await createRateRequestApi(payload);
+        toast({ title: "Success", description: "Opportunity created successfully", variant: "success" });
+      }
       setSubmitted(true);
-      toast({ title: "Success", description: "Opportunity created successfully", variant: "success" });
       setTimeout(() => {
         navigate("/sales/opportunity");
         window.scrollTo(0, 0);
       }, 1500);
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || error.message || "Failed to create opportunity";
+      const errorMsg = error.response?.data?.message || error.message || "Failed to process opportunity";
       toast({ title: "Error", description: errorMsg, variant: "destructive" });
       console.error("API Error:", error);
     } finally {
@@ -347,11 +420,16 @@ const NewOpportunity = () => {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">New Rate Request</h1>
-          <p className="text-muted-foreground text-sm mt-1">Create a new rate request entry</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">{id ? "Edit Opportunity" : "New Rate Request"}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{id ? "Modify the opportunity details" : "Create a new rate request entry"}</p>
         </div>
       </div>
 
+      {fetching ? (
+        <div className="flex items-center justify-center py-16">
+          <span className="text-muted-foreground">Loading...</span>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit}>
         <div className="material-card material-elevation-1 p-6 space-y-8">
           {/* Basic Information */}
@@ -393,7 +471,7 @@ const NewOpportunity = () => {
                       <CommandEmpty>No city found.</CommandEmpty>
                       <CommandGroup>
                         {cities.map(c => (
-                          <CommandItem key={c.id} value={c.name} onSelect={() => setFormData(prev => ({ ...prev, location: String(c.id) }))}>
+                          <CommandItem key={c.id} value={String(c.id)} onSelect={(val) => setFormData(prev => ({ ...prev, location: val }))}>
                             <Check className={cn('mr-2 w-4 h-4', formData.location === String(c.id) ? 'opacity-100' : 'opacity-0')} />
                             {c.name}
                           </CommandItem>
@@ -468,7 +546,7 @@ const NewOpportunity = () => {
               <Label htmlFor="salesAgent" className="text-sm font-semibold">
                 Sales Agent
               </Label>
-              <select id="salesAgent" name="sales_agent" value={formData.sales_agent} onChange={handleChange} disabled={salesAgentsLoading} className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+              <select id="salesAgent" name="sales_agent" value={resolveIdStr(salesAgents, formData.sales_agent)} onChange={handleChange} disabled={salesAgentsLoading} className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
                 <option value="">{salesAgentsLoading ? 'Loading...' : 'Select Sales Agent'}</option>
                 {salesAgents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
@@ -477,7 +555,7 @@ const NewOpportunity = () => {
               <Label htmlFor="company" className="text-sm font-semibold">
                 Company
               </Label>
-              <select id="company" name="company" value={formData.company} onChange={handleChange} disabled={companiesLoading} className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
+              <select id="company" name="company" value={resolveIdStr(companies, formData.company)} onChange={handleChange} disabled={companiesLoading} className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60">
                 <option value="">{companiesLoading ? 'Loading...' : 'Select Company'}</option>
                 {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -486,7 +564,7 @@ const NewOpportunity = () => {
               <Label htmlFor="pricingTeam" className="text-sm font-semibold">
                 Pricing Team
               </Label>
-              <select id="pricingTeam" name="pricing_team" value={formData.pricing_team} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+              <select id="pricingTeam" name="pricing_team" value={resolveIdStr(pricingTeams, formData.pricing_team)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option value="">Select</option>
                 {pricingTeams.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -495,7 +573,7 @@ const NewOpportunity = () => {
               <Label htmlFor="shippingProviders" className="text-sm font-semibold">
                 Shipping Providers
               </Label>
-              <select id="shippingProviders" name="shipping_providers" value={formData.shipping_providers} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+              <select id="shippingProviders" name="shipping_providers" value={resolveIdStr(shippingProviders, formData.shipping_providers)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                 <option value="">Select</option>
                 {shippingProviders.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -523,7 +601,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="transportMode" className="text-sm font-semibold">
                   Transport Mode
                 </Label>
-                <select id="transportMode" name="transport_mode" value={formData.transport_mode} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="transportMode" name="transport_mode" value={resolveIdStr(transportModes, formData.transport_mode)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {transportModes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
@@ -532,7 +610,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="shipmentType" className="text-sm font-semibold">
                   Shipment Type
                 </Label>
-                <select id="shipmentType" name="shipment_type" value={formData.shipment_type} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="shipmentType" name="shipment_type" value={resolveIdStr(shipmentTypes, formData.shipment_type)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {shipmentTypes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
@@ -541,7 +619,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="cargoType" className="text-sm font-semibold">
                   Cargo Type
                 </Label>
-                <select id="cargoType" name="cargo_type" value={formData.cargo_type} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="cargoType" name="cargo_type" value={resolveIdStr(cargoTypes, formData.cargo_type)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {cargoTypes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -550,7 +628,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="incoterms" className="text-sm font-semibold">
                   Incoterms
                 </Label>
-                <select id="incoterms" name="incoterms" value={formData.incoterms} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="incoterms" name="incoterms" value={resolveIdStr(incoterms, formData.incoterms)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {incoterms.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
                 </select>
@@ -559,7 +637,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="commodity" className="text-sm font-semibold">
                   Commodity
                 </Label>
-                <select id="commodity" name="commodity" value={formData.commodity} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="commodity" name="commodity" value={resolveIdStr(commodities, formData.commodity)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {commodities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -568,7 +646,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="serviceMode" className="text-sm font-semibold">
                   Service Mode
                 </Label>
-                <select id="serviceMode" name="service_mode" value={formData.service_mode} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="serviceMode" name="service_mode" value={resolveIdStr(serviceModes, formData.service_mode)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {serviceModes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
@@ -609,7 +687,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="originCountry" className="text-sm font-semibold">
                   Origin Country
                 </Label>
-                <select id="originCountry" name="origin_country" value={formData.origin_country} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="originCountry" name="origin_country" value={resolveIdStr(countries, formData.origin_country)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -618,7 +696,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="destinationCountry" className="text-sm font-semibold">
                   Destination Country
                 </Label>
-                <select id="destinationCountry" name="destination_country" value={formData.destination_country} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="destinationCountry" name="destination_country" value={resolveIdStr(countries, formData.destination_country)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -646,7 +724,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="customer" className="text-sm font-semibold">
                   Customer
                 </Label>
-                <select id="customer" name="customer" value={formData.customer} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="customer" name="customer" value={resolveIdStr(customers, formData.customer)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
                 </select>
@@ -661,7 +739,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="designation" className="text-sm font-semibold">
                   Designation
                 </Label>
-                <select id="designation" name="designation" value={formData.designation} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="designation" name="designation" value={resolveIdStr(designations, formData.designation)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {designations.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
                 </select>
@@ -683,7 +761,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="prospect" className="text-sm font-semibold">
                   Prospect
                 </Label>
-                <select id="prospect" name="prospect" value={formData.prospect} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="prospect" name="prospect" value={resolveIdStr(prospects, formData.prospect)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {prospects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
                 </select>
@@ -692,7 +770,7 @@ const NewOpportunity = () => {
                 <Label htmlFor="department" className="text-sm font-semibold">
                   Department
                 </Label>
-                <select id="department" name="department" value={formData.department} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
+                <select id="department" name="department" value={resolveIdStr(departments, formData.department)} onChange={handleChange} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
                   {departments.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
                 </select>
@@ -706,7 +784,7 @@ const NewOpportunity = () => {
                 <div className="grid grid-cols-4 gap-2">
                   <select
                     name="address_country"
-                    value={formData.address_country}
+                    value={resolveIdStr(countries, formData.address_country)}
                     onChange={(e) => setFormData(prev => ({ ...prev, address_country: e.target.value, address_state: "", address_city: "" }))}
                     className="px-3 py-2 border border-input rounded-lg"
                   >
@@ -715,23 +793,23 @@ const NewOpportunity = () => {
                   </select>
                   <select
                     name="address_state"
-                    value={formData.address_state}
-                    disabled={!formData.address_country}
+                    value={resolveIdStr(allStates, formData.address_state)}
+                    disabled={!resolveIdStr(countries, formData.address_country)}
                     onChange={(e) => setFormData(prev => ({ ...prev, address_state: e.target.value, address_city: "" }))}
                     className="px-3 py-2 border border-input rounded-lg disabled:opacity-60"
                   >
                     <option value="">State</option>
-                    {allStates.filter(s => String(s.country_id) === String(formData.address_country)).map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+                    {allStates.filter(s => String(s.country_id) === String(resolveIdStr(countries, formData.address_country))).map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
                   </select>
                   <select
                     name="address_city"
-                    value={formData.address_city}
-                    disabled={!formData.address_state}
+                    value={resolveIdStr(allCities, formData.address_city)}
+                    disabled={!resolveIdStr(allStates, formData.address_state)}
                     onChange={(e) => setFormData(prev => ({ ...prev, address_city: e.target.value }))}
                     className="px-3 py-2 border border-input rounded-lg disabled:opacity-60"
                   >
                     <option value="">City</option>
-                    {allCities.filter(c => String(c.state_id) === String(formData.address_state)).map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                    {allCities.filter(c => String(c.state_id) === String(resolveIdStr(allStates, formData.address_state))).map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
                   </select>
                   <Input placeholder="ZIP" name="address_zip" value={formData.address_zip} onChange={handleChange} />
                 </div>
@@ -754,6 +832,61 @@ const NewOpportunity = () => {
                 </Label>
                 <Input id="mobileNo" name="mobile_no" value={formData.mobile_no} onChange={handleChange} />
               </div>
+            </div>
+          </div>
+
+          {/* Vendor Rates */}
+          <div>
+            <h2 className="text-lg font-bold text-primary mb-4">Vendor Rates</h2>
+            <div className="border border-border rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-3 gap-4 font-semibold text-sm">
+                <div>Vendor / Agent</div>
+                <div>Currency</div>
+                <div>Rate Total</div>
+              </div>
+              {vendorRates.map((rate) => (
+                <div key={rate.id} className="grid grid-cols-3 gap-4 items-center">
+                  <Input
+                    value={rate.vendor_agent}
+                    onChange={(e) => setVendorRates(vendorRates.map(r => r.id === rate.id ? { ...r, vendor_agent: e.target.value } : r))}
+                    placeholder="Vendor / Agent name"
+                  />
+                  <select
+                    value={rate.currency}
+                    onChange={(e) => setVendorRates(vendorRates.map(r => r.id === rate.id ? { ...r, currency: e.target.value } : r))}
+                    className="w-full px-3 py-2 border border-input rounded-lg"
+                  >
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="AED">AED</option>
+                    <option value="INR">INR</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={rate.rate_total}
+                      onChange={(e) => setVendorRates(vendorRates.map(r => r.id === rate.id ? { ...r, rate_total: e.target.value } : r))}
+                      placeholder="0.00"
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setVendorRates(vendorRates.filter(r => r.id !== rate.id))}
+                      className="p-2 text-destructive hover:bg-destructive/10 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setVendorRates([...vendorRates, { id: Date.now(), vendor_agent: "", currency: "USD", rate_total: "" }])}
+                className="text-primary text-sm font-medium hover:underline"
+              >
+                Add a line
+              </button>
             </div>
           </div>
 
@@ -871,11 +1004,12 @@ const NewOpportunity = () => {
               Cancel
             </Button>
             <Button type="submit" disabled={loading || submitted} className="material-button text-black">
-              {loading ? "Saving..." : "Save Rate Request"}
+              {loading ? "Saving..." : (id ? "Update Opportunity" : "Save Rate Request")}
             </Button>
           </div>
         </div>
       </form>
+      )}
 
       {/* Visit Dialog - outside form to prevent accidental submission */}
       {showVisitDialog && (
@@ -910,7 +1044,8 @@ const NewOpportunity = () => {
                   <Label className="text-sm font-semibold">Visited By</Label>
                   <select name="visited_by" value={visitFormData.visited_by} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg h-10">
                     <option value="">Select</option>
-                    {salesAgents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    <option>John Doe</option>
+                    <option>Jane Smith</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -938,7 +1073,8 @@ const NewOpportunity = () => {
                       <Label className="text-sm font-semibold">Assign To</Label>
                       <select name="assign_to" value={visitFormData.assign_to} onChange={handleVisitChange} className="w-full px-3 py-2 border border-input rounded-lg h-10">
                         <option value="">Select</option>
-                        {salesAgents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        <option>John Doe</option>
+                        <option>Jane Smith</option>
                       </select>
                     </div>
                   </>
@@ -963,4 +1099,4 @@ const NewOpportunity = () => {
   );
 };
 
-export default NewOpportunity;
+export default EditOpportunity;

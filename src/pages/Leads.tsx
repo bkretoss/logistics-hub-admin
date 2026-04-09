@@ -14,7 +14,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { getLeadsApi, deleteLeadApi, updateLeadStatusApi, updateLeadRatingApi, getEmployeesApi } from "@/services/api";
+import { getLeadsApi, deleteLeadApi, updateLeadStatusApi, updateLeadRatingApi, getEmployeesApi, getDesignationsApi, getDepartmentsApi, getCitiesApi, getStatesApi, getCountriesApi } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Lead {
@@ -97,6 +97,11 @@ const Leads = () => {
 
   const [leads,         setLeads]         = useState<Lead[]>([]);
   const [employees,     setEmployees]     = useState<Record<number, string>>({});
+  const [designationMap, setDesignationMap] = useState<Record<string, string>>({});
+  const [departmentMap,  setDepartmentMap]  = useState<Record<string, string>>({});
+  const [cityMap,        setCityMap]        = useState<Record<string, string>>({});
+  const [stateMap,       setStateMap]       = useState<Record<string, string>>({});
+  const [countryMap,     setCountryMap]     = useState<Record<string, string>>({});
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState("");
   const [viewMode,      setViewMode]      = useState<"grid" | "list">("list");
@@ -108,7 +113,6 @@ const Leads = () => {
   const [leadToDelete,    setLeadToDelete]    = useState<Lead | null>(null);
   const [deleting,        setDeleting]        = useState(false);
 
-  // ── Fetch employees ──────────────────────────────────────────────────────────
   useEffect(() => {
     getEmployeesApi().then(res => {
       const raw: any[] = res.data?.data ?? res.data ?? [];
@@ -116,6 +120,11 @@ const Leads = () => {
       raw.forEach(r => { map[r.id] = [r.first_name, r.last_name].filter(Boolean).join(' '); });
       setEmployees(map);
     }).catch(() => {});
+    getDesignationsApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const m: Record<string,string> = {}; raw.forEach(r => { m[String(r.id)] = r.name; }); setDesignationMap(m); }).catch(() => {});
+    getDepartmentsApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const m: Record<string,string> = {}; raw.forEach(r => { m[String(r.id)] = r.name; }); setDepartmentMap(m); }).catch(() => {});
+    getCitiesApi().then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const m: Record<string,string> = {}; raw.forEach(r => { m[String(r.id)] = r.name; }); setCityMap(m); }).catch(() => {});
+    getStatesApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const m: Record<string,string> = {}; raw.forEach(r => { m[String(r.id)] = r.name; }); setStateMap(m); }).catch(() => {});
+    getCountriesApi().then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; const m: Record<string,string> = {}; raw.forEach(r => { m[String(r.id)] = r.country_name ?? r.name; }); setCountryMap(m); }).catch(() => {});
   }, []);
 
   // ── Fetch leads ──────────────────────────────────────────────────────────────
@@ -154,6 +163,7 @@ const Leads = () => {
         zip: l.zip, contact_person: l.contact_person, email: l.email,
         telephone_no: l.telephone_no, mobile_no: l.mobile_no,
         designation: l.designation, department: l.department, notes: l.notes,
+        ...(l.country_id !== undefined ? { country_id: l.country_id } : {}),
       }));
       setLeads(data);
     } catch (err: any) {
@@ -581,7 +591,7 @@ const Leads = () => {
                   ["Lead Owner",  selectedLead.lead_owner],
                   ["Lead Source", selectedLead.lead_source],
                   ["Company",     selectedLead.company],
-                  ["Sales Team",  selectedLead.sales_team],
+                  ["Sales Team",  selectedLead.sales_team ? (employees[Number(selectedLead.sales_team)] ?? selectedLead.sales_team) : ""],
                 ]},
                 { title: "Business Lead", fields: [
                   ["Shipment Type",       selectedLead.shipment_type],
@@ -604,11 +614,12 @@ const Leads = () => {
                   ["Telephone",       selectedLead.telephone_no],
                   ["Mobile",          selectedLead.mobile_no],
                   ["Address",         selectedLead.address],
-                  ["City",            selectedLead.city],
-                  ["State",           selectedLead.state],
+                  ["City",            selectedLead.city ? (cityMap[String(selectedLead.city)] ?? selectedLead.city) : ""],
+                  ["State",           selectedLead.state ? (stateMap[String(selectedLead.state)] ?? selectedLead.state) : ""],
+                  ["Country",         (selectedLead as any).country_id ? (countryMap[String((selectedLead as any).country_id)] ?? (selectedLead as any).country_id) : ""],
                   ["ZIP",             selectedLead.zip],
-                  ["Designation",     selectedLead.designation],
-                  ["Department",      selectedLead.department],
+                  ["Designation",     selectedLead.designation ? (designationMap[String(selectedLead.designation)] ?? selectedLead.designation) : ""],
+                  ["Department",      selectedLead.department ? (departmentMap[String(selectedLead.department)] ?? selectedLead.department) : ""],
                   ["Notes",           selectedLead.notes],
                 ]},
               ].map(section => (

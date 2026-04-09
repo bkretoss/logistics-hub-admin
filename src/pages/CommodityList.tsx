@@ -314,12 +314,12 @@ const CommodityList = () => {
               <button onClick={() => setModalOpen(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <div className="overflow-y-auto flex-1 px-6 py-5">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Label className="text-sm font-semibold text-right w-32 shrink-0">
+              <div className="space-y-5">
+                <div className="grid grid-cols-[8rem_1fr] items-start gap-3">
+                  <Label className="text-sm font-semibold text-right pt-2 shrink-0">
                     <span className="text-destructive mr-1">*</span>Name
                   </Label>
-                  <div className="flex-1">
+                  <div>
                     <input
                       type="text"
                       value={form.name}
@@ -329,18 +329,16 @@ const CommodityList = () => {
                       className={`w-full px-3 py-2 border rounded-lg text-sm bg-background ${errors.name ? 'border-destructive' : 'border-input'}`}
                     />
                     <div className="flex items-center justify-between mt-1">
-                      {errors.name
-                        ? <p className="text-xs text-destructive">⚠ {errors.name}</p>
-                        : <span />}
-                      <span className="text-xs text-muted-foreground">{form.name.length}/100</span>
+                      {errors.name ? <p className="text-xs text-destructive">⚠ {errors.name}</p> : <span />}
+                      <span className="text-xs text-muted-foreground ml-auto">{form.name.length}/100</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Label className="text-sm font-semibold text-right w-32 shrink-0">
+                <div className="grid grid-cols-[8rem_1fr] items-start gap-3">
+                  <Label className="text-sm font-semibold text-right pt-2 shrink-0">
                     <span className="text-destructive mr-1">*</span>Code
                   </Label>
-                  <div className="flex-1">
+                  <div>
                     <input
                       type="text"
                       value={form.code}
@@ -350,48 +348,44 @@ const CommodityList = () => {
                       className={`w-full px-3 py-2 border rounded-lg text-sm bg-background ${errors.code ? 'border-destructive' : 'border-input'}`}
                     />
                     <div className="flex items-center justify-between mt-1">
-                      {errors.code
-                        ? <p className="text-xs text-destructive">⚠ {errors.code}</p>
-                        : <span />}
-                      <span className="text-xs text-muted-foreground">{form.code.length}/50</span>
+                      {errors.code ? <p className="text-xs text-destructive">⚠ {errors.code}</p> : <span />}
+                      <span className="text-xs text-muted-foreground ml-auto">{form.code.length}/50</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Label className="text-sm font-semibold text-right w-32 shrink-0">HS Code</Label>
-                  <div className="flex-1">
+                <div className="grid grid-cols-[8rem_1fr] items-start gap-3">
+                  <Label className="text-sm font-semibold text-right pt-2 shrink-0">HS Code</Label>
+                  <div>
                     <input
                       type="text"
                       value={form.hs_code}
                       onChange={e => { setForm(f => ({ ...f, hs_code: e.target.value })); setErrors(er => ({ ...er, hs_code: '' })); }}
-                      placeholder="Enter HS code (optional, max 100 chars)"
+                      placeholder="Enter HS code (optional)"
                       maxLength={100}
                       className={`w-full px-3 py-2 border rounded-lg text-sm bg-background ${errors.hs_code ? 'border-destructive' : 'border-input'}`}
                     />
                     <div className="flex items-center justify-between mt-1">
-                      {errors.hs_code
-                        ? <p className="text-xs text-destructive">⚠ {errors.hs_code}</p>
-                        : <span />}
-                      <span className="text-xs text-muted-foreground">{form.hs_code.length}/100</span>
+                      {errors.hs_code ? <p className="text-xs text-destructive">⚠ {errors.hs_code}</p> : <span />}
+                      <span className="text-xs text-muted-foreground ml-auto">{form.hs_code.length}/100</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Label className="text-sm font-semibold text-right w-32 shrink-0 pt-2">Description</Label>
+                <div className="grid grid-cols-[8rem_1fr] items-start gap-3">
+                  <Label className="text-sm font-semibold text-right pt-2 shrink-0">Description</Label>
                   <textarea
                     value={form.description}
                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                     placeholder="Enter description (optional)"
                     rows={3}
-                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background resize-none"
+                    className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-none"
                   />
                 </div>
-                <div className="flex items-center gap-3">
-                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Status</Label>
+                <div className="grid grid-cols-[8rem_1fr] items-center gap-3">
+                  <Label className="text-sm font-semibold text-right shrink-0">Status</Label>
                   <select
                     value={form.status}
                     onChange={e => setForm(f => ({ ...f, status: e.target.value as 'active' | 'inactive' }))}
-                    className="flex-1 px-3 py-2 border border-input rounded-lg text-sm bg-background"
+                    className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -427,14 +421,14 @@ const CommodityList = () => {
                   { label: 'Description',  value: viewItem.description || '—' },
                   { label: 'Created Date', value: formatDate(viewItem.created_at) },
                 ].map(({ label, value }) => (
-                  <div key={label} className="flex items-start gap-3">
-                    <Label className="text-sm font-semibold text-right w-32 shrink-0 pt-0.5">{label}</Label>
-                    <span className="flex-1 text-sm text-foreground">{value}</span>
+                  <div key={label} className="grid grid-cols-[8rem_1fr] items-start gap-3">
+                    <Label className="text-sm font-semibold text-right pt-0.5 shrink-0">{label}</Label>
+                    <span className="text-sm text-foreground">{value}</span>
                   </div>
                 ))}
-                <div className="flex items-center gap-3">
-                  <Label className="text-sm font-semibold text-right w-32 shrink-0">Status</Label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                <div className="grid grid-cols-[8rem_1fr] items-center gap-3">
+                  <Label className="text-sm font-semibold text-right shrink-0">Status</Label>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit ${
                     viewItem.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}>
                     {viewItem.status === 'active' ? 'Active' : 'Inactive'}

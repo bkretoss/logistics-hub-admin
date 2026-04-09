@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { createRateRequestApi, updateRateRequestApi, getOpportunityApi, getLeadsApi, getCompaniesApi } from "@/services/api";
+import { createRateRequestApi, updateRateRequestApi, getOpportunityApi, getLeadsApi, getCompaniesApi, getStatesApi, getCitiesApi, getSalesAgentsApi, getPricingTeamApi, getShippingProvidersApi, getTransportModesApi, getShipmentTypesApi, getCargoTypesApi, getIncotermsApi, getCommoditiesApi, getServiceModesApi, getCountriesApi, getDesignationsApi, getDepartmentsApi } from "@/services/api";
 
 interface VendorRate {
   id: number;
@@ -163,15 +163,49 @@ const NewRateRequest = () => {
   const [leads, setLeads] = useState<{ id: number }[]>([]);
   const [companies, setCompanies] = useState<{ id: number; name: string }[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [pricingTeams, setPricingTeams] = useState<{ id: number; name: string }[]>([]);
+  const [shippingProviders, setShippingProviders] = useState<{ id: number; name: string }[]>([]);
+  const [transportModes, setTransportModes] = useState<{ id: number; name: string }[]>([]);
+  const [shipmentTypes, setShipmentTypes] = useState<{ id: number; name: string }[]>([]);
+  const [cargoTypes, setCargoTypes] = useState<{ id: number; name: string }[]>([]);
+  const [incoterms, setIncoterms] = useState<{ id: number; name: string }[]>([]);
+  const [commodities, setCommodities] = useState<{ id: number; name: string }[]>([]);
+  const [serviceModes, setServiceModes] = useState<{ id: number; name: string }[]>([]);
+  const [countries, setCountries] = useState<{ id: number; name: string }[]>([]);
+  const [allStates, setAllStates] = useState<{ id: number; country_id: number; name: string }[]>([]);
+  const [allCities, setAllCities] = useState<{ id: number; state_id: number; name: string }[]>([]);
+  const [designations, setDesignations] = useState<{ id: number; name: string }[]>([]);
+  const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
+  const [customers, setCustomers] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(!!id);
+  const [fetching, setFetching] = useState(false);
+
+  const isActive = (r: any) => r.status === 1 || r.status === '1' || r.status === 'active' || r.status === 'Active';
+  const toOptions = (res: any) => { const raw: any[] = res.data?.data ?? res.data ?? []; return raw.filter(isActive).map((r: any) => ({ id: r.id, name: r.name })); };
 
   useEffect(() => {
     setCompaniesLoading(true);
     getCompaniesApi(1, 9999).then((res) => {
       const raw: any[] = res.data?.data ?? res.data ?? [];
-      setCompanies(raw.filter(r => r.status === 1 || r.status === '1' || r.status === 'active' || r.status === 'Active').map(r => ({ id: r.id, name: r.name })));
+      setCompanies(raw.filter(isActive).map(r => ({ id: r.id, name: r.name })));
     }).catch(() => {}).finally(() => setCompaniesLoading(false));
+  }, []);
+
+  useEffect(() => {
+    getPricingTeamApi(1, 9999).then(res => setPricingTeams(toOptions(res))).catch(() => {});
+    getShippingProvidersApi(1, 9999).then(res => setShippingProviders(toOptions(res))).catch(() => {});
+    getTransportModesApi().then(res => setTransportModes(toOptions(res))).catch(() => {});
+    getShipmentTypesApi().then(res => setShipmentTypes(toOptions(res))).catch(() => {});
+    getCargoTypesApi().then(res => setCargoTypes(toOptions(res))).catch(() => {});
+    getIncotermsApi(1, 9999).then(res => setIncoterms(toOptions(res))).catch(() => {});
+    getCommoditiesApi(1, 9999).then(res => setCommodities(toOptions(res))).catch(() => {});
+    getServiceModesApi(1, 9999).then(res => setServiceModes(toOptions(res))).catch(() => {});
+    getCountriesApi().then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; setCountries(raw.filter(isActive).map((r: any) => ({ id: r.id, name: r.country_name ?? r.name }))); }).catch(() => {});
+    getStatesApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; setAllStates(raw.filter(isActive).map((r: any) => ({ id: r.id, country_id: Number(r.country_id), name: r.name }))); }).catch(() => {});
+    getCitiesApi().then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; setAllCities(raw.filter(isActive).map((r: any) => ({ id: r.id, state_id: Number(r.state_id), name: r.name }))); }).catch(() => {});
+    getDesignationsApi(1, 9999, '', 'active').then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; setDesignations(raw.map((r: any) => ({ id: r.id, name: r.name }))); }).catch(() => {});
+    getDepartmentsApi(1, 9999, '', 'active').then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; setDepartments(raw.map((r: any) => ({ id: r.id, name: r.name }))); }).catch(() => {});
+    getSalesAgentsApi(1, 9999).then(res => { const raw: any[] = res.data?.data ?? res.data ?? []; setCustomers(raw.filter(isActive).map((r: any) => ({ id: r.id, name: r.name }))); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -195,9 +229,7 @@ const NewRateRequest = () => {
   const [visitNextVisit, setVisitNextVisit] = useState("No");
 
   useEffect(() => {
-    if (id) {
-      fetchRateRequest();
-    }
+    if (id) fetchRateRequest();
   }, [id]);
 
   const fetchRateRequest = async () => {
@@ -280,6 +312,19 @@ const NewRateRequest = () => {
     );
   }
 
+  if (fetching) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={() => navigate("/sales/opportunity")}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h2 className="text-2xl font-bold text-foreground">Loading...</h2>
+        </div>
+      </div>
+    );
+  }
+
   const handleBasicChange = (field: keyof Omit<RateRequestForm, "shipment_details" | "party_details" | "vendor_rates" | "additional_services" | "customer_visits">, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -309,12 +354,18 @@ const NewRateRequest = () => {
     setVisitModal(true);
   };
 
+  const normalizeTime = (t: string) => {
+    if (!t) return "00:00:00";
+    return t.length === 5 ? `${t}:00` : t;
+  };
+
   const handleAddVisit = () => {
     if (!visitDraft.visit_date || !visitDraft.mode_of_communication || !visitDraft.visited_by || !visitDraft.purpose) {
       toast({ title: "Error", description: "Please fill all required visit fields", variant: "destructive" });
       return;
     }
-    setForm((prev) => ({ ...prev, customer_visits: [...prev.customer_visits, { ...visitDraft, id: Date.now() }] }));
+    const visit = { ...visitDraft, visit_time: normalizeTime(visitDraft.visit_time), id: Date.now() };
+    setForm((prev) => ({ ...prev, customer_visits: [...prev.customer_visits, visit] }));
     setVisitModal(false);
   };
 
@@ -344,7 +395,7 @@ const NewRateRequest = () => {
         party_details: form.party_details,
         vendor_rates: form.vendor_rates.map(({ id: _id, ...r }) => r),
         additional_services: form.additional_services.map(({ id: _id, ...s }) => s),
-        customer_visits: form.customer_visits.map(({ id: _id, ...v }) => v),
+        customer_visits: form.customer_visits.map(({ id: _id, ...v }) => ({ ...v, visit_time: normalizeTime(v.visit_time) })),
       };
       if (id) {
         await updateRateRequestApi(id, payload);
@@ -371,6 +422,11 @@ const NewRateRequest = () => {
         <h2 className="text-2xl font-bold text-foreground">{id ? "Edit Rate Request" : "New Rate Request"}</h2>
       </div>
 
+      {fetching ? (
+        <div className="flex items-center justify-center py-16">
+          <span className="text-muted-foreground">Loading...</span>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit}>
         <div className="material-card material-elevation-1 p-6 space-y-8">
           {/* Basic Details */}
@@ -429,11 +485,17 @@ const NewRateRequest = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Pricing Team</Label>
-                <Input placeholder="Pricing team" value={form.pricing_team} onChange={(e) => handleBasicChange("pricing_team", e.target.value)} />
+                <select value={form.pricing_team} onChange={(e) => handleBasicChange("pricing_team", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {pricingTeams.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Shipping Providers</Label>
-                <Input placeholder="Provider" value={form.shipping_providers} onChange={(e) => handleBasicChange("shipping_providers", e.target.value)} />
+                <select value={form.shipping_providers} onChange={(e) => handleBasicChange("shipping_providers", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {shippingProviders.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Status</Label>
@@ -454,36 +516,43 @@ const NewRateRequest = () => {
                 <Label className="text-sm font-semibold">Transport Mode <span className="text-red-500">*</span></Label>
                 <select value={form.shipment_details.transport_mode} onChange={(e) => handleShipmentChange("transport_mode", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
-                  <option value="Air">Air</option>
-                  <option value="Sea">Sea</option>
-                  <option value="Road">Road</option>
-                  <option value="Rail">Rail</option>
+                  {transportModes.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Shipment Type <span className="text-red-500">*</span></Label>
                 <select value={form.shipment_details.shipment_type} onChange={(e) => handleShipmentChange("shipment_type", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
                   <option value="">Select</option>
-                  <option value="FCL">FCL</option>
-                  <option value="LCL">LCL</option>
-                  <option value="Air Freight">Air Freight</option>
+                  {shipmentTypes.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Cargo Type</Label>
-                <Input placeholder="General, Hazardous, etc." value={form.shipment_details.cargo_type} onChange={(e) => handleShipmentChange("cargo_type", e.target.value)} />
+                <select value={form.shipment_details.cargo_type} onChange={(e) => handleShipmentChange("cargo_type", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {cargoTypes.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Incoterms</Label>
-                <Input placeholder="FOB, CIF, EXW, etc." value={form.shipment_details.incoterms} onChange={(e) => handleShipmentChange("incoterms", e.target.value)} />
+                <select value={form.shipment_details.incoterms} onChange={(e) => handleShipmentChange("incoterms", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {incoterms.map(i => <option key={i.id} value={String(i.id)}>{i.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Commodity</Label>
-                <Input placeholder="Commodity" value={form.shipment_details.commodity} onChange={(e) => handleShipmentChange("commodity", e.target.value)} />
+                <select value={form.shipment_details.commodity} onChange={(e) => handleShipmentChange("commodity", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {commodities.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Service Mode</Label>
-                <Input placeholder="Door to Door, Port to Port, etc." value={form.shipment_details.service_mode} onChange={(e) => handleShipmentChange("service_mode", e.target.value)} />
+                <select value={form.shipment_details.service_mode} onChange={(e) => handleShipmentChange("service_mode", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {serviceModes.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Estimated Shipment Date</Label>
@@ -495,11 +564,17 @@ const NewRateRequest = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Origin Country</Label>
-                <Input placeholder="Origin Country" value={form.shipment_details.origin_country} onChange={(e) => handleShipmentChange("origin_country", e.target.value)} />
+                <select value={form.shipment_details.origin_country} onChange={(e) => handleShipmentChange("origin_country", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {countries.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Destination Country</Label>
-                <Input placeholder="Destination Country" value={form.shipment_details.destination_country} onChange={(e) => handleShipmentChange("destination_country", e.target.value)} />
+                <select value={form.shipment_details.destination_country} onChange={(e) => handleShipmentChange("destination_country", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {countries.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label className="text-sm font-semibold">Cargo Description</Label>
@@ -514,7 +589,10 @@ const NewRateRequest = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Customer <span className="text-red-500">*</span></Label>
-                <Input placeholder="Customer name" value={form.party_details.customer} onChange={(e) => handlePartyChange("customer", e.target.value)} />
+                <select value={form.party_details.customer} onChange={(e) => handlePartyChange("customer", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Contact Person</Label>
@@ -522,7 +600,10 @@ const NewRateRequest = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Designation</Label>
-                <Input placeholder="Designation" value={form.party_details.designation} onChange={(e) => handlePartyChange("designation", e.target.value)} />
+                <select value={form.party_details.designation} onChange={(e) => handlePartyChange("designation", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {designations.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Customer Type</Label>
@@ -534,7 +615,10 @@ const NewRateRequest = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Department</Label>
-                <Input placeholder="Department" value={form.party_details.department} onChange={(e) => handlePartyChange("department", e.target.value)} />
+                <select value={form.party_details.department} onChange={(e) => handlePartyChange("department", e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg">
+                  <option value="">Select</option>
+                  {departments.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label className="text-sm font-semibold">Address Street 1</Label>
@@ -545,20 +629,43 @@ const NewRateRequest = () => {
                 <Input placeholder="Suite, building, etc." value={form.party_details.address_street2} onChange={(e) => handlePartyChange("address_street2", e.target.value)} />
               </div>
               <div className="space-y-2">
+                <Label className="text-sm font-semibold">Country</Label>
+                <select
+                  value={form.party_details.address_country}
+                  onChange={(e) => setForm(prev => ({ ...prev, party_details: { ...prev.party_details, address_country: e.target.value, address_state: "", address_city: "" } }))}
+                  className="w-full px-3 py-2 border border-input rounded-lg"
+                >
+                  <option value="">Select</option>
+                  {countries.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
                 <Label className="text-sm font-semibold">State</Label>
-                <Input placeholder="State" value={form.party_details.address_state} onChange={(e) => handlePartyChange("address_state", e.target.value)} />
+                <select
+                  value={form.party_details.address_state}
+                  disabled={!form.party_details.address_country}
+                  onChange={(e) => setForm(prev => ({ ...prev, party_details: { ...prev.party_details, address_state: e.target.value, address_city: "" } }))}
+                  className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60"
+                >
+                  <option value="">Select</option>
+                  {allStates.filter(s => String(s.country_id) === String(form.party_details.address_country)).map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">City</Label>
-                <Input placeholder="City" value={form.party_details.address_city} onChange={(e) => handlePartyChange("address_city", e.target.value)} />
+                <select
+                  value={form.party_details.address_city}
+                  disabled={!form.party_details.address_state}
+                  onChange={(e) => handlePartyChange("address_city", e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-lg disabled:opacity-60"
+                >
+                  <option value="">Select</option>
+                  {allCities.filter(c => String(c.state_id) === String(form.party_details.address_state)).map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Zip Code</Label>
                 <Input placeholder="Zip code" value={form.party_details.address_zip} onChange={(e) => handlePartyChange("address_zip", e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Country</Label>
-                <Input placeholder="Country" value={form.party_details.address_country} onChange={(e) => handlePartyChange("address_country", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Email</Label>
@@ -693,6 +800,7 @@ const NewRateRequest = () => {
           </div>
         </div>
       </form>
+      )}
 
       {/* Visit Modal */}
       {visitModal && (
@@ -724,11 +832,10 @@ const NewRateRequest = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Visited By</Label>
+                  <Label className="text-sm font-semibold">Visited By <span className="text-red-500">*</span></Label>
                   <select value={visitDraft.visited_by} onChange={(e) => setVisitDraft({ ...visitDraft, visited_by: e.target.value })} className="w-full px-3 py-2 border border-input rounded-lg h-10">
                     <option value="">Select</option>
-                    <option>John Doe</option>
-                    <option>Jane Smith</option>
+                    {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -756,8 +863,7 @@ const NewRateRequest = () => {
                       <Label className="text-sm font-semibold">Assign To</Label>
                       <select value={visitDraft.assign_to} onChange={(e) => setVisitDraft((d) => ({ ...d, assign_to: e.target.value }))} className="w-full px-3 py-2 border border-input rounded-lg h-10">
                         <option value="">Select</option>
-                        <option>John Doe</option>
-                        <option>Jane Smith</option>
+                        {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                       </select>
                     </div>
                   </>
