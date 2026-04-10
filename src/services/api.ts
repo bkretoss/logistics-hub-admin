@@ -1,8 +1,12 @@
 import axios from "axios";
 
+// const BASE_URL = "http://localhost:8001/api";
+const BASE_URL = "https://logistic.kretoss.in/api";
+
+export const API_BASE = BASE_URL.replace('/api', '');
+
 const api = axios.create({
-  // baseURL: "http://localhost:8001/api",
-  baseURL: "https://logistic.kretoss.in/api",
+  baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 

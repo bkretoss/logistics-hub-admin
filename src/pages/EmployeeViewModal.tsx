@@ -37,10 +37,12 @@ const Section = ({ title, color, children }: { title: string; color: string; chi
   </div>
 );
 
+import { API_BASE } from '@/services/api';
+
 const getImageUrl = (path?: string | null) => {
   if (!path) return null;
   if (path.startsWith('http')) return path;
-  return `http://localhost:8001/${path}`;
+  return `${API_BASE}/${path}`;
 };
 
 const DefaultAvatar = () => (

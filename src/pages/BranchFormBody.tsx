@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronDown } from 'lucide-react';
-import { getCitiesApi, getCountriesApi, getStatesApi } from '@/services/api';
+import { getCitiesApi, getCountriesApi, getStatesApi, API_BASE } from '@/services/api';
 
 export const CURRENCIES = ['', 'INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'JPY'];
 export const COUNTRIES  = [
@@ -481,9 +481,15 @@ const BranchFormBody: React.FC<BranchFormBodyProps> = ({
                 {/* Preview */}
                 {(form.branchLogo || form.branchLogoFile) && (
                   <img
-                    src={form.branchLogoFile ? URL.createObjectURL(form.branchLogoFile) : form.branchLogo}
+                    src={form.branchLogoFile
+                      ? URL.createObjectURL(form.branchLogoFile)
+                      : form.branchLogo.startsWith('http')
+                        ? form.branchLogo
+                        : `${API_BASE}/${form.branchLogo}`
+                    }
                     alt="Branch Logo"
                     className="w-14 h-14 rounded-lg object-cover border border-border"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                 )}
                 {readonly ? (

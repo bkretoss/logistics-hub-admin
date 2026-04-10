@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getCountriesApi, getStatesApi, getCitiesApi } from '@/services/api';
+import { getCountriesApi, getStatesApi, getCitiesApi, API_BASE } from '@/services/api';
 import type { Branch } from './BranchMasterList';
 
 const val = (v?: string | number | null) => (v !== undefined && v !== null && String(v).trim() ? String(v) : '—');
@@ -106,7 +106,7 @@ const BranchViewModal: React.FC<Props> = ({ branch, onClose, onEdit }) => {
               <span className="text-sm font-semibold text-muted-foreground w-48 shrink-0">Branch Logo</span>
               <div className="flex-1">
                 {branch.branch_logo
-                  ? <img src={branch.branch_logo} alt="Branch Logo" className="w-20 h-20 rounded-lg object-cover border border-border" />
+                  ? <img src={branch.branch_logo.startsWith('http') ? branch.branch_logo : `${API_BASE}/${branch.branch_logo}`} alt="Branch Logo" className="w-20 h-20 rounded-lg object-cover border border-border" />
                   : <span className="text-sm text-foreground">—</span>
                 }
               </div>
