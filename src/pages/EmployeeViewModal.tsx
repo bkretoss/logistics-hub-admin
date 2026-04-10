@@ -37,6 +37,12 @@ const Section = ({ title, color, children }: { title: string; color: string; chi
   </div>
 );
 
+const getImageUrl = (path?: string | null) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `http://localhost:8001/${path}`;
+};
+
 const DefaultAvatar = () => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
     <circle cx="50" cy="50" r="50" fill="#E2E8F0" />
@@ -66,7 +72,7 @@ const EmployeeViewModal: React.FC<Props> = ({ employee: e, onClose }) => {
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 ring-2 ring-border shadow-sm bg-muted">
               {e.profile_image
-                ? <img src={e.profile_image} alt={fullName} className="w-full h-full object-cover" onError={ev => { (ev.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                ? <img src={getImageUrl(e.profile_image)!} alt={fullName} className="w-full h-full object-cover" onError={ev => { (ev.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                 : <DefaultAvatar />}
             </div>
             <div>
@@ -117,6 +123,17 @@ const EmployeeViewModal: React.FC<Props> = ({ employee: e, onClose }) => {
 
           <Section title="Additional Details" color="bg-[#00BCD4]">
             <Row2 fields={[['Incentive COA', v(e.incentive_coa)], ['Created At', v(e.created_at)]]} />
+            {e.profile_image && (
+              <div className="flex gap-3 py-2">
+                <span className="text-sm font-semibold text-muted-foreground w-48 shrink-0">Profile Image</span>
+                <img
+                  src={getImageUrl(e.profile_image)!}
+                  alt={fullName}
+                  className="w-24 h-24 rounded-lg object-cover border border-border"
+                  onError={ev => { (ev.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+            )}
           </Section>
 
         </div>

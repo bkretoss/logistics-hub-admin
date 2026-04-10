@@ -2,423 +2,306 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { userStore, type User } from "./UserMasterList";
-import { branchStore } from "./BranchMasterList";
+import { useToast } from "@/hooks/use-toast";
+import { getBranchesApi, getDesignationsApi, getUserMasterApi, createUserMasterApi, updateUserMasterApi } from "@/services/api";
 
-interface UserFormData {
-  userName: string;
+const ALL_RIGHTS  = ["Admin", "Marketing", "Accounts", "Quotation", "HR", "Management", "Documentation", "Settings"];
+const ALL_JOB     = ["Created", "Process", "Process Completed", "Closed", "Cancelled", "Re opened"];
+const ALL_VOUCHER = ["Created", "Approved", "Confirmed", "Cancelled", "Dispute"];
+
+interface UserForm {
+  username: string;
   password: string;
-  confirmPassword: string;
-  branch: string;
+  confirm_password: string;
+  branch_id: string;
   title: string;
-  displayName: string;
+  display_name: string;
   sex: string;
-  designation: string;
-  // Rights
-  rightAdmin: boolean;
-  rightMarketing: boolean;
-  rightAccounts: boolean;
-  rightQuotation: boolean;
-  rightHR: boolean;
-  rightManagement: boolean;
-  rightDocumentation: boolean;
-  rightSettings: boolean;
-  // Job Status
-  jobCreated: boolean;
-  jobProcess: boolean;
-  jobProcessCompleted: boolean;
-  jobClosed: boolean;
-  jobCancelled: boolean;
-  jobReOpened: boolean;
-  // Voucher Status
-  voucherCreated: boolean;
-  voucherApproved: boolean;
-  voucherConfirmed: boolean;
-  voucherCancelled: boolean;
-  voucherDispute: boolean;
-  status: "Active" | "Inactive";
+  designation_id: string;
+  description: string;
+  status: string;
+  rights: string[];
+  job_status: string[];
+  voucher_status: string[];
 }
 
-const initialForm: UserFormData = {
-  userName: "",
-  password: "",
-  confirmPassword: "",
-  branch: "",
-  title: "Mr",
-  displayName: "",
-  sex: "Male",
-  designation: "",
-  rightAdmin: false,
-  rightMarketing: false,
-  rightAccounts: false,
-  rightQuotation: false,
-  rightHR: false,
-  rightManagement: false,
-  rightDocumentation: false,
-  rightSettings: false,
-  jobCreated: false,
-  jobProcess: false,
-  jobProcessCompleted: false,
-  jobClosed: false,
-  jobCancelled: false,
-  jobReOpened: false,
-  voucherCreated: false,
-  voucherApproved: false,
-  voucherConfirmed: false,
-  voucherCancelled: false,
-  voucherDispute: false,
-  status: "Active",
+const EMPTY: UserForm = {
+  username: "", password: "", confirm_password: "",
+  branch_id: "", title: "Mr", display_name: "", sex: "Male",
+  designation_id: "", description: "", status: "1",
+  rights: [], job_status: [], voucher_status: [],
 };
 
-const DESIGNATIONS = [
-  "System Administrator",
-  "Operations Manager",
-  "Accountant",
-  "HR Manager",
-  "Sales Executive",
-  "Operator",
-  "Viewer",
-];
+const inputCls = (err?: string) =>
+  `w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${err ? "border-red-400" : "border-input"}`;
 
 const NewUser = () => {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  const editUser = id ? userStore.data.find((u) => u.id === Number(id)) : undefined;
-  const isEdit = !!editUser;
+  const navigate  = useNavigate();
+  const { id }    = useParams<{ id: string }>();
+  const { toast } = useToast();
+  const isEdit    = !!id;
 
-  const [form, setForm] = useState<UserFormData>(() =>
-    editUser ? { ...initialForm, ...editUser, password: "", confirmPassword: "" } : initialForm,
-  );
+  const [form, setForm]     = useState<UserForm>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
-  const [branches, setBranches] = useState(() => branchStore.data.map((b) => b.name));
+  const [saving, setSaving] = useState(false);
+  const [branches, setBranches]         = useState<{ id: number; name: string }[]>([]);
+  const [designations, setDesignations] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
-    const refresh = () => setBranches(branchStore.data.map((b) => b.name));
-    branchStore.listeners.add(refresh);
-    return () => {
-      branchStore.listeners.delete(refresh);
-    };
+    getBranchesApi(1, 100).then(res => setBranches(res.data.data ?? [])).catch(() => {});
+    getDesignationsApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setDesignations(raw.map(r => ({ id: r.id, name: r.name })));
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (editUser) setForm({ ...initialForm, ...editUser, password: "", confirmPassword: "" });
+    if (!id) return;
+    getUserMasterApi(Number(id)).then(res => {
+      const d = res.data.data ?? res.data;
+      setForm({
+        username:         d.username        ?? "",
+        password:         "",
+        confirm_password: "",
+        branch_id:        String(d.branch_id      ?? ""),
+        title:            d.title           ?? "Mr",
+        display_name:     d.display_name    ?? "",
+        sex:              d.sex             ?? "Male",
+        designation_id:   String(d.designation_id ?? ""),
+        description:      d.description     ?? "",
+        status:           String(d.status   ?? "1"),
+        rights:           d.rights          ?? [],
+        job_status:       d.job_status      ?? [],
+        voucher_status:   d.voucher_status  ?? [],
+      });
+    }).catch(() => toast({ title: "Error", description: "Failed to load user", variant: "destructive" }));
   }, [id]);
 
-  const validateField = (name: string, value: string): string => {
-    switch (name) {
-      case "userName":
-        return !value.trim() ? "User Name is required" : "";
-      case "branch":
-        return !value ? "Branch is required" : "";
-      case "displayName":
-        return !value.trim() ? "Display Name is required" : "";
-      case "designation":
-        return !value ? "Designation is required" : "";
-      case "password":
-        if (!isEdit && !value) return "Password is required";
-        if (value && value.length < 6) return "Minimum 6 characters";
-        return "";
-      case "confirmPassword":
-        if (!isEdit && !value) return "Please confirm password";
-        if (value && value !== form.password) return "Passwords do not match";
-        return "";
-      default:
-        return "";
-    }
+  const set = (name: keyof UserForm, value: string) => {
+    setForm(prev => ({ ...prev, [name]: value }));
+    setErrors(prev => ({ ...prev, [name]: "" }));
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const checked = type === "checkbox" ? (e.target as HTMLInputElement).checked : undefined;
-    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
-    if (type !== "checkbox") setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
+  const toggleArr = (key: "rights" | "job_status" | "voucher_status", val: string) => {
+    setForm(prev => ({
+      ...prev,
+      [key]: prev[key].includes(val) ? prev[key].filter(v => v !== val) : [...prev[key], val],
+    }));
+    setErrors(prev => ({ ...prev, [key]: "" }));
   };
 
   const validate = () => {
     const e: Partial<Record<string, string>> = {};
-    ["userName", "branch", "displayName", "designation", "password", "confirmPassword"].forEach((k) => {
-      const msg = validateField(k, form[k as keyof UserFormData] as string);
-      if (msg) e[k] = msg;
-    });
-    if (form.password && form.confirmPassword && form.password !== form.confirmPassword)
-      e.confirmPassword = "Passwords do not match";
-    // At least one right required
-    const hasRight = [
-      form.rightAdmin,
-      form.rightMarketing,
-      form.rightAccounts,
-      form.rightQuotation,
-      form.rightHR,
-      form.rightManagement,
-      form.rightDocumentation,
-      form.rightSettings,
-    ].some(Boolean);
-    if (!hasRight) e.rights = "Select at least one right";
-    // At least one job status required
-    const hasJob = [
-      form.jobCreated,
-      form.jobProcess,
-      form.jobProcessCompleted,
-      form.jobClosed,
-      form.jobCancelled,
-      form.jobReOpened,
-    ].some(Boolean);
-    if (!hasJob) e.jobStatus = "Select at least one job status";
-    // At least one voucher status required
-    const hasVoucher = [
-      form.voucherCreated,
-      form.voucherApproved,
-      form.voucherConfirmed,
-      form.voucherCancelled,
-      form.voucherDispute,
-    ].some(Boolean);
-    if (!hasVoucher) e.voucherStatus = "Select at least one voucher status";
+    if (!form.username.trim())     e.username       = "Username is required";
+    if (!form.display_name.trim()) e.display_name   = "Display Name is required";
+    if (!form.branch_id)           e.branch_id      = "Branch is required";
+    if (!form.designation_id)      e.designation_id = "Designation is required";
+    if (!isEdit && !form.password)          e.password         = "Password is required";
+    if (!isEdit && !form.confirm_password)  e.confirm_password = "Please confirm password";
+    if (form.password && form.password.length < 6) e.password = "Minimum 6 characters";
+    if (form.password && form.confirm_password && form.password !== form.confirm_password)
+      e.confirm_password = "Passwords do not match";
+    if (!form.rights.length)         e.rights         = "Select at least one right";
+    if (!form.job_status.length)     e.job_status     = "Select at least one job status";
+    if (!form.voucher_status.length) e.voucher_status = "Select at least one voucher status";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    const record: User = {
-      id: isEdit && editUser ? editUser.id : Date.now(),
-      userName: form.userName,
-      password: form.password || (editUser?.password ?? ""),
-      branch: form.branch,
-      title: form.title,
-      displayName: form.displayName,
-      sex: form.sex,
-      designation: form.designation,
-      rightAdmin: form.rightAdmin,
-      rightMarketing: form.rightMarketing,
-      rightAccounts: form.rightAccounts,
-      rightQuotation: form.rightQuotation,
-      rightHR: form.rightHR,
-      rightManagement: form.rightManagement,
-      rightDocumentation: form.rightDocumentation,
-      rightSettings: form.rightSettings,
-      jobCreated: form.jobCreated,
-      jobProcess: form.jobProcess,
-      jobProcessCompleted: form.jobProcessCompleted,
-      jobClosed: form.jobClosed,
-      jobCancelled: form.jobCancelled,
-      jobReOpened: form.jobReOpened,
-      voucherCreated: form.voucherCreated,
-      voucherApproved: form.voucherApproved,
-      voucherConfirmed: form.voucherConfirmed,
-      voucherCancelled: form.voucherCancelled,
-      voucherDispute: form.voucherDispute,
-      status: form.status,
-    };
-    if (isEdit && editUser) {
-      const idx = userStore.data.findIndex((u) => u.id === editUser.id);
-      if (idx !== -1) {
-        const updated = [...userStore.data];
-        updated[idx] = record;
-        userStore.set(updated);
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        username:       form.username,
+        branch_id:      Number(form.branch_id),
+        title:          form.title,
+        display_name:   form.display_name,
+        sex:            form.sex,
+        designation_id: Number(form.designation_id),
+        name:           form.display_name,
+        description:    form.description,
+        status:         Number(form.status),
+        rights:         form.rights,
+        job_status:     form.job_status,
+        voucher_status: form.voucher_status,
+      };
+      if (!isEdit || form.password) {
+        payload.password         = form.password;
+        payload.confirm_password = form.confirm_password;
       }
-    } else {
-      userStore.set([...userStore.data, record]);
+      if (isEdit) {
+        await updateUserMasterApi(Number(id), payload);
+        toast({ title: "Updated", description: "User updated successfully", variant: "success" });
+      } else {
+        await createUserMasterApi(payload);
+        toast({ title: "Created", description: "User created successfully", variant: "success" });
+      }
+      navigate("/admin/user-master");
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.response?.data?.message || "Failed to save user", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-    navigate("/admin/user-master");
   };
-
-  // Reusable text input
-  const textField = (label: string, name: keyof UserFormData, type = "text", required = false) => (
-    <div className="space-y-1">
-      <label className="text-sm font-medium text-foreground">
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      <input
-        type={type}
-        name={name}
-        value={form[name] as string}
-        onChange={handleChange}
-        className={`w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-          errors[name] ? "border-red-400" : "border-input"
-        }`}
-      />
-      {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
-    </div>
-  );
-
-  // Reusable select
-  const selectField = (label: string, name: keyof UserFormData, options: string[], required = false) => (
-    <div className="space-y-1">
-      <label className="text-sm font-medium text-foreground">
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      <select
-        name={name}
-        value={form[name] as string}
-        onChange={handleChange}
-        className={`w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-          errors[name] ? "border-red-400" : "border-input"
-        }`}
-      >
-        {name === "branch" && <option value="">-- Select Branch --</option>}
-        {name === "designation" && <option value="">-- Select --</option>}
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-      {errors[name] && <p className="text-xs text-red-500">{errors[name]}</p>}
-    </div>
-  );
-
-  // Reusable checkbox
-  const checkBox = (label: string, name: keyof UserFormData, colorClass = "") => (
-    <label key={name} className="flex items-center gap-2 cursor-pointer select-none">
-      <input
-        type="checkbox"
-        name={name}
-        checked={form[name] as boolean}
-        onChange={handleChange}
-        className="w-4 h-4 rounded border-input accent-primary"
-      />
-      <span className={`text-sm ${colorClass}`}>{label}</span>
-    </label>
-  );
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" onClick={() => navigate("/admin/user-master")}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">{isEdit ? "Edit User" : "New User"}</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {isEdit ? `Editing ${editUser?.userName}` : "Create a new system user"}
-          </p>
+          <p className="text-muted-foreground text-sm mt-1">{isEdit ? "Update user details" : "Create a new system user"}</p>
         </div>
       </div>
 
       <div className="material-card material-elevation-1 p-6 space-y-6">
-        {/* Row 1: User Name | Password | Confirm Password | Branch */}
+
+        {/* Row 1: Username | Password | Confirm Password | Branch */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {textField("User Name", "userName", "text", true)}
-          {textField("Password", "password", "password", !isEdit)}
-          {textField("Confirm Password", "confirmPassword", "password", !isEdit)}
-          {selectField("Branch", "branch", branches, true)}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Username<span className="text-red-500 ml-0.5">*</span></label>
+            <input type="text" value={form.username} onChange={e => set("username", e.target.value)} className={inputCls(errors.username)} />
+            {errors.username && <p className="text-xs text-red-500">{errors.username}</p>}
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Password{!isEdit && <span className="text-red-500 ml-0.5">*</span>}</label>
+            <input type="password" value={form.password} onChange={e => set("password", e.target.value)} className={inputCls(errors.password)} />
+            {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Confirm Password{!isEdit && <span className="text-red-500 ml-0.5">*</span>}</label>
+            <input type="password" value={form.confirm_password} onChange={e => set("confirm_password", e.target.value)} className={inputCls(errors.confirm_password)} />
+            {errors.confirm_password && <p className="text-xs text-red-500">{errors.confirm_password}</p>}
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Branch<span className="text-red-500 ml-0.5">*</span></label>
+            <select value={form.branch_id} onChange={e => set("branch_id", e.target.value)} className={inputCls(errors.branch_id)}>
+              <option value="">-- Select --</option>
+              {branches.map(b => <option key={b.id} value={String(b.id)}>{b.name}</option>)}
+            </select>
+            {errors.branch_id && <p className="text-xs text-red-500">{errors.branch_id}</p>}
+          </div>
         </div>
 
         {/* Row 2: Title | Display Name | Sex | Designation */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
-          {selectField("Title", "title", ["Mr", "Mrs", "Ms", "Dr"], true)}
-          <div className="md:col-span-1">{textField("Display Name", "displayName", "text", true)}</div>
-          {selectField("Sex", "sex", ["Male", "Female", "Other"], true)}
-          {selectField("Designation", "designation", DESIGNATIONS, true)}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Title<span className="text-red-500 ml-0.5">*</span></label>
+            <select value={form.title} onChange={e => set("title", e.target.value)} className={inputCls()}>
+              {["Mr","Mrs","Ms","Dr"].map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Display Name<span className="text-red-500 ml-0.5">*</span></label>
+            <input type="text" value={form.display_name} onChange={e => set("display_name", e.target.value)} className={inputCls(errors.display_name)} />
+            {errors.display_name && <p className="text-xs text-red-500">{errors.display_name}</p>}
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Sex<span className="text-red-500 ml-0.5">*</span></label>
+            <select value={form.sex} onChange={e => set("sex", e.target.value)} className={inputCls()}>
+              {["Male","Female","Other"].map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Designation<span className="text-red-500 ml-0.5">*</span></label>
+            <select value={form.designation_id} onChange={e => set("designation_id", e.target.value)} className={inputCls(errors.designation_id)}>
+              <option value="">-- Select --</option>
+              {designations.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+            </select>
+            {errors.designation_id && <p className="text-xs text-red-500">{errors.designation_id}</p>}
+          </div>
         </div>
 
-        {/* Row 3: Rights | Job Status | Voucher Status | Info Panel */}
+        {/* Row 3: Description | Status */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Description</label>
+            <textarea value={form.description} rows={3}
+              onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-none" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Status</label>
+            <select value={form.status} onChange={e => set("status", e.target.value)} className={inputCls()}>
+              <option value="1">Active</option>
+              <option value="0">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Row 4: Checkboxes */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
           {/* Rights */}
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">
-              Rights<span className="text-red-500 ml-0.5">*</span>
-            </p>
+            <p className="text-sm font-semibold text-foreground">Rights<span className="text-red-500 ml-0.5">*</span></p>
             <div className="space-y-1.5">
-              {checkBox("Admin", "rightAdmin")}
-              {checkBox("Marketing", "rightMarketing")}
-              {checkBox("Accounts", "rightAccounts")}
-              {checkBox("Quotation", "rightQuotation")}
-              {checkBox("HR", "rightHR")}
-              {checkBox("Management", "rightManagement")}
-              {checkBox("Documentation", "rightDocumentation")}
-              {checkBox("Settings", "rightSettings")}
+              {ALL_RIGHTS.map(item => (
+                <label key={item} className="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" checked={form.rights.includes(item)}
+                    onChange={() => toggleArr("rights", item)}
+                    className="w-4 h-4 rounded border-input accent-primary" />
+                  <span className="text-sm">{item}</span>
+                </label>
+              ))}
             </div>
             {errors.rights && <p className="text-xs text-red-500">{errors.rights}</p>}
           </div>
 
           {/* Job Status */}
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">
-              Job Status<span className="text-red-500 ml-0.5">*</span>
-            </p>
+            <p className="text-sm font-semibold text-foreground">Job Status<span className="text-red-500 ml-0.5">*</span></p>
             <div className="space-y-1.5">
-              {checkBox("Created", "jobCreated")}
-              {checkBox("Process", "jobProcess")}
-              {checkBox("Process Completed", "jobProcessCompleted")}
-              {checkBox("Closed", "jobClosed")}
-              {checkBox("Cancelled", "jobCancelled")}
-              {checkBox("Re opened", "jobReOpened")}
+              {ALL_JOB.map(item => (
+                <label key={item} className="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" checked={form.job_status.includes(item)}
+                    onChange={() => toggleArr("job_status", item)}
+                    className="w-4 h-4 rounded border-input accent-primary" />
+                  <span className="text-sm">{item}</span>
+                </label>
+              ))}
             </div>
-            {errors.jobStatus && <p className="text-xs text-red-500">{errors.jobStatus}</p>}
+            {errors.job_status && <p className="text-xs text-red-500">{errors.job_status}</p>}
           </div>
 
           {/* Voucher Status */}
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">
-              Voucher Status<span className="text-red-500 ml-0.5">*</span>
-            </p>
+            <p className="text-sm font-semibold text-foreground">Voucher Status<span className="text-red-500 ml-0.5">*</span></p>
             <div className="space-y-1.5">
-              {checkBox("Created", "voucherCreated")}
-              {checkBox("Approved", "voucherApproved")}
-              {checkBox("Confirmed", "voucherConfirmed")}
-              {checkBox("Cancelled", "voucherCancelled")}
-              {checkBox("Dispute", "voucherDispute")}
+              {ALL_VOUCHER.map(item => (
+                <label key={item} className="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" checked={form.voucher_status.includes(item)}
+                    onChange={() => toggleArr("voucher_status", item)}
+                    className="w-4 h-4 rounded border-input accent-primary" />
+                  <span className="text-sm">{item}</span>
+                </label>
+              ))}
             </div>
-            {errors.voucherStatus && <p className="text-xs text-red-500">{errors.voucherStatus}</p>}
+            {errors.voucher_status && <p className="text-xs text-red-500">{errors.voucher_status}</p>}
           </div>
 
           {/* Info Panel */}
           <div className="bg-white border border-border rounded-lg p-4 space-y-3 text-sm">
             <p className="font-semibold text-foreground">Dear Admin,</p>
             <p className="text-green-600">
-              Welcome to the user rights page,
-              <br />
-              While creating a new user please make sure you are providing the rights according to the needs of your
-              organisation,
-            </p>
-            <p className="text-green-600">
-              Eg:- admin will have all the rights by default.
-              <br />
-              So while creating a new user admin will have the ability to give rights to the new user by selecting the
-              check box
-              <br />
-              If you need any further clarifications please click here
+              Welcome to the user rights page,<br />
+              While creating a new user please make sure you are providing the rights according to the needs of your organisation,
             </p>
             <p className="text-green-600 font-medium">From Team Relay Logistics</p>
           </div>
-        </div>
 
-        {/* Status */}
-        {/* <div className="flex items-center gap-6 pt-2 border-t border-border">
-          <p className="text-sm font-semibold text-foreground">
-            Status<span className="text-red-500 ml-0.5">*</span>
-          </p>
-          {(["Active", "Inactive"] as const).map((s) => (
-            <label key={s} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="status"
-                value={s}
-                checked={form.status === s}
-                onChange={handleChange}
-                className="w-4 h-4 accent-primary"
-              />
-              <span className="text-sm">{s}</span>
-            </label>
-          ))}
-        </div> */}
+        </div>
       </div>
 
-      {/* Actions */}
       <div className="flex items-center justify-end gap-3 pb-4">
-        <Button
-          type="button"
-          className="bg-red-400 text-black hover:bg-red-350"
-          onClick={() => navigate("/admin/user-master")}
-        >
-          Cancel
-        </Button>
-        <Button type="button" className="material-button text-black" onClick={handleSave}>
-          {isEdit ? "Update" : "Save"}
+        <Button type="button" className="bg-red-400 text-black hover:bg-red-350"
+          onClick={() => navigate("/admin/user-master")}>Cancel</Button>
+        <Button type="button" className="material-button text-black"
+          onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : isEdit ? "Update" : "Save"}
         </Button>
       </div>
     </div>

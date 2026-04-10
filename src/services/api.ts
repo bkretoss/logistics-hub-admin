@@ -76,8 +76,8 @@ export const updateCurrencyStatusApi = (id: number, status: number) => api.patch
 
 export const getEmployeesApi     = ()                               => api.get('/employees');
 export const getEmployeeApi      = (id: number)                     => api.get(`/employees/${id}`);
-export const createEmployeeApi   = (data: Record<string, unknown>)  => api.post('/employees', data);
-export const updateEmployeeApi   = (id: number, data: Record<string, unknown>) => api.put(`/employees/${id}`, data);
+export const createEmployeeApi   = (data: any, config?: any)        => api.post('/employees', data, config);
+export const updateEmployeeApi   = (id: number, data: any, config?: any) => api.put(`/employees/${id}`, data, config);
 export const deleteEmployeeApi   = (id: number)                     => api.delete(`/employees/${id}`);
 
 export const getCargoTypesApi    = ()                               => api.get('/cargo-types');
@@ -190,5 +190,17 @@ export const getCustomerVisitApi    = (id: number)                            =>
 export const createCustomerVisitApi = (data: Record<string, unknown>)         => api.post('/customer-visits', data);
 export const updateCustomerVisitApi = (id: number, data: Record<string, unknown>) => api.put(`/customer-visits/${id}`, data);
 export const deleteCustomerVisitApi = (id: number)                            => api.delete(`/customer-visits/${id}`);
+
+// Branch APIs
+export const getBranchesApi  = (page = 1, perPage = 10, search = '') => api.get('/branches', { params: { page, per_page: perPage, ...(search && { search }) } });
+export const getBranchApi    = (id: number)                           => api.get(`/branches/${id}`);
+export const deleteBranchApi = (id: number)                           => api.delete(`/branches/${id}`);
+
+// User Master APIs
+export const getUserMastersApi  = (page = 1, perPage = 10, search = '') => api.get('/user-master', { params: { page, per_page: perPage, ...(search && { search }) } });
+export const getUserMasterApi   = (id: number)                            => api.get(`/user-master/${id}`);
+export const createUserMasterApi = (data: Record<string, unknown>)        => api.post('/user-master', data);
+export const updateUserMasterApi = (id: number, data: Record<string, unknown>) => api.put(`/user-master/${id}`, data);
+export const deleteUserMasterApi = (id: number)                           => api.delete(`/user-master/${id}`);
 
 export default api;

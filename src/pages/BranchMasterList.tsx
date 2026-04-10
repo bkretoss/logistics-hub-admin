@@ -1,80 +1,90 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 import BranchViewModal from './BranchViewModal';
+import { getBranchesApi, getBranchApi, deleteBranchApi } from '@/services/api';
 
 export interface Branch {
   id: number;
-  code: string;
+  branch_code: string;
   name: string;
-  address: string;
   position: string;
-  notes: string;
   currency: string;
+  billing_state: string;
+  gstin_no: string;
+  notes: string;
+  voucher_identify: string;
+  interest_calculation: string;
+  debit_note: string;
+  incentive_calculation: string;
+  incentive_percentage: string;
+  time_sheet_enable: string;
+  address: string;
   city: string;
+  state: string;
+  zip_code: string;
   country: string;
   phone: string;
+  mobile: string;
+  fax: string;
   email: string;
-  status: 'Active' | 'Inactive';
+  website: string;
+  logo_link: string;
+  branch_logo: string | null;
+  status: number;
+  created_at: string;
 }
-
-export const INITIAL_BRANCHES: Branch[] = [
-  { id: 1, code: 'HQ',  name: 'Head Office',  address: 'Dubai Airport Free Zone, Dubai', position: 'Headquarters', notes: 'Main HQ',         currency: 'AED', city: 'Dubai',  country: 'UAE',   phone: '+97140000000', email: 'hq@relaylogistics.com',    status: 'Active'   },
-  { id: 2, code: 'BOM', name: 'Mumbai Branch', address: '22 Relay Park, Andheri East',    position: 'Regional',     notes: 'West India hub',  currency: 'INR', city: 'Mumbai', country: 'India', phone: '+91220000000', email: 'mumbai@relaylogistics.com', status: 'Active'   },
-  { id: 3, code: 'DEL', name: 'Delhi Branch',  address: 'Plot 5, Okhla Industrial Area',  position: 'Regional',     notes: 'North India hub', currency: 'INR', city: 'Delhi',  country: 'India', phone: '+91110000000', email: 'delhi@relaylogistics.com',  status: 'Active'   },
-  { id: 4, code: 'LHR', name: 'London Branch', address: '12 Commerce Road, London EC1A',  position: 'International',notes: 'UK operations',   currency: 'GBP', city: 'London', country: 'UK',    phone: '+44200000000', email: 'london@relaylogistics.com', status: 'Inactive' },
-];
-
-// Module-level store — single source of truth shared with NewBranch
-export const branchStore = {
-  data: [...INITIAL_BRANCHES] as Branch[],
-  listeners: new Set<() => void>(),
-  set(next: Branch[]) {
-    this.data = next;
-    this.listeners.forEach(fn => fn());
-  },
-};
 
 const BranchMasterList = () => {
   const navigate = useNavigate();
-  const [branches, setBranches]     = useState<Branch[]>(() => branchStore.data);
+  const { toast } = useToast();
+  const [branches, setBranches]     = useState<Branch[]>([]);
+  const [total, setTotal]           = useState(0);
+  const [loading, setLoading]       = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage]             = useState(1);
-  const [pageSize, setPageSize]     = useState(5);
+  const [pageSize, setPageSize]     = useState(10);
   const [deleteId, setDeleteId]     = useState<number | null>(null);
   const [viewBranch, setViewBranch] = useState<Branch | null>(null);
 
-  useEffect(() => {
-    const refresh = () => setBranches([...branchStore.data]);
-    branchStore.listeners.add(refresh);
-    refresh();
-    return () => { branchStore.listeners.delete(refresh); };
-  }, []);
+  const fetchBranches = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getBranchesApi(page, pageSize, searchTerm);
+      const list = res.data.data ?? [];
+      setTotal(res.data.pagination?.total ?? 0);
+      // fetch full detail for each branch to get branch_logo
+      const detailed = await Promise.all(
+        list.map((b: Branch) => getBranchApi(b.id).then(r => r.data.data ?? r.data).catch(() => b))
+      );
+      setBranches(detailed);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load branches', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, searchTerm]);
 
-  const openView = (b: Branch) => setViewBranch(b);
+  useEffect(() => { fetchBranches(); }, [fetchBranches]);
 
-  const filtered = branches.filter(b => {
-    const q = searchTerm.toLowerCase();
-    return !q ||
-      b.code.toLowerCase().includes(q) ||
-      b.name.toLowerCase().includes(q) ||
-      b.city.toLowerCase().includes(q) ||
-      b.country.toLowerCase().includes(q);
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated  = filtered.slice((page - 1) * pageSize, page * pageSize);
-
-  const handleDelete = () => {
-    if (deleteId !== null) {
-      const updated = branches.filter(b => b.id !== deleteId);
-      branchStore.set(updated);
-      setBranches(updated);
+  const handleDelete = async () => {
+    if (deleteId === null) return;
+    try {
+      await deleteBranchApi(deleteId);
+      toast({ title: 'Deleted', description: 'Branch deleted successfully', variant: 'success' });
       setDeleteId(null);
+      fetchBranches();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete branch', variant: 'destructive' });
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const activeCount   = branches.filter(b => b.status === 1).length;
+  const inactiveCount = branches.filter(b => b.status !== 1).length;
 
   return (
     <div className="space-y-6">
@@ -87,19 +97,18 @@ const BranchMasterList = () => {
         </div>
         <Button
           className="gap-2 material-button material-elevation-2 hover:material-elevation-3 text-black"
-          onClick={() => navigate('/admin/branch-master/new')}
+          onClick={() => navigate('/master/branch/new')}
         >
           <Plus className="w-4 h-4" /> Add Branch
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
-          { label: 'TOTAL',     value: branches.length,                                       color: 'text-blue-500',   bg: 'bg-blue-50'   },
-          { label: 'ACTIVE',    value: branches.filter(b => b.status === 'Active').length,   color: 'text-green-500',  bg: 'bg-green-50'  },
-          { label: 'INACTIVE',  value: branches.filter(b => b.status === 'Inactive').length, color: 'text-red-500',    bg: 'bg-red-50'    },
-          { label: 'COUNTRIES', value: new Set(branches.map(b => b.country)).size,           color: 'text-purple-500', bg: 'bg-purple-50' },
+          { label: 'TOTAL',    value: total,         color: 'text-blue-500',  bg: 'bg-blue-50'  },
+          { label: 'ACTIVE',   value: activeCount,   color: 'text-green-500', bg: 'bg-green-50' },
+          { label: 'INACTIVE', value: inactiveCount, color: 'text-red-500',   bg: 'bg-red-50'   },
         ].map(s => (
           <div key={s.label} className="bg-card rounded-xl p-5 material-elevation-1 hover:material-elevation-2 transition-all duration-300">
             <div className={`${s.bg} w-10 h-10 rounded-xl flex items-center justify-center mb-3`}>
@@ -117,7 +126,7 @@ const BranchMasterList = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search by code, name, city, country..."
+              placeholder="Search by code, name..."
               value={searchTerm}
               onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
               className="w-full pl-11 pr-4 py-2.5 border border-input rounded-xl text-sm bg-background"
@@ -142,10 +151,10 @@ const BranchMasterList = () => {
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
-                {['BRANCH NAME', 'CODE', 'ADDRESS', 'POSITION', 'NOTES', 'BRANCH CURRENCY', 'ACTIONS'].map((h, i) => (
+                {['BRANCH LOGO', 'BRANCH NAME', 'CODE', 'ADDRESS', 'POSITION', 'CURRENCY', 'STATUS', 'ACTIONS'].map((h, i) => (
                   <th
                     key={h}
-                    className={`p-4 text-xs font-semibold text-muted-foreground tracking-wide whitespace-nowrap ${i === 6 ? 'text-right' : 'text-left'}`}
+                    className={`p-4 text-xs font-semibold text-muted-foreground tracking-wide whitespace-nowrap ${i === 7 ? 'text-right' : 'text-left'}`}
                   >
                     {h}
                   </th>
@@ -153,20 +162,37 @@ const BranchMasterList = () => {
               </tr>
             </thead>
             <tbody>
-              {paginated.map(b => (
+              {loading ? (
+                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground text-sm">Loading...</td></tr>
+              ) : branches.length === 0 ? (
+                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground text-sm">No branches found.</td></tr>
+              ) : branches.map(b => (
                 <tr key={b.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                  <td className="p-4">
+                    {b.branch_logo
+                      ? <img src={b.branch_logo} alt={b.name} className="w-10 h-10 rounded-lg object-cover border border-border" onError={e => { (e.target as HTMLImageElement).style.display='none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                      : null
+                    }
+                    <div className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground font-semibold ${b.branch_logo ? 'hidden' : ''}`}>
+                      {b.name?.charAt(0)?.toUpperCase() || 'B'}
+                    </div>
+                  </td>
                   <td className="p-4 text-sm font-medium text-foreground whitespace-nowrap">{b.name}</td>
-                  <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{b.code}</td>
+                  <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{b.branch_code}</td>
                   <td className="p-4 text-sm text-muted-foreground max-w-[180px] truncate" title={b.address}>{b.address || '—'}</td>
                   <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{b.position || '—'}</td>
-                  <td className="p-4 text-sm text-muted-foreground max-w-[160px] truncate" title={b.notes}>{b.notes || '—'}</td>
                   <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{b.currency || '—'}</td>
                   <td className="p-4">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${b.status === 1 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {b.status === 1 ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="p-4">
                     <div className="flex items-center justify-end gap-2">
-                      <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="View" onClick={() => openView(b)}>
+                      <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="View" onClick={() => setViewBranch(b)}>
                         <Eye className="w-4 h-4 text-blue-500" />
                       </button>
-                      <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Edit" onClick={() => navigate(`/admin/branch-master/edit/${b.id}`)}>
+                      <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Edit" onClick={() => navigate(`/master/branch/edit/${b.id}`)}>
                         <Pencil className="w-4 h-4 text-green-500" />
                       </button>
                       <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Delete" onClick={() => setDeleteId(b.id)}>
@@ -176,11 +202,6 @@ const BranchMasterList = () => {
                   </td>
                 </tr>
               ))}
-              {paginated.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-8 text-center text-muted-foreground text-sm">No branches found.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -188,7 +209,7 @@ const BranchMasterList = () => {
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-border">
           <p className="text-sm text-muted-foreground">
-            Showing {filtered.length === 0 ? 0 : (page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length} records
+            Showing {total === 0 ? 0 : (page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} records
           </p>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
@@ -213,7 +234,7 @@ const BranchMasterList = () => {
         <BranchViewModal
           branch={viewBranch}
           onClose={() => setViewBranch(null)}
-          onEdit={() => { setViewBranch(null); navigate(`/admin/branch-master/edit/${viewBranch.id}`); }}
+          onEdit={() => { setViewBranch(null); navigate(`/master/branch/edit/${viewBranch.id}`); }}
         />
       )}
 

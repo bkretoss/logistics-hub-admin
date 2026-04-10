@@ -113,10 +113,15 @@ const App = () => (
             <Route path="/procurement" element={<ProtectedPage title="Procurement" description="Procurement management" />} />
             <Route path="/schedules" element={<ProtectedPage title="Schedules" description="Manage schedules and timelines" />} />
             <Route path="/accounting" element={<ProtectedPage title="Accounting" description="Financial management and accounting" />} />
-            <Route path="/admin/branch-master" element={<ProtectedRoute><AppLayout><BranchMasterList /></AppLayout></ProtectedRoute>} />
-            <Route path="/admin/branch-master/new" element={<ProtectedRoute><AppLayout><NewBranch /></AppLayout></ProtectedRoute>} />
-            <Route path="/admin/branch-master/view/:id" element={<ProtectedRoute><AppLayout><ViewBranch /></AppLayout></ProtectedRoute>} />
-            <Route path="/admin/branch-master/edit/:id" element={<ProtectedRoute><AppLayout><NewBranch /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/branch" element={<ProtectedRoute><AppLayout><BranchMasterList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/branch/new" element={<ProtectedRoute><AppLayout><NewBranch /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/branch/view/:id" element={<ProtectedRoute><AppLayout><ViewBranch /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/branch/edit/:id" element={<ProtectedRoute><AppLayout><NewBranch /></AppLayout></ProtectedRoute>} />
+            {/* Legacy redirects */}
+            <Route path="/admin/branch-master" element={<Navigate to="/master/branch" replace />} />
+            <Route path="/admin/branch-master/new" element={<Navigate to="/master/branch/new" replace />} />
+            <Route path="/admin/branch-master/view/:id" element={<Navigate to="/master/branch" replace />} />
+            <Route path="/admin/branch-master/edit/:id" element={<Navigate to="/master/branch" replace />} />
             <Route path="/hr/employee-master" element={<ProtectedRoute><AppLayout><EmployeeMasterList /></AppLayout></ProtectedRoute>} />
             <Route path="/hr/employee-master/new" element={<ProtectedRoute><AppLayout><NewEmployee /></AppLayout></ProtectedRoute>} />
             <Route path="/hr/employee-master/edit/:id" element={<ProtectedRoute><AppLayout><NewEmployee /></AppLayout></ProtectedRoute>} />

@@ -129,6 +129,7 @@ const NewEmployee = () => {
   const [saving, setSaving]       = useState(false);
   const [loadingEdit, setLoading] = useState(isEdit);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile]       = useState<File | null>(null);
   const [countries, setCountries]           = useState<CountryOption[]>([]);
   const [countriesError, setCountriesError]   = useState('');
   const [currencies, setCurrencies]           = useState<CurrencyOption[]>([]);
@@ -248,7 +249,7 @@ const NewEmployee = () => {
           profile_image:     d.profile_image     ?? null,
           status:            d.status            ?? 1,
         });
-        if (d.profile_image) setImagePreview(d.profile_image);
+        if (d.profile_image) setImagePreview(`http://localhost:8001/${d.profile_image}`);
       })
       .catch(() => toast({ title: 'Error', description: 'Failed to load employee details.', variant: 'destructive' }))
       .finally(() => setLoading(false));
@@ -266,17 +267,13 @@ const NewEmployee = () => {
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const base64 = ev.target?.result as string;
-      setImagePreview(base64);
-      setForm(prev => ({ ...prev, profile_image: base64 }));
-    };
-    reader.readAsDataURL(file);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
   };
 
   const removeImage = () => {
     setImagePreview(null);
+    setImageFile(null);
     setForm(prev => ({ ...prev, profile_image: null }));
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -294,52 +291,54 @@ const NewEmployee = () => {
     if (!validate()) return;
     setSaving(true);
     try {
-      // Build payload matching the exact API structure from the cURL
-      const payload: Record<string, unknown> = {
-        emp_id:            form.emp_id            || undefined,
-        login_id:          form.login_id          || undefined,
-        position:          form.position          || undefined,
-        identification_no: form.identification_no,
-        branch:            form.branch            || undefined,
-        name_title:        form.name_title,
-        first_name:        form.first_name,
-        middle_name:       form.middle_name       || undefined,
-        last_name:         form.last_name         || undefined,
-        spouse_name:       form.spouse_name       || undefined,
-        dob:               inputToApi(form.dob),
-        place_of_birth:    form.place_of_birth    || undefined,
-        nationality:       form.nationality ? Number(form.nationality) : undefined,
-        religion:          form.religion          || undefined,
-        sex:               form.sex,
-        marital_status:    form.marital_status    || undefined,
-        marriage_date:     inputToApi(form.marriage_date),
-        blood_group:       form.blood_group       || undefined,
-        joining_date:      inputToApi(form.joining_date),
-        confirmation_date: inputToApi(form.confirmation_date),
-        notification_date: inputToApi(form.notification_date),
-        leaving_date:      inputToApi(form.leaving_date),
-        ctc_currency:      form.ctc_currency      || undefined,
-        ctc_amount:        form.ctc_amount ? parseFloat(form.ctc_amount) : undefined,
-        contact_no:        form.contact_no        || undefined,
-        temporary_address: form.temporary_address || undefined,
-        permanent_address: form.permanent_address || undefined,
-        designation:       form.designation_id ? Number(form.designation_id) : undefined,
-        department:        form.department_id   ? Number(form.department_id)  : undefined,
-        division:          form.division          || undefined,
-        reporting_manager: form.reporting_manager || undefined,
-        job_description:   form.job_description   || undefined,
-        note:              form.note              || undefined,
-        incentive_coa:     form.incentive_coa ? Number(form.incentive_coa) : undefined,
-        user_name:         form.user_name         || undefined,
-        profile_image:     form.profile_image     ?? null,
-        status:            form.status,
+      const fd = new FormData();
+      const a = (k: string, v: string | number | null | undefined) => {
+        if (v !== null && v !== undefined && v !== '') fd.append(k, String(v));
       };
+      a('emp_id',            form.emp_id);
+      a('login_id',          form.login_id);
+      a('position',          form.position);
+      a('identification_no', form.identification_no);
+      a('branch',            form.branch);
+      a('name_title',        form.name_title);
+      a('first_name',        form.first_name);
+      a('middle_name',       form.middle_name);
+      a('last_name',         form.last_name);
+      a('spouse_name',       form.spouse_name);
+      a('dob',               inputToApi(form.dob) ?? '');
+      a('place_of_birth',    form.place_of_birth);
+      a('nationality',       form.nationality ? Number(form.nationality) : '');
+      a('religion',          form.religion);
+      a('sex',               form.sex);
+      a('marital_status',    form.marital_status);
+      a('marriage_date',     inputToApi(form.marriage_date) ?? '');
+      a('blood_group',       form.blood_group);
+      a('joining_date',      inputToApi(form.joining_date) ?? '');
+      a('confirmation_date', inputToApi(form.confirmation_date) ?? '');
+      a('notification_date', inputToApi(form.notification_date) ?? '');
+      a('leaving_date',      inputToApi(form.leaving_date) ?? '');
+      a('ctc_currency',      form.ctc_currency);
+      a('ctc_amount',        form.ctc_amount ? parseFloat(form.ctc_amount) : '');
+      a('contact_no',        form.contact_no);
+      a('temporary_address', form.temporary_address);
+      a('permanent_address', form.permanent_address);
+      a('designation',       form.designation_id ? Number(form.designation_id) : '');
+      a('department',        form.department_id  ? Number(form.department_id)  : '');
+      a('division',          form.division);
+      a('reporting_manager', form.reporting_manager);
+      a('job_description',   form.job_description);
+      a('note',              form.note);
+      a('incentive_coa',     form.incentive_coa ? Number(form.incentive_coa) : '');
+      a('user_name',         form.user_name);
+      a('status',            form.status);
+      if (imageFile) fd.append('profile_image', imageFile);
 
+      const config = { headers: { 'Content-Type': 'multipart/form-data' } };
       if (isEdit) {
-        await updateEmployeeApi(Number(id), payload);
+        await updateEmployeeApi(Number(id), fd as any, config as any);
         toast({ title: 'Success', description: 'Employee updated successfully.', variant: 'success' });
       } else {
-        await createEmployeeApi(payload);
+        await createEmployeeApi(fd as any, config as any);
         toast({ title: 'Success', description: 'Employee created successfully.', variant: 'success' });
       }
       navigate('/hr/employee-master');

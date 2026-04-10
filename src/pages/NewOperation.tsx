@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { ArrowLeft, Plus, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useOperations } from "./OperationsContext";
+import { getBranchesApi, getCitiesApi, getServiceModesApi } from "@/services/api";
 
-const BRANCHES = ["Chennai", "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Kolkata"];
 const FREIGHT_OPTIONS = ["Prepaid", "Collect"];
-const POL_OPTIONS = ["Chennai", "Mumbai", "Delhi", "Bangalore", "Nhava Sheva", "Kolkata", "Cochin"];
-const POD_OPTIONS = ["Dubai", "Singapore", "Hong Kong", "Shanghai", "London", "New York", "Los Angeles"];
 const SERVICE_TYPES = [
   "FCL/FCL",
   "FCL/LCL",
@@ -369,6 +367,62 @@ const initialSubledger: SubledgerForm = {
   currency: "",
 };
 
+// ── Searchable City Select ───────────────────────────────────────────────────
+const CitySearchSelect: React.FC<{
+  value: string;
+  cities: { id: number; name: string }[];
+  onChange: (val: string) => void;
+  placeholder?: string;
+}> = ({ value, cities, onChange, placeholder = '-- Select --' }) => {
+  const [search, setSearch] = useState('');
+  const [open, setOpen]     = useState(false);
+  const ref                 = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = cities.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+  const selected = cities.find(c => String(c.id) === String(value));
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 border border-input rounded-lg text-sm bg-background text-left">
+        <span className={selected ? 'text-foreground' : 'text-muted-foreground'}>
+          {selected ? selected.name : placeholder}
+        </span>
+        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-background border border-input rounded-lg shadow-lg">
+          <div className="p-2">
+            <input autoFocus type="text" placeholder="Search city..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full px-3 py-1.5 border border-input rounded-md text-sm bg-background outline-none" />
+          </div>
+          <ul className="max-h-48 overflow-y-auto">
+            <li className="px-3 py-2 text-sm text-muted-foreground hover:bg-muted cursor-pointer"
+              onClick={() => { onChange(''); setOpen(false); setSearch(''); }}>{placeholder}</li>
+            {filtered.length === 0
+              ? <li className="px-3 py-2 text-sm text-muted-foreground">No cities found</li>
+              : filtered.map(c => (
+                <li key={c.id} onClick={() => { onChange(String(c.id)); setOpen(false); setSearch(''); }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-muted ${
+                    String(c.id) === String(value) ? 'bg-primary/10 font-semibold' : ''
+                  }`}>{c.name}</li>
+              ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const NewOperation = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -377,6 +431,21 @@ const NewOperation = () => {
   const isEdit = !!editOp;
 
   const [formData, setFormData] = useState<OperationFormData>(editOp ?? initialForm);
+  const [apiBranches, setApiBranches]   = useState<{ id: number; name: string }[]>([]);
+  const [cities, setCities]             = useState<{ id: number; name: string }[]>([]);
+  const [serviceModes, setServiceModes] = useState<{ id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    getBranchesApi(1, 100).then(res => setApiBranches(res.data.data ?? [])).catch(() => {});
+    getCitiesApi().then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setCities(raw.map(r => ({ id: r.id, name: r.name })));
+    }).catch(() => {});
+    getServiceModesApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setServiceModes(raw.filter((r: any) => r.status === 1 || r.status === '1' || r.status === 'active').map((r: any) => ({ id: r.id, name: r.name })));
+    }).catch(() => {});
+  }, []);
 
   // Loading and error states for each party type
   const [branchesLoading, setBranchesLoading] = useState<{
@@ -596,9 +665,9 @@ const NewOperation = () => {
               <div className="flex-1">
                 <select id="branch" name="branch" value={formData.branch} onChange={handleChange} className={sel()}>
                   <option value="">Select</option>
-                  {BRANCHES.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
+                  {apiBranches.map((b) => (
+                    <option key={b.id} value={b.name}>
+                      {b.name}
                     </option>
                   ))}
                 </select>
@@ -685,14 +754,12 @@ const NewOperation = () => {
                 POL <span className="text-destructive">*</span>
               </Label>
               <div className="flex-1">
-                <select id="pol" name="pol" value={formData.pol} onChange={handleChange} className={sel(errors.pol)}>
-                  <option value="">-Select-</option>
-                  {POL_OPTIONS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
+                <CitySearchSelect
+                  value={formData.pol}
+                  cities={cities}
+                  onChange={val => { setFormData(prev => ({ ...prev, pol: val })); if (errors.pol) setErrors(prev => ({ ...prev, pol: '' })); }}
+                  placeholder="-Select-"
+                />
                 {errors.pol && <p className="text-xs text-destructive mt-1">{errors.pol}</p>}
               </div>
             </div>
@@ -703,14 +770,12 @@ const NewOperation = () => {
                 POD <span className="text-destructive">*</span>
               </Label>
               <div className="flex-1">
-                <select id="pod" name="pod" value={formData.pod} onChange={handleChange} className={sel(errors.pod)}>
-                  <option value="">-Select-</option>
-                  {POD_OPTIONS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
+                <CitySearchSelect
+                  value={formData.pod}
+                  cities={cities}
+                  onChange={val => { setFormData(prev => ({ ...prev, pod: val })); if (errors.pod) setErrors(prev => ({ ...prev, pod: '' })); }}
+                  placeholder="-Select-"
+                />
                 {errors.pod && <p className="text-xs text-destructive mt-1">{errors.pod}</p>}
               </div>
             </div>
@@ -810,10 +875,8 @@ const NewOperation = () => {
                   className={sel()}
                 >
                   <option value="">--Select--</option>
-                  {SERVICE_TYPES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
+                  {serviceModes.map(s => (
+                    <option key={s.id} value={String(s.id)}>{s.name}</option>
                   ))}
                 </select>
               </div>

@@ -364,7 +364,11 @@ const EditOpportunity = () => {
       container_type: s.containerType,
       container_quantity: parseInt(s.containerQuantity.toString()) || 1,
     })),
-    customer_visits: customerVisits.map(({ id: _id, ...v }) => v),
+    customer_visits: customerVisits.map(({ id: _id, ...v }) => ({
+      ...v,
+      next_visit:         v.next_visit         || null,
+      next_followup_date: v.next_followup_date || null,
+    })),
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
