@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getEmployeeApi, createEmployeeApi, updateEmployeeApi, getCountriesApi, getDesignationsApi, getDepartmentsApi, getEmployeesApi, getCoasApi } from '@/services/api';
+import { getEmployeeApi, createEmployeeApi, updateEmployeeApi, getCountriesApi, getDesignationsApi, getDepartmentsApi, getEmployeesApi, getCoasApi, API_BASE } from '@/services/api';
 
 interface CountryOption { id: number; country_name: string; }
 interface CurrencyOption { code: string; name: string; }
@@ -249,7 +249,7 @@ const NewEmployee = () => {
           profile_image:     d.profile_image     ?? null,
           status:            d.status            ?? 1,
         });
-        if (d.profile_image) setImagePreview(`http://localhost:8001/${d.profile_image}`);
+        if (d.profile_image) setImagePreview(d.profile_image.startsWith('http') ? d.profile_image : `${API_BASE}/${d.profile_image}`);
       })
       .catch(() => toast({ title: 'Error', description: 'Failed to load employee details.', variant: 'destructive' }))
       .finally(() => setLoading(false));
