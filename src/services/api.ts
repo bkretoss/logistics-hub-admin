@@ -121,6 +121,13 @@ export const deleteDepartmentApi  = (id: number)                     => api.dele
 // Prospects (Master) APIs
 export const getProspectsApi    = (page = 1, perPage = 10, search = '', status = '') => api.get('/prospects', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
 export const getProspectApi     = (id: number)                     => api.get(`/prospects/${id}`);
+
+// Operations APIs
+export const getOperationsApi    = (page = 1, perPage = 10, search = '') => api.get('/operations', { params: { page, per_page: perPage, ...(search && { search }) } });
+export const getOperationApi     = (id: number)                          => api.get(`/operations/${id}`);
+export const createOperationApi  = (data: Record<string, unknown>)       => api.post('/operations', data);
+export const updateOperationApi  = (id: number, data: Record<string, unknown>) => api.put(`/operations/${id}`, data);
+export const deleteOperationApi  = (id: number)                          => api.delete(`/operations/${id}`);
 export const createProspectApi  = (data: Record<string, unknown>)  => api.post('/prospects', data);
 export const updateProspectApi  = (id: number, data: Record<string, unknown>) => api.put(`/prospects/${id}`, data);
 export const deleteProspectApi  = (id: number)                     => api.delete(`/prospects/${id}`);
@@ -206,5 +213,62 @@ export const getUserMasterApi   = (id: number)                            => api
 export const createUserMasterApi = (data: Record<string, unknown>)        => api.post('/user-master', data);
 export const updateUserMasterApi = (id: number, data: Record<string, unknown>) => api.put(`/user-master/${id}`, data);
 export const deleteUserMasterApi = (id: number)                           => api.delete(`/user-master/${id}`);
+
+// Operation Dimension APIs
+export const getDimensionsApi   = () => api.get('/operation-dimension');
+export const getDimensionApi    = (id: number) => api.get(`/operation-dimension/${id}`);
+export const createDimensionApi = (data: Record<string, unknown>) => api.post('/operation-dimension', data);
+export const updateDimensionApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-dimension/${id}`, data);
+export const deleteDimensionApi = (id: number) => api.delete(`/operation-dimension/${id}`);
+
+// Operation Subledger APIs
+export const getSubledgersApi   = () => api.get('/operation-subledgers');
+export const getSubledgerApi    = (id: number) => api.get(`/operation-subledgers/${id}`);
+export const createSubledgerApi = (data: Record<string, unknown>) => api.post('/operation-subledgers', data);
+export const updateSubledgerApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-subledgers/${id}`, data);
+export const deleteSubledgerApi = (id: number) => api.delete(`/operation-subledgers/${id}`);
+
+// Operation Rider Container APIs
+export const getRiderContainersApi   = (operationId: number) => api.get('/operation-rider-container', { params: { operation_id: operationId } });
+export const getRiderContainerApi    = (id: number)          => api.get(`/operation-rider-container/${id}`);
+export const createRiderContainerApi = (data: Record<string, unknown>) => api.post('/operation-rider-container', data);
+export const updateRiderContainerApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-rider-container/${id}`, data);
+export const deleteRiderContainerApi = (id: number)          => api.delete(`/operation-rider-container/${id}`);
+
+// Operation Cargo Details APIs
+export const getCargoDetailsApi   = (operationId: number) => api.get('/operation-cargo-details', { params: { operation_id: operationId } });
+export const getCargoDetailApi    = (id: number)          => api.get(`/operation-cargo-details/${id}`);
+export const createCargoDetailApi = (data: Record<string, unknown>) => api.post('/operation-cargo-details', data);
+export const updateCargoDetailApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-cargo-details/${id}`, data);
+export const deleteCargoDetailApi = (id: number)          => api.delete(`/operation-cargo-details/${id}`);
+
+// Operation Shipping Bill APIs
+export const getShippingBillsApi   = (operationId: number) => api.get('/operation-shipping-bill', { params: { operation_id: operationId, per_page: 100 } });
+export const getShippingBillApi    = (id: number) => api.get(`/operation-shipping-bill/${id}`);
+export const createShippingBillApi = (data: Record<string, unknown>) => api.post('/operation-shipping-bill', data);
+export const updateShippingBillApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-shipping-bill/${id}`, data);
+export const deleteShippingBillApi = (id: number) => api.delete(`/operation-shipping-bill/${id}`);
+
+// Operation Routing APIs
+export const getRoutingsApi   = (operationId: number) => api.get('/operation-routing', { params: { operation_id: operationId, per_page: 100 } });
+export const getRoutingApi    = (id: number) => api.get(`/operation-routing/${id}`);
+export const createRoutingApi = (data: Record<string, unknown>) => api.post('/operation-routing', data);
+export const updateRoutingApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-routing/${id}`, data);
+export const deleteRoutingApi = (id: number) => api.delete(`/operation-routing/${id}`);
+
+// Operation House Job APIs
+export const getHouseJobsApi   = (operationId: number) => api.get('/operation-house-job', { params: { operation_id: operationId, per_page: 100 } });
+export const getHouseJobApi    = (id: number) => api.get(`/operation-house-job/${id}`);
+export const createHouseJobApi = (data: Record<string, unknown>) => api.post('/operation-house-job', data);
+export const updateHouseJobApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-house-job/${id}`, data);
+export const deleteHouseJobApi = (id: number) => api.delete(`/operation-house-job/${id}`);
+
+// Operation Costing APIs
+export const getAllCostingsApi = (page = 1, perPage = 10, search = '') => api.get('/operation-costing', { params: { page, per_page: perPage, ...(search && { search }) } });
+export const getCostingsApi   = (operationId?: number) => api.get('/operation-costing', { params: { per_page: 100, ...(operationId ? { operation_id: operationId } : {}) } });
+export const getCostingApi    = (id: number)          => api.get(`/operation-costing/${id}`);
+export const createCostingApi = (data: Record<string, unknown>) => api.post('/operation-costing', data);
+export const updateCostingApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-costing/${id}`, data);
+export const deleteCostingApi = (id: number)          => api.delete(`/operation-costing/${id}`);
 
 export default api;

@@ -57,6 +57,7 @@ import ServiceModeList from '@/pages/ServiceModeList';
 import SalesAgentList from '@/pages/SalesAgentList';
 import CustomerVisitList from '@/pages/CustomerVisitList';
 import NewCustomerVisit from '@/pages/NewCustomerVisit';
+import CostingList from '@/pages/CostingList';
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -109,6 +110,7 @@ const App = () => (
             <Route path="/operations/new" element={<ProtectedRoute><AppLayout><NewOperation /></AppLayout></ProtectedRoute>} />
             <Route path="/operations/edit/:id" element={<ProtectedRoute><AppLayout><NewOperation /></AppLayout></ProtectedRoute>} />
             <Route path="/operations/view/:id" element={<ProtectedRoute><AppLayout><ViewOperation /></AppLayout></ProtectedRoute>} />
+            <Route path="/operations/costing" element={<ProtectedRoute><AppLayout><CostingList /></AppLayout></ProtectedRoute>} />
             <Route path="/rms" element={<ProtectedPage title="RMS" description="Revenue Management System" />} />
             <Route path="/procurement" element={<ProtectedPage title="Procurement" description="Procurement management" />} />
             <Route path="/schedules" element={<ProtectedPage title="Schedules" description="Manage schedules and timelines" />} />

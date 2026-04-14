@@ -19,27 +19,18 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { useOperations, type Operation } from './OperationsContext';
+import { useToast } from '@/hooks/use-toast';
 
-const statusOptions = [
-  { label: 'Created',   color: 'text-blue-500',   bgColor: 'bg-blue-500/10'   },
-  { label: 'Process',   color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
-  { label: 'Closed',    color: 'text-green-500',  bgColor: 'bg-green-500/10'  },
-  { label: 'Cancelled', color: 'text-red-500',    bgColor: 'bg-red-500/10'    },
-  { label: 'Reopened',  color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
-];
-
+// API returns dates as DD-MM-YYYY; normalise to DD/MM/YYYY for display
 const fmt = (d: string) => {
   if (!d) return '—';
-  if (d.includes('-')) {
-    const [y, m, day] = d.split('-');
-    return `${day}/${m}/${y}`;
-  }
-  return d;
+  return d.replace(/-/g, '/');
 };
 
 const Operations = () => {
   const navigate = useNavigate();
-  const { operations, updateOperation, deleteOperation } = useOperations();
+  const { toast } = useToast();
+  const { operations, total, loading, deleteOperation } = useOperations();
 
   const [viewMode, setViewMode]         = useState<'grid' | 'list'>('list');
   const [searchTerm, setSearchTerm]     = useState('');
@@ -48,60 +39,60 @@ const Operations = () => {
   const [docFilter, setDocFilter]       = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [pageSize, setPageSize]         = useState(5);
+  const [pageSize, setPageSize]         = useState(10);
   const [page, setPage]                 = useState(1);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selected, setSelected]         = useState<Operation | null>(null);
   const [deleteId, setDeleteId]         = useState<number | null>(null);
   const [filterOpen, setFilterOpen]     = useState(false);
   const [filterType, setFilterType]     = useState<'column' | 'row'>('column');
-  const [filterCol, setFilterCol]       = useState('jobNo');
+  const [filterCol, setFilterCol]       = useState('document');
   const [filterOp, setFilterOp]         = useState('=');
   const [filterExpr, setFilterExpr]     = useState('');
   const [activeFilter, setActiveFilter] = useState<{ col: string; op: string; expr: string } | null>(null);
 
   const handleView = (op: Operation) => { setSelected(op); setViewDialogOpen(true); };
-  const handleDeleteConfirm = () => { if (deleteId !== null) { deleteOperation(deleteId); setDeleteId(null); } };
 
-  const handleStatusChange = (id: number, label: string, color: string, bgColor: string) =>
-    updateOperation(id, { status: label, statusColor: color, statusBgColor: bgColor });
+  const handleDeleteConfirm = async () => {
+    if (deleteId === null) return;
+    try {
+      await deleteOperation(deleteId);
+      toast({ title: 'Deleted', description: 'Operation deleted successfully.', variant: 'success' });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete operation.', variant: 'destructive' });
+    } finally {
+      setDeleteId(null);
+    }
+  };
 
   const stats = [
-    { label: 'TOTAL',     value: operations.length,                                          icon: Truck,       iconColor: 'text-blue-500',   bg: 'bg-blue-50'   },
-    { label: 'CREATED',   value: operations.filter(o => o.status === 'Created').length,    icon: AlertCircle, iconColor: 'text-blue-500',   bg: 'bg-blue-50'   },
-    { label: 'PROCESS',   value: operations.filter(o => o.status === 'Process').length,    icon: Clock,       iconColor: 'text-yellow-500', bg: 'bg-yellow-50' },
-    { label: 'CLOSED',    value: operations.filter(o => o.status === 'Closed').length,     icon: CheckCircle, iconColor: 'text-green-500',  bg: 'bg-green-50'  },
-    { label: 'CANCELLED', value: operations.filter(o => o.status === 'Cancelled').length,  icon: Trash2,      iconColor: 'text-red-500',    bg: 'bg-red-50'    },
-    { label: 'REOPENED',  value: operations.filter(o => o.status === 'Reopened').length,   icon: RotateCcw,   iconColor: 'text-purple-500', bg: 'bg-purple-50' },
+    { label: 'TOTAL',    value: total,                                              icon: Truck,       iconColor: 'text-blue-500',   bg: 'bg-blue-50'   },
+    { label: 'ACTIVE',   value: operations.filter(o => o.status === 1).length,     icon: CheckCircle, iconColor: 'text-green-500',  bg: 'bg-green-50'  },
+    { label: 'INACTIVE', value: operations.filter(o => o.status === 0).length,     icon: AlertCircle, iconColor: 'text-red-500',    bg: 'bg-red-50'    },
+    { label: 'AIR',      value: operations.filter(o => o.document?.toLowerCase().includes('air')).length,   icon: Clock,       iconColor: 'text-yellow-500', bg: 'bg-yellow-50' },
+    { label: 'FCL',      value: operations.filter(o => o.document?.toLowerCase().includes('fcl')).length,   icon: RotateCcw,   iconColor: 'text-purple-500', bg: 'bg-purple-50' },
+    { label: 'LCL',      value: operations.filter(o => o.document?.toLowerCase().includes('lcl')).length,   icon: Truck,       iconColor: 'text-blue-500',   bg: 'bg-blue-50'   },
   ];
 
   const FILTER_COLUMNS = [
-    { label: 'JOB No#',              key: 'jobNo' },
-    { label: 'Date',                 key: 'jobDate' },
-    { label: 'Status',               key: 'status' },
-    { label: 'PP/CC',                key: 'freightPpCc' },
-    { label: 'Customer',             key: 'customer' },
-    { label: 'Place of Receipt',     key: 'placeOfReceipt' },
-    { label: 'POL',                  key: 'pol' },
-    { label: 'POD',                  key: 'pod' },
-    { label: 'Place of Delivery',    key: 'placeOfDelivery' },
-    { label: 'ETD',                  key: 'polEtd' },
-    { label: 'ETA',                  key: 'podEta' },
-    { label: 'Vessel/Flight Name',   key: 'flightName' },
-    { label: 'Vessel/Flight No',     key: 'flightNumber' },
-    { label: 'BL Service Type',      key: 'blServiceType' },
-    { label: 'BL No',                key: 'blNo' },
-    { label: 'MBL No',               key: 'mblNo' },
-    { label: 'Sales Person',         key: 'salesPerson' },
-    { label: 'Shipper',              key: 'shipper' },
-    { label: 'Consignee',            key: 'consignee' },
-    { label: 'Carrier',              key: 'carrier' },
-    { label: 'Delivery Agent Name',  key: 'deliveryAgentName' },
-    { label: 'Notify1',              key: 'notify1' },
-    { label: 'Delivery Agent',       key: 'deliveryAgent' },
-    { label: 'Delivery Status',      key: 'deliveryStatus' },
-    { label: 'Delivery Date',        key: 'deliveryDate' },
-    { label: 'Notes',                key: 'note' },
+    { label: 'Document',          key: 'document' },
+    { label: 'Branch',            key: 'branch' },
+    { label: 'Date',              key: 'job_date' },
+    { label: 'PP/CC',             key: 'freight_pp_cc' },
+    { label: 'Customer',          key: 'customer' },
+    { label: 'Place of Receipt',  key: 'place_of_receipt' },
+    { label: 'POL',               key: 'pol' },
+    { label: 'POD',               key: 'pod' },
+    { label: 'Place of Delivery', key: 'place_of_delivery' },
+    { label: 'ETD',               key: 'pol_etd' },
+    { label: 'ETA',               key: 'pod_eta' },
+    { label: 'Flight Name',       key: 'flight_name' },
+    { label: 'Flight Number',     key: 'flight_number' },
+    { label: 'Service Type',      key: 'service_type' },
+    { label: 'Shipper',           key: 'shipper' },
+    { label: 'Consignee',         key: 'consignee' },
+    { label: 'Carrier',           key: 'carrier' },
+    { label: 'Notes',             key: 'note' },
   ];
   const OPERATORS = ['=', '!=', 'contains', 'not contains', 'starts with', 'ends with', '>', '<', '>=', '<='];
 
@@ -126,27 +117,26 @@ const Operations = () => {
     });
   };
 
-  const DOC_TYPES     = ['Air Export','Air Import','FCL Export','FCL Import','Land Export','Land Import','LCL Export','LCL Import'];
-  const STATUS_TYPES  = ['Created','Process','Closed','Cancelled','Reopened'];
-  const customerList  = [...new Set(operations.map(o => o.customer).filter(Boolean))];
+  const DOC_TYPES    = ['Air Export','Air Import','FCL Export','FCL Import','Land Export','Land Import','LCL Export','LCL Import'];
+  const STATUS_TYPES = [{ label: 'Active', value: '1' }, { label: 'Inactive', value: '0' }];
+  const customerList = [...new Set(operations.map(o => o.customer).filter(Boolean))];
 
   const filtered = operations.filter(op => {
-    const matchDoc      = !docFilter     || op.document === docFilter;
+    const matchDoc      = !docFilter      || op.document === docFilter;
     const matchCustomer = !customerFilter || op.customer === customerFilter;
-    const matchStatus   = !statusFilter  || op.status === statusFilter;
-    const matchFrom     = !fromDate      || op.jobDate >= fromDate;
-    const matchTo       = !toDate        || op.jobDate <= toDate;
+    const matchStatus   = !statusFilter   || String(op.status) === statusFilter;
+    const matchFrom     = !fromDate       || op.job_date >= fromDate;
+    const matchTo       = !toDate         || op.job_date <= toDate;
     const q = searchTerm.toLowerCase();
     const matchSearch   = !q ||
-      op.jobNo.toLowerCase().includes(q) ||
+      op.document.toLowerCase().includes(q) ||
       op.branch.toLowerCase().includes(q) ||
       op.pol.toLowerCase().includes(q) ||
       op.pod.toLowerCase().includes(q) ||
       op.customer.toLowerCase().includes(q) ||
       op.carrier.toLowerCase().includes(q) ||
-      op.blNo.toLowerCase().includes(q) ||
-      op.mblNo.toLowerCase().includes(q) ||
-      op.salesPerson.toLowerCase().includes(q);
+      op.shipper.toLowerCase().includes(q) ||
+      op.consignee.toLowerCase().includes(q);
     return matchDoc && matchCustomer && matchStatus && matchFrom && matchTo && matchSearch;
   });
 
@@ -255,7 +245,7 @@ const Operations = () => {
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
               className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background">
               <option value="">All</option>
-              {STATUS_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+              {STATUS_TYPES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
           {/* Actions + Reset */}
@@ -365,7 +355,11 @@ const Operations = () => {
       {/* Grid View */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {paginated.map(op => (
+          {loading ? (
+            <div className="col-span-3 p-8 text-center text-muted-foreground text-sm">Loading...</div>
+          ) : paginated.length === 0 ? (
+            <div className="col-span-3 p-8 text-center text-muted-foreground text-sm">No operations found.</div>
+          ) : paginated.map(op => (
             <div key={op.id} className="material-card p-6 cursor-pointer">
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-1">
@@ -376,12 +370,12 @@ const Operations = () => {
               </div>
               <div className="space-y-1.5 mb-4 text-sm">
                 {[
-                  ['Document', op.document],
-                  ['Freight', op.freightPpCc],
-                  ['POL ETD', fmt(op.polEtd)],
-                  ['POD ETA', fmt(op.podEta)],
-                  ['Carrier', op.carrier || '—'],
-                  ['Service', op.serviceType || '—'],
+                  ['Document',  op.document],
+                  ['Freight',   op.freight_pp_cc],
+                  ['POL ETD',   fmt(op.pol_etd)],
+                  ['POD ETA',   fmt(op.pod_eta)],
+                  ['Carrier',   op.carrier   || '—'],
+                  ['Service',   op.service_type || '—'],
                 ].map(([k, v]) => (
                   <div key={k} className="flex items-center justify-between">
                     <span className="text-muted-foreground">{k}:</span>
@@ -390,7 +384,10 @@ const Operations = () => {
                 ))}
               </div>
               <div className="pt-4 border-t border-border flex items-center justify-between">
-                <StatusBadge op={op} />
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${op.statusColor} ${op.statusBgColor}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                  {op.statusLabel}
+                </span>
                 <div className="flex items-center gap-1">
                   <button className="p-1.5 hover:bg-muted rounded-lg transition-colors" onClick={() => handleView(op)}>
                     <Eye className="w-4 h-4 text-blue-500" />
@@ -415,10 +412,9 @@ const Operations = () => {
             <table className="w-full">
               <thead className="border-b border-border">
                 <tr>
-                  {['JOB No#','DATE','STATUS','PP/CC','CUSTOMER','PLACE OF RECEIPT','POL','POD','PLACE OF DELIVERY',
-                    'ETD','ETA','VESSEL/FLIGHT NAME','VESSEL/FLIGHT NO','BL SERVICE TYPE','BL NO','MBL NO',
-                    'SALES PERSON','SHIPPER','CONSIGNEE','CARRIER','DELIVERY AGENT NAME','NOTIFY1',
-                    'DELIVERY AGENT','DELIVERY STATUS','DELIVERY DATE','NOTES','ACTIONS'].map(h => (
+                  {['DOCUMENT','DATE','STATUS','PP/CC','CUSTOMER','PLACE OF RECEIPT','POL','POD',
+                    'PLACE OF DELIVERY','ETD','ETA','SERVICE TYPE',
+                    'SHIPPER','CONSIGNEE','CARRIER','NOTE','ACTIONS'].map(h => (
                     <th key={h} className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
                       {h}
                     </th>
@@ -426,33 +422,30 @@ const Operations = () => {
                 </tr>
               </thead>
               <tbody>
-                {paginated.map(op => (
+                {loading ? (
+                  <tr><td colSpan={17} className="p-8 text-center text-muted-foreground text-sm">Loading...</td></tr>
+                ) : paginated.map(op => (
                   <tr key={op.id} className="border-b border-border hover:bg-muted/50 transition-colors">
-                    <td className="p-4 text-sm font-medium text-foreground whitespace-nowrap">{op.jobNo || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{fmt(op.jobDate)}</td>
-                    <td className="p-4 whitespace-nowrap"><StatusBadge op={op} /></td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.freightPpCc}</td>
+                    <td className="p-4 text-sm font-medium text-foreground whitespace-nowrap">{op.document || '—'}</td>
+                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{fmt(op.job_date)}</td>
+                    <td className="p-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${op.statusColor} ${op.statusBgColor}`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        {op.statusLabel}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.freight_pp_cc || '—'}</td>
                     <td className="p-4 text-sm text-muted-foreground whitespace-nowrap max-w-[140px] truncate">{op.customer || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.placeOfReceipt || '—'}</td>
+                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.place_of_receipt || '—'}</td>
                     <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.pol || '—'}</td>
                     <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.pod || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.placeOfDelivery || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{fmt(op.polEtd)}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{fmt(op.podEta)}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.flightName || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.flightNumber || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.blServiceType || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.blNo || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.mblNo || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.salesPerson || '—'}</td>
+                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.place_of_delivery || '—'}</td>
+                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{fmt(op.pol_etd)}</td>
+                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{fmt(op.pod_eta)}</td>
+                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.service_type || '—'}</td>
                     <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.shipper || '—'}</td>
                     <td className="p-4 text-sm text-muted-foreground whitespace-nowrap max-w-[140px] truncate">{op.consignee || '—'}</td>
                     <td className="p-4 text-sm text-muted-foreground whitespace-nowrap max-w-[140px] truncate">{op.carrier || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.deliveryAgentName || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.notify1 || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.deliveryAgent || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.deliveryStatus || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{fmt(op.deliveryDate)}</td>
                     <td className="p-4 text-sm text-muted-foreground max-w-[120px] truncate">{op.note || '—'}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
@@ -469,9 +462,9 @@ const Operations = () => {
                     </td>
                   </tr>
                 ))}
-                {paginated.length === 0 && (
+                {!loading && paginated.length === 0 && (
                   <tr>
-                    <td colSpan={27} className="p-8 text-center text-muted-foreground text-sm">No operations found.</td>
+                    <td colSpan={17} className="p-8 text-center text-muted-foreground text-sm">No operations found.</td>
                   </tr>
                 )}
               </tbody>
@@ -595,29 +588,23 @@ const Operations = () => {
           {selected && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-bold text-primary mb-3 pb-1 border-b border-border">Job List Details</h3>
+                <h3 className="text-sm font-bold text-primary mb-3 pb-1 border-b border-border">Job Details</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {[
-                    ['JOB No#', selected.jobNo || '—'],
-                    ['DATE', fmt(selected.jobDate)],
-                    ['PP/CC', selected.freightPpCc],
-                    ['PLACE OF RECEIPT', selected.placeOfReceipt || '—'],
-                    ['PLACE OF DELIVERY', selected.placeOfDelivery || '—'],
-                    ['POL', selected.pol || '—'],
-                    ['POD', selected.pod || '—'],
-                    ['ETD', fmt(selected.polEtd)],
-                    ['ETA', fmt(selected.podEta)],
-                    ['VESSEL/FLIGHT NAME', selected.flightName || '—'],
-                    ['VESSEL/FLIGHT NO', selected.flightNumber || '—'],
-                    ['BL SERVICE TYPE', selected.blServiceType || '—'],
-                    ['BL NO', selected.blNo || '—'],
-                    ['MBL NO', selected.mblNo || '—'],
-                    ['SALES PERSON', selected.salesPerson || '—'],
-                    ['DELIVERY AGENT NAME', selected.deliveryAgentName || '—'],
-                    ['NOTIFY1', selected.notify1 || '—'],
-                    ['DELIVERY AGENT', selected.deliveryAgent || '—'],
-                    ['DELIVERY STATUS', selected.deliveryStatus || '—'],
-                    ['DELIVERY DATE', fmt(selected.deliveryDate)],
+                    ['DOCUMENT',          selected.document],
+                    ['DATE',              fmt(selected.job_date)],
+                    ['PP/CC',             selected.freight_pp_cc],
+                    ['PLACE OF RECEIPT',  selected.place_of_receipt  || '—'],
+                    ['PLACE OF DELIVERY', selected.place_of_delivery || '—'],
+                    ['POL',               selected.pol               || '—'],
+                    ['POD',               selected.pod               || '—'],
+                    ['ETD',               fmt(selected.pol_etd)],
+                    ['ETA',               fmt(selected.pod_eta)],
+                    ['FLIGHT NAME',       selected.flight_name       || '—'],
+                    ['FLIGHT NUMBER',     selected.flight_number     || '—'],
+                    ['SERVICE TYPE',      selected.service_type      || '—'],
+                    ['BRANCH',            selected.branch            || '—'],
+                    ['CUSTOMER BRANCH',   selected.customer_branch   || '—'],
                   ].map(([label, value]) => (
                     <div key={label}>
                       <label className="text-xs font-semibold text-muted-foreground">{label}</label>
@@ -635,10 +622,10 @@ const Operations = () => {
                 <h3 className="text-sm font-bold text-primary mb-3 pb-1 border-b border-border">Parties</h3>
                 <div className="grid grid-cols-2 gap-6">
                   {[
-                    ['CUSTOMER', selected.customer, selected.customerAddress],
-                    ['SHIPPER', selected.shipper, selected.shipperAddress],
-                    ['CARRIER / AIRLINE', selected.carrier, selected.carrierAddress],
-                    ['CONSIGNEE', selected.consignee, selected.consigneeAddress],
+                    ['CUSTOMER',          selected.customer,  selected.customer_address],
+                    ['SHIPPER',           selected.shipper,   selected.shipper_address],
+                    ['CARRIER / AIRLINE', selected.carrier,   selected.carrier_address],
+                    ['CONSIGNEE',         selected.consignee, selected.consignee_address],
                   ].map(([label, name, addr]) => (
                     <div key={label}>
                       <label className="text-xs font-semibold text-muted-foreground">{label}</label>
@@ -654,7 +641,7 @@ const Operations = () => {
                 <p className="mt-1">
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${selected.statusColor} ${selected.statusBgColor}`}>
                     <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                    {selected.status}
+                    {selected.statusLabel}
                   </span>
                 </p>
               </div>

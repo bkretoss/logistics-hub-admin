@@ -1,179 +1,130 @@
-import React, { createContext, useContext, useState } from 'react';
-import type { OperationFormData, SubledgerEntry } from './NewOperation';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { getOperationsApi, deleteOperationApi } from '@/services/api';
 
-export interface Operation extends OperationFormData {
+export interface Operation {
   id: number;
-  status: string;
+  document: string;
+  branch: string;
+  job_date: string;
+  freight_pp_cc: string;
+  place_of_receipt: string;
+  place_of_delivery: string;
+  pol: string;
+  pod: string;
+  pol_etd: string;
+  pod_eta: string;
+  flight_name: string;
+  flight_number: string;
+  service_type: string;
+  note: string;
+  customer: string;
+  customer_branch: string;
+  customer_address: string;
+  shipper: string;
+  shipper_address: string;
+  carrier: string;
+  carrier_address: string;
+  consignee: string;
+  consignee_address: string;
+  status: number;
+  created_at: string;
+  // UI-only display helpers (derived)
+  statusLabel: string;
   statusColor: string;
   statusBgColor: string;
 }
 
-const seed: Operation[] = [
-  {
-    id: 1,
-    jobNo: 'JOB-001',
-    document: 'Air Export',
-    branch: 'Chennai',
-    jobDate: '2026-03-18',
-    freightPpCc: 'Collect',
-    placeOfReceipt: 'Chennai ICD',
-    placeOfDelivery: 'Dubai Airport',
-    pol: 'Chennai',
-    pod: 'Dubai',
-    polEtd: '2026-03-20',
-    flightName: 'Emirates',
-    flightNumber: 'EK542',
-    podEta: '2026-03-21',
-    note: 'Handle with care',
-    serviceType: 'Door to Door',
-    blServiceType: 'Original',
-    blNo: 'BL-2026-001',
-    mblNo: 'MBL-2026-001',
-    salesPerson: 'John Smith',
-    customer: 'TEXGRAM INC DBA INOTEX',
-    customerAddress: '12828 S BROADWAY\nLOS ANGELES, CA 90061\nTEL: 714-240-4446',
-    shipper: 'TEST1',
-    shipperAddress: 'aaaa',
-    carrier: 'TEAMGLOBAL LOGISTICS PVT LTD',
-    carrierAddress: 'Reflections building.2, Leith Castle\nCenter Street, Santhome High Rd, Chennai,\nTamil Nadu 600028',
-    consignee: 'TEXELQ ENGINEERING INDIA PRIVATE LIMITED',
-    consigneeAddress: 'NO.77/2, KUTHAMPAKKAM ROAD,\nMEVALURKUPPAM, SRIPERUMBUDUR (TK)\nKANCHIPURAM DIST - 602105.',
-    notify1: 'Notify Party 1',
-    deliveryAgentName: 'DHL Express',
-    deliveryAgent: 'Agent A',
-    deliveryStatus: 'Delivered',
-    deliveryDate: '2026-03-22',
-    bookingDate: '2026-03-18',
-    bookingType: 'Export',
-    blMarksNo: '',
-    etd: '2026-03-20',
-    eta: '2026-03-21',
-    vesselName: '',
-    voyageNumber: '',
-    subledgers: [
-      { id: 1, subledgerType: 'CUSTOMER', subledgerName: 'ARCHEAN INDUSTRIES PRIVATE LIMITED', address: 'NO.2,NORTH CRESCENT ROAD, T.NAGAR,CHENNAI 600017 INDIA', phone: '', fax: '', mobile: '', email: '', city: 'Chennai' },
-      { id: 2, subledgerType: 'AIRLINE', subledgerName: 'KALRA ONLINE SERVICES PVT. LTD', address: '414 4TH FLOOR AGI BUSINESS CENTRE, NEAR BUS STAND, JALANDHAR- (PUNJAB)', phone: '', fax: '', mobile: '', email: '', city: 'Jalandhar' },
-    ],
-    status: 'Process',
-    statusColor: 'text-yellow-500',
-    statusBgColor: 'bg-yellow-500/10',
-  },
-  {
-    id: 2,
-    jobNo: 'JOB-002',
-    document: 'Air Export',
-    branch: 'Mumbai',
-    jobDate: '2026-03-15',
-    freightPpCc: 'Prepaid',
-    placeOfReceipt: 'Mumbai Airport',
-    placeOfDelivery: 'Singapore Changi',
-    pol: 'Mumbai',
-    pod: 'Singapore',
-    polEtd: '2026-03-16',
-    flightName: 'Singapore Airlines',
-    flightNumber: 'SQ423',
-    podEta: '2026-03-17',
-    note: 'Urgent delivery',
-    serviceType: 'Port to Port',
-    blServiceType: 'Seaway Bill',
-    blNo: 'BL-2026-002',
-    mblNo: 'MBL-2026-002',
-    salesPerson: 'Jane Doe',
-    customer: 'Acme Corporation',
-    customerAddress: '123 Business St, New York, NY 10001',
-    shipper: 'Relay Logistics',
-    shipperAddress: 'Mumbai HQ',
-    carrier: 'Maersk Line',
-    carrierAddress: 'Maersk House, Mumbai',
-    consignee: 'SG Imports Pte',
-    consigneeAddress: '10 Changi Business Park, Singapore',
-    notify1: '',
-    deliveryAgentName: 'FedEx',
-    deliveryAgent: 'Agent B',
-    deliveryStatus: 'Delivered',
-    deliveryDate: '2026-03-18',
-    bookingDate: '2026-03-15',
-    bookingType: 'Export',
-    blMarksNo: '',
-    etd: '2026-03-16',
-    eta: '2026-03-17',
-    vesselName: '',
-    voyageNumber: '',
-    subledgers: [],
-    status: 'Closed',
-    statusColor: 'text-green-500',
-    statusBgColor: 'bg-green-500/10',
-  },
-  {
-    id: 3,
-    jobNo: 'JOB-003',
-    document: 'Air Export',
-    branch: 'Delhi',
-    jobDate: '2026-03-10',
-    freightPpCc: 'Collect',
-    placeOfReceipt: 'Delhi ICD',
-    placeOfDelivery: 'London Heathrow',
-    pol: 'Delhi',
-    pod: 'London',
-    polEtd: '2026-03-12',
-    flightName: 'British Airways',
-    flightNumber: 'BA117',
-    podEta: '2026-03-12',
-    note: 'Fragile items',
-    serviceType: 'Door to Port',
-    blServiceType: 'Original',
-    blNo: 'BL-2026-003',
-    mblNo: 'MBL-2026-003',
-    salesPerson: 'Mike Johnson',
-    customer: 'Global Shipping Ltd',
-    customerAddress: '456 Commerce Ave, Los Angeles',
-    shipper: 'FastTrack Shippers',
-    shipperAddress: 'Delhi Cargo Hub',
-    carrier: 'Emirates SkyCargo',
-    carrierAddress: 'Emirates Cargo, Delhi T3',
-    consignee: 'UK Distributors Ltd',
-    consigneeAddress: '10 Heathrow Cargo Centre, London',
-    notify1: 'UK Notify Co',
-    deliveryAgentName: 'UPS',
-    deliveryAgent: 'Agent C',
-    deliveryStatus: 'Pending',
-    deliveryDate: '',
-    bookingDate: '2026-03-10',
-    bookingType: 'Export',
-    blMarksNo: '',
-    etd: '2026-03-12',
-    eta: '2026-03-12',
-    vesselName: '',
-    voyageNumber: '',
-    subledgers: [],
-    status: 'Created',
-    statusColor: 'text-blue-500',
-    statusBgColor: 'bg-blue-500/10',
-  },
-];
+const STATUS_MAP: Record<number, { label: string; color: string; bg: string }> = {
+  1: { label: 'Active',   color: 'text-green-500',  bg: 'bg-green-500/10'  },
+  0: { label: 'Inactive', color: 'text-red-500',    bg: 'bg-red-500/10'    },
+};
+
+export const toOperation = (raw: any): Operation => {
+  const s = STATUS_MAP[raw.status] ?? { label: 'Active', color: 'text-green-500', bg: 'bg-green-500/10' };
+  return {
+    id:               raw.id,
+    document:         raw.document         ?? '',
+    branch:           raw.branch           ?? '',
+    job_date:         raw.job_date         ?? '',
+    freight_pp_cc:    raw.freight_pp_cc    ?? '',
+    place_of_receipt: raw.place_of_receipt ?? '',
+    place_of_delivery:raw.place_of_delivery?? '',
+    pol:              raw.pol              ?? '',
+    pod:              raw.pod              ?? '',
+    pol_etd:          raw.pol_etd          ?? '',
+    pod_eta:          raw.pod_eta          ?? '',
+    flight_name:      raw.flight_name      ?? '',
+    flight_number:    raw.flight_number    ?? '',
+    service_type:     raw.service_type     ?? '',
+    note:             raw.note             ?? '',
+    customer:         raw.customer         ?? '',
+    customer_branch:  raw.customer_branch  ?? '',
+    customer_address: raw.customer_address ?? '',
+    shipper:          raw.shipper          ?? '',
+    shipper_address:  raw.shipper_address  ?? '',
+    carrier:          raw.carrier          ?? '',
+    carrier_address:  raw.carrier_address  ?? '',
+    consignee:        raw.consignee        ?? '',
+    consignee_address:raw.consignee_address?? '',
+    status:           raw.status           ?? 1,
+    created_at:       raw.created_at       ?? '',
+    statusLabel:      s.label,
+    statusColor:      s.color,
+    statusBgColor:    s.bg,
+  };
+};
 
 interface OperationsContextType {
   operations: Operation[];
-  addOperation: (op: Operation) => void;
-  updateOperation: (id: number, data: Partial<Operation>) => void;
-  deleteOperation: (id: number) => void;
+  total: number;
+  loading: boolean;
+  page: number;
+  pageSize: number;
+  searchTerm: string;
+  setPage: (p: number) => void;
+  setPageSize: (n: number) => void;
+  setSearchTerm: (s: string) => void;
+  refresh: () => void;
+  deleteOperation: (id: number) => Promise<void>;
 }
 
 const OperationsContext = createContext<OperationsContextType | null>(null);
 
 export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [operations, setOperations] = useState<Operation[]>(seed);
+  const [operations, setOperations] = useState<Operation[]>([]);
+  const [total, setTotal]           = useState(0);
+  const [loading, setLoading]       = useState(false);
+  const [page, setPage]             = useState(1);
+  const [pageSize, setPageSize]     = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const addOperation = (op: Operation) => setOperations(prev => [op, ...prev]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getOperationsApi(1, 9999, '');
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setTotal(res.data?.pagination?.total ?? raw.length);
+      setOperations(raw.map(toOperation));
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const updateOperation = (id: number, data: Partial<Operation>) =>
-    setOperations(prev => prev.map(o => (o.id === id ? { ...o, ...data } : o)));
+  useEffect(() => { load(); }, [load]);
 
-  const deleteOperation = (id: number) =>
-    setOperations(prev => prev.filter(o => o.id !== id));
+  const deleteOperation = async (id: number) => {
+    await deleteOperationApi(id);
+    load();
+  };
 
   return (
-    <OperationsContext.Provider value={{ operations, addOperation, updateOperation, deleteOperation }}>
+    <OperationsContext.Provider value={{
+      operations, total, loading,
+      page, pageSize, searchTerm,
+      setPage, setPageSize, setSearchTerm,
+      refresh: load, deleteOperation,
+    }}>
       {children}
     </OperationsContext.Provider>
   );

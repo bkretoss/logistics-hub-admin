@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useOperations } from "./OperationsContext";
-import { getBranchesApi, getCitiesApi, getServiceModesApi } from "@/services/api";
+import { getBranchesApi, getCitiesApi, getServiceModesApi, getOperationApi, createOperationApi, updateOperationApi } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
 const FREIGHT_OPTIONS = ["Prepaid", "Collect"];
 const SERVICE_TYPES = [
@@ -282,6 +283,7 @@ export interface OperationFormData {
   vesselName: string;
   voyageNumber: string;
   subledgers: SubledgerEntry[];
+  status: number;
 }
 
 const initialForm: OperationFormData = {
@@ -329,6 +331,7 @@ const initialForm: OperationFormData = {
   vesselName: "",
   voyageNumber: "",
   subledgers: [],
+  status: 1,
 };
 
 interface SubledgerForm {
@@ -387,7 +390,7 @@ const CitySearchSelect: React.FC<{
   }, []);
 
   const filtered = cities.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
-  const selected = cities.find(c => String(c.id) === String(value));
+  const selected = cities.find(c => c.name === value);
 
   return (
     <div ref={ref} className="relative w-full">
@@ -411,9 +414,9 @@ const CitySearchSelect: React.FC<{
             {filtered.length === 0
               ? <li className="px-3 py-2 text-sm text-muted-foreground">No cities found</li>
               : filtered.map(c => (
-                <li key={c.id} onClick={() => { onChange(String(c.id)); setOpen(false); setSearch(''); }}
+                <li key={c.id} onClick={() => { onChange(c.name); setOpen(false); setSearch(''); }}
                   className={`px-3 py-2 text-sm cursor-pointer hover:bg-muted ${
-                    String(c.id) === String(value) ? 'bg-primary/10 font-semibold' : ''
+                    c.name === value ? 'bg-primary/10 font-semibold' : ''
                   }`}>{c.name}</li>
               ))}
           </ul>
@@ -423,14 +426,23 @@ const CitySearchSelect: React.FC<{
   );
 };
 
+// Convert DD-MM-YYYY (API) → YYYY-MM-DD (input[type=date])
+const apiDateToInput = (d?: string | null): string => {
+  if (!d) return '';
+  const m = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : d;
+};
+
 const NewOperation = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { addOperation, updateOperation, operations } = useOperations();
-  const editOp = id ? operations.find((o) => o.id === Number(id)) : undefined;
-  const isEdit = !!editOp;
+  const { refresh } = useOperations();
+  const { toast } = useToast();
+  const isEdit = !!id;
 
-  const [formData, setFormData] = useState<OperationFormData>(editOp ?? initialForm);
+  const [formData, setFormData]         = useState<OperationFormData>(initialForm);
+  const [loadingEdit, setLoadingEdit]   = useState(isEdit);
+  const [saving, setSaving]             = useState(false);
   const [apiBranches, setApiBranches]   = useState<{ id: number; name: string }[]>([]);
   const [cities, setCities]             = useState<{ id: number; name: string }[]>([]);
   const [serviceModes, setServiceModes] = useState<{ id: number; name: string }[]>([]);
@@ -447,7 +459,64 @@ const NewOperation = () => {
     }).catch(() => {});
   }, []);
 
-  // Loading and error states for each party type
+  // Load edit data from API
+  useEffect(() => {
+    if (!id) return;
+    setLoadingEdit(true);
+    getOperationApi(Number(id))
+      .then(res => {
+        const d = res.data?.data ?? res.data;
+        setFormData({
+          jobNo:            d.job_no            ?? '',
+          document:         d.document          ?? 'Air Export',
+          branch:           d.branch            ?? '',
+          jobDate:          apiDateToInput(d.job_date),
+          freightPpCc:      d.freight_pp_cc     ?? 'Collect',
+          placeOfReceipt:   d.place_of_receipt  ?? '',
+          placeOfDelivery:  d.place_of_delivery ?? '',
+          pol:              d.pol               ?? '',
+          pod:              d.pod               ?? '',
+          polEtd:           apiDateToInput(d.pol_etd),
+          flightName:       d.flight_name       ?? '',
+          flightNumber:     d.flight_number     ?? '',
+          podEta:           apiDateToInput(d.pod_eta),
+          note:             d.note              ?? '',
+          serviceType:      d.service_type      ?? '',
+          blServiceType:    d.bl_service_type   ?? '',
+          blNo:             d.bl_no             ?? '',
+          mblNo:            d.mbl_no            ?? '',
+          salesPerson:      d.sales_person      ?? '',
+          customer:         d.customer          ?? '',
+          customerBranch:   d.customer_branch   ?? '',
+          customerAddress:  d.customer_address  ?? '',
+          shipper:          d.shipper           ?? '',
+          shipperBranch:    '',
+          shipperAddress:   d.shipper_address   ?? '',
+          carrier:          d.carrier           ?? '',
+          carrierBranch:    '',
+          carrierAddress:   d.carrier_address   ?? '',
+          consignee:        d.consignee         ?? '',
+          consigneeBranch:  '',
+          consigneeAddress: d.consignee_address ?? '',
+          notify1:          d.notify1           ?? '',
+          deliveryAgentName:d.delivery_agent_name ?? '',
+          deliveryAgent:    d.delivery_agent    ?? '',
+          deliveryStatus:   d.delivery_status   ?? '',
+          deliveryDate:     apiDateToInput(d.delivery_date),
+          bookingDate:      apiDateToInput(d.booking_date) || new Date().toISOString().split('T')[0],
+          bookingType:      d.booking_type      ?? 'Import',
+          blMarksNo:        d.bl_marks_no       ?? '',
+          etd:              apiDateToInput(d.etd) || new Date().toISOString().split('T')[0],
+          eta:              apiDateToInput(d.eta) ?? '',
+          vesselName:       d.vessel_name       ?? '',
+          voyageNumber:     d.voyage_number     ?? '',
+          subledgers:       d.subledgers        ?? [],
+          status:           d.status            ?? 1,
+        });
+      })
+      .catch(() => toast({ title: 'Error', description: 'Failed to load operation.', variant: 'destructive' }))
+      .finally(() => setLoadingEdit(false));
+  }, [id]);
   const [branchesLoading, setBranchesLoading] = useState<{
     customer: boolean;
     shipper: boolean;
@@ -462,9 +531,6 @@ const NewOperation = () => {
     consignee: string;
   }>({ customer: "", shipper: "", carrier: "", consignee: "" });
 
-  useEffect(() => {
-    if (editOp) setFormData(editOp);
-  }, [id]);
   const [errors, setErrors] = useState<Partial<Record<keyof OperationFormData, string>>>({});
   const [subledgerOpen, setSubledgerOpen] = useState(false);
   const [subledger, setSubledger] = useState<SubledgerForm>(initialSubledger);
@@ -533,21 +599,52 @@ const NewOperation = () => {
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    if (isEdit && editOp) {
-      updateOperation(editOp.id, formData);
-      navigate(`/operations/view/${editOp.id}`);
-    } else {
-      const newId = Date.now();
-      addOperation({
-        ...formData,
-        id: newId,
-        status: "Created",
-        statusColor: "text-blue-500",
-        statusBgColor: "bg-blue-500/10",
-      });
-      navigate(`/operations/view/${newId}`);
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        document:          formData.document,
+        branch:            formData.branch,
+        job_date:          formData.jobDate,
+        freight_pp_cc:     formData.freightPpCc,
+        place_of_receipt:  formData.placeOfReceipt,
+        place_of_delivery: formData.placeOfDelivery,
+        pol:               formData.pol,
+        pod:               formData.pod,
+        pol_etd:           formData.polEtd,
+        pod_eta:           formData.podEta,
+        flight_name:       formData.flightName,
+        flight_number:     formData.flightNumber,
+        service_type:      formData.serviceType,
+        note:              formData.note,
+        customer:          formData.customer,
+        customer_branch:   formData.customerBranch,
+        customer_address:  formData.customerAddress,
+        shipper:           formData.shipper,
+        shipper_address:   formData.shipperAddress,
+        carrier:           formData.carrier,
+        carrier_address:   formData.carrierAddress,
+        consignee:         formData.consignee,
+        consignee_address: formData.consigneeAddress,
+        status:            formData.status,
+      };
+      if (isEdit) {
+        await updateOperationApi(Number(id), payload);
+        toast({ title: 'Updated', description: 'Operation updated successfully.', variant: 'success' });
+        refresh();
+        navigate(`/operations/view/${id}`);
+      } else {
+        const res = await createOperationApi(payload);
+        const newId = res.data?.data?.id ?? res.data?.id;
+        toast({ title: 'Created', description: 'Operation created successfully.', variant: 'success' });
+        refresh();
+        navigate(`/operations/view/${newId}`);
+      }
+    } catch {
+      toast({ title: 'Error', description: `Failed to ${isEdit ? 'update' : 'create'} operation.`, variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
     window.scrollTo(0, 0);
   };
@@ -597,6 +694,15 @@ const NewOperation = () => {
   const sel = (err?: string) =>
     `w-full px-3 py-2 border rounded-lg text-sm bg-background ${err ? "border-destructive" : "border-input"}`;
 
+  if (loadingEdit) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+        <span className="inline-block w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+        Loading operation...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -609,7 +715,7 @@ const NewOperation = () => {
             {isEdit ? "Edit Operation" : "New Operation"}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {isEdit ? `Editing ${editOp?.jobNo || "operation"}` : "Create a new logistics operation"}
+            {isEdit ? 'Edit existing operation' : 'Create a new logistics operation'}
           </p>
         </div>
       </div>
@@ -635,7 +741,7 @@ const NewOperation = () => {
                       document: e.target.value,
                       jobDate: formData.jobDate,
                     });
-                    setErrors({});
+                    setErrors({} as Partial<Record<keyof OperationFormData, string>>);
                   }}
                   className={sel()}
                 >
@@ -876,8 +982,27 @@ const NewOperation = () => {
                 >
                   <option value="">--Select--</option>
                   {serviceModes.map(s => (
-                    <option key={s.id} value={String(s.id)}>{s.name}</option>
+                    <option key={s.id} value={s.name}>{s.name}</option>
                   ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="flex items-center gap-4">
+              <Label htmlFor="status" className="text-sm font-semibold w-40 shrink-0">
+                Status
+              </Label>
+              <div className="flex-1">
+                <select
+                  id="status"
+                  name="status"
+                  value={formData.status}
+                  onChange={e => setFormData(prev => ({ ...prev, status: Number(e.target.value) }))}
+                  className={sel()}
+                >
+                  <option value={1}>Active</option>
+                  <option value={0}>Inactive</option>
                 </select>
               </div>
             </div>
@@ -1477,8 +1602,8 @@ const NewOperation = () => {
         >
           Cancel
         </Button>
-        <Button type="button" className="material-button text-black" onClick={handleSave}>
-          {isEdit ? "Update" : "Save"}
+        <Button type="button" className="material-button text-black" onClick={handleSave} disabled={saving}>
+          {saving ? (isEdit ? 'Updating...' : 'Saving...') : isEdit ? "Update" : "Save"}
         </Button>
       </div>
     </div>

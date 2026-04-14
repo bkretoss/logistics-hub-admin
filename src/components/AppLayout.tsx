@@ -58,6 +58,7 @@ const menuItems: MenuItem[] = [
     icon: Truck,
     children: [
       { title: "Operations List", icon: Truck, path: "/operations" },
+      { title: "Costing", icon: DollarSign, path: "/operations/costing" },
     ],
   },
   { title: "RMS", icon: Database, path: "/rms" },

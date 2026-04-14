@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Pencil,
@@ -38,6 +38,8 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { useOperations } from "./OperationsContext";
+import { getOperationApi, createOperationApi, getOperationsApi, getRiderContainersApi, createRiderContainerApi, updateRiderContainerApi, deleteRiderContainerApi, getSubledgersApi, createSubledgerApi, updateSubledgerApi, deleteSubledgerApi, getDimensionsApi, createDimensionApi, updateDimensionApi, deleteDimensionApi, getCargoDetailsApi, createCargoDetailApi, updateCargoDetailApi, deleteCargoDetailApi, getCostingsApi, createCostingApi, updateCostingApi, deleteCostingApi, getShippingBillsApi, createShippingBillApi, updateShippingBillApi, deleteShippingBillApi, getHouseJobsApi, createHouseJobApi, updateHouseJobApi, deleteHouseJobApi, getRoutingsApi, createRoutingApi, updateRoutingApi, deleteRoutingApi } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
 const CARRIER_OPTIONS = ["TEAMGLOBAL LOGISTICS PVT LTD", "Maersk Line", "Emirates SkyCargo", "ONE Line"];
 
@@ -125,16 +127,151 @@ const STATIC_SUBLEDGERS = [
 const ViewOperation = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { operations, addOperation, updateOperation } = useOperations();
-  const op = operations.find((o) => o.id === Number(id));
+  const { refresh } = useOperations();
+  const { toast } = useToast();
+
+  const [op, setOp] = useState<any>(null);
+  const [opLoading, setOpLoading] = useState(true);
+
+  // Load operation from API
+  useEffect(() => {
+    if (!id) return;
+    setOpLoading(true);
+    getOperationApi(Number(id))
+      .then(res => setOp(res.data?.data ?? res.data))
+      .catch(() => setOp(null))
+      .finally(() => setOpLoading(false));
+  }, [id]);
+
+  // Fetch active carriers from operations list (unique carrier names)
+  const [carrierOptions, setCarrierOptions] = useState<string[]>([]);
+  useEffect(() => {
+    getOperationsApi(1, 9999)
+      .then(res => {
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        const unique = [...new Set(raw.map((o: any) => o.carrier).filter(Boolean))] as string[];
+        setCarrierOptions(unique);
+      })
+      .catch(() => {});
+  }, []);
+
   const [activeTab, setActiveTab] = useState("Job Details");
   const [dupOpen, setDupOpen] = useState(false);
   const [dupCarrier, setDupCarrier] = useState("");
   const [dupDate, setDupDate] = useState(new Date().toISOString().split("T")[0]);
   const [dupCarrierError, setDupCarrierError] = useState(false);
+  const [dupSaving, setDupSaving] = useState(false);
 
-  // Rider Container modal
+  // Rider Container CRUD
   const [riderOpen, setRiderOpen] = useState(false);
+  const [riderList, setRiderList] = useState<any[]>([]);
+  const [riderLoading, setRiderLoading] = useState(false);
+  const [riderFormOpen, setRiderFormOpen] = useState(false);
+  const [riderEditing, setRiderEditing] = useState<any | null>(null);
+  const [riderSaving, setRiderSaving] = useState(false);
+  const [riderDeleteId, setRiderDeleteId] = useState<number | null>(null);
+
+  const RIDER_EMPTY = {
+    container_no: '', container_type: '', no_of_pcs: '', pack_type: '',
+    no_of_pallet: '', volume: '', gross_weight: '', gross_weight_measurement: 'Kg',
+    volume_weight: '', volume_weight_measurement: 'Kg', net_weight: '', net_weight_measurement: 'Kg',
+    commodity_type: '', commodity_code: '', commodity_desc: '',
+    manifest_seal: '', actual_seal: '', custom_seal: '',
+  };
+  const [riderForm, setRiderForm] = useState(RIDER_EMPTY);
+  const [riderContainerNoError, setRiderContainerNoError] = useState('');
+
+  const loadRiderContainers = async () => {
+    if (!id) return;
+    setRiderLoading(true);
+    try {
+      const res = await getRiderContainersApi(Number(id));
+      setRiderList(res.data?.data ?? []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load rider containers.', variant: 'destructive' });
+    } finally {
+      setRiderLoading(false);
+    }
+  };
+
+  const openRiderCreate = () => {
+    setRiderEditing(null);
+    setRiderForm(RIDER_EMPTY);
+    setRiderContainerNoError('');
+    setRiderFormOpen(true);
+  };
+
+  const openRiderEdit = (item: any) => {
+    setRiderEditing(item);
+    setRiderForm({
+      container_no: item.container_no ?? '',
+      container_type: item.container_type ?? '',
+      no_of_pcs: String(item.no_of_pcs ?? ''),
+      pack_type: item.pack_type ?? '',
+      no_of_pallet: String(item.no_of_pallet ?? ''),
+      volume: item.volume ?? '',
+      gross_weight: item.gross_weight ?? '',
+      gross_weight_measurement: item.gross_weight_measurement ?? 'Kg',
+      volume_weight: item.volume_weight ?? '',
+      volume_weight_measurement: item.volume_weight_measurement ?? 'Kg',
+      net_weight: item.net_weight ?? '',
+      net_weight_measurement: item.net_weight_measurement ?? 'Kg',
+      commodity_type: item.commodity_type ?? '',
+      commodity_code: item.commodity_code ?? '',
+      commodity_desc: item.commodity_desc ?? '',
+      manifest_seal: item.manifest_seal ?? '',
+      actual_seal: item.actual_seal ?? '',
+      custom_seal: item.custom_seal ?? '',
+    });
+    setRiderContainerNoError('');
+    setRiderFormOpen(true);
+  };
+
+  const handleRiderSave = async () => {
+    if (!riderForm.container_no.trim()) {
+      setRiderContainerNoError('Container No is required.');
+      return;
+    }
+    setRiderSaving(true);
+    try {
+      const payload = {
+        ...riderForm,
+        operation_id: Number(id),
+        status: "1",
+        no_of_pcs: riderForm.no_of_pcs !== '' ? Number(riderForm.no_of_pcs) : null,
+        no_of_pallet: riderForm.no_of_pallet !== '' ? Number(riderForm.no_of_pallet) : null,
+        volume: riderForm.volume !== '' ? Number(riderForm.volume) : null,
+        gross_weight: riderForm.gross_weight !== '' ? Number(riderForm.gross_weight) : null,
+        volume_weight: riderForm.volume_weight !== '' ? Number(riderForm.volume_weight) : null,
+        net_weight: riderForm.net_weight !== '' ? Number(riderForm.net_weight) : null,
+      };
+      if (riderEditing) {
+        await updateRiderContainerApi(riderEditing.id, payload);
+        toast({ title: 'Success', description: 'Rider container updated.', variant: 'success' });
+      } else {
+        await createRiderContainerApi(payload);
+        toast({ title: 'Success', description: 'Rider container created.', variant: 'success' });
+      }
+      setRiderFormOpen(false);
+      loadRiderContainers();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save rider container.', variant: 'destructive' });
+    } finally {
+      setRiderSaving(false);
+    }
+  };
+
+  const handleRiderDelete = async () => {
+    if (riderDeleteId === null) return;
+    try {
+      await deleteRiderContainerApi(riderDeleteId);
+      toast({ title: 'Success', description: 'Rider container deleted.', variant: 'success' });
+      setRiderDeleteId(null);
+      loadRiderContainers();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete rider container.', variant: 'destructive' });
+    }
+  };
 
   // Status Update modal
   const [statusOpen, setStatusOpen] = useState(false);
@@ -178,55 +315,148 @@ const ViewOperation = () => {
     closeStatusModal();
   };
 
-  // Dimensions modal
+  // Dimensions CRUD
   const [dimOpen, setDimOpen] = useState(false);
   const PACKAGE_TYPES = ["Boxes", "Pallets", "Cartons", "Bags", "Drums", "Crates", "Bundles"];
   const WEIGHT_UNITS = ["Kg", "Lbs", "MT"];
   const COMMODITY_TYPES = ["General", "Hazardous", "Perishable", "Fragile", "Oversized", "Valuable"];
-  const initDim = {
-    sNo: "10",
-    lxwxh: "",
-    lxwxhMeasurement: "",
-    length: "",
-    width: "",
-    height: "",
-    noOfPcs: "",
-    packageType: "",
-    gWeight: "",
-    gWeightUnit: "Kg",
-    vWeight: "",
-    vWeightUnit: "Kg",
-    netWeight: "",
-    netWeightUnit: "Kg",
-    volume: "",
-    coo: "",
-    commodityType: "",
-    commodityCode: "",
-    commodityDesc: "",
-    notes: "",
+
+  const DIM_EMPTY = {
+    sNo: '10', lxwxhMeasurement: '', length: '', width: '', height: '',
+    noOfPcs: '', packageType: '', gWeight: '', gWeightUnit: 'Kg',
+    vWeight: '', vWeightUnit: 'Kg', netWeight: '', netWeightUnit: 'Kg',
+    volume: '', coo: '', commodityType: '', commodityCode: '', commodityDesc: '', notes: '',
   };
-  const [dimForm, setDimForm] = useState(initDim);
-  const [dimRows, setDimRows] = useState<(typeof initDim)[]>([]);
-  const [dimEditIndex, setDimEditIndex] = useState<number | null>(null);
-  const dimChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setDimForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  const openDimEdit = (index: number) => {
-    setDimEditIndex(index);
-    setDimForm({ ...dimRows[index] });
+  const [dimForm, setDimForm] = useState(DIM_EMPTY);
+  const [dimList, setDimList] = useState<any[]>([]);
+  const [dimLoading, setDimLoading] = useState(false);
+  const [dimSaving, setDimSaving] = useState(false);
+  const [dimEditId, setDimEditId] = useState<number | null>(null);
+  const [dimDeleteId, setDimDeleteId] = useState<number | null>(null);
+  const [dimErrors, setDimErrors] = useState<Partial<typeof DIM_EMPTY>>({});
+
+  const loadDimensions = async () => {
+    setDimLoading(true);
+    try {
+      const res = await getDimensionsApi();
+      setDimList(res.data?.data ?? res.data ?? []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load dimensions.', variant: 'destructive' });
+    } finally {
+      setDimLoading(false);
+    }
+  };
+
+  const openDimCreate = () => {
+    setDimEditId(null);
+    const lastId = dimList.length > 0
+      ? Math.max(...dimList.map((d: any) => Number(d.id) || 0))
+      : 0;
+    setDimForm({ ...DIM_EMPTY, sNo: String(lastId + 1) });
+    setDimErrors({});
     setDimOpen(true);
   };
-  const closeDimModal = () => {
-    setDimOpen(false);
-    setDimForm(initDim);
-    setDimEditIndex(null);
+
+  const openDimEdit = (item: any) => {
+    setDimEditId(item.id);
+    setDimForm({
+      sNo:              String(item.s_no ?? item.id),
+      lxwxhMeasurement: item.lxwxh_measurement ?? '',
+      length:           item.length ?? '',
+      width:            item.width ?? '',
+      height:           item.height ?? '',
+      noOfPcs:          String(item.no_of_pcs ?? ''),
+      packageType:      item.package_type ?? '',
+      gWeight:          item.g_weight ?? '',
+      gWeightUnit:      item.g_weight_unit ?? 'Kg',
+      vWeight:          item.v_weight ?? '',
+      vWeightUnit:      item.v_weight_unit ?? 'Kg',
+      netWeight:        item.net_weight ?? '',
+      netWeightUnit:    item.net_weight_unit ?? 'Kg',
+      volume:           item.volume ?? '',
+      coo:              item.coo ?? '',
+      commodityType:    item.commodity_type ?? '',
+      commodityCode:    item.commodity_code ?? '',
+      commodityDesc:    item.commodity_desc ?? '',
+      notes:            item.notes ?? '',
+    });
+    setDimErrors({});
+    setDimOpen(true);
   };
-  const saveDim = () => {
-    if (dimEditIndex !== null) {
-      setDimRows((prev) => prev.map((r, i) => (i === dimEditIndex ? dimForm : r)));
-    } else {
-      setDimRows((prev) => [...prev, dimForm]);
+
+  const dimChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setDimForm(prev => ({ ...prev, [name]: value }));
+    if (dimErrors[name as keyof typeof DIM_EMPTY]) setDimErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const saveDim = async () => {
+    const errs: Partial<typeof DIM_EMPTY> = {};
+    if (!dimForm.length.trim())                                            errs.length   = 'Length is required.';
+    else if (isNaN(Number(dimForm.length)) || Number(dimForm.length) <= 0) errs.length   = 'Enter a valid positive number.';
+    if (!dimForm.width.trim())                                             errs.width    = 'Width is required.';
+    else if (isNaN(Number(dimForm.width))  || Number(dimForm.width)  <= 0) errs.width    = 'Enter a valid positive number.';
+    if (!dimForm.height.trim())                                            errs.height   = 'Height is required.';
+    else if (isNaN(Number(dimForm.height)) || Number(dimForm.height) <= 0) errs.height   = 'Enter a valid positive number.';
+    if (dimForm.noOfPcs !== '' && (isNaN(Number(dimForm.noOfPcs)) || Number(dimForm.noOfPcs) < 0))   errs.noOfPcs   = 'Enter a valid positive number.';
+    if (dimForm.gWeight !== '' && (isNaN(Number(dimForm.gWeight)) || Number(dimForm.gWeight) < 0))   errs.gWeight   = 'Enter a valid positive number.';
+    if (dimForm.vWeight !== '' && (isNaN(Number(dimForm.vWeight)) || Number(dimForm.vWeight) < 0))   errs.vWeight   = 'Enter a valid positive number.';
+    if (dimForm.netWeight !== '' && (isNaN(Number(dimForm.netWeight)) || Number(dimForm.netWeight) < 0)) errs.netWeight = 'Enter a valid positive number.';
+    if (dimForm.volume !== '' && (isNaN(Number(dimForm.volume)) || Number(dimForm.volume) < 0))      errs.volume    = 'Enter a valid positive number.';
+    if (Object.keys(errs).length) { setDimErrors(errs); return; }
+    setDimSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        s_no:              Number(dimForm.sNo),
+        lxwxh_measurement: dimForm.lxwxhMeasurement || null,
+        length:            Number(dimForm.length),
+        width:             Number(dimForm.width),
+        height:            Number(dimForm.height),
+        no_of_pcs:         dimForm.noOfPcs !== '' ? Number(dimForm.noOfPcs) : null,
+        package_type:      dimForm.packageType || null,
+        g_weight:          dimForm.gWeight !== '' ? Number(dimForm.gWeight) : null,
+        g_weight_unit:     dimForm.gWeightUnit || null,
+        v_weight:          dimForm.vWeight !== '' ? Number(dimForm.vWeight) : null,
+        v_weight_unit:     dimForm.vWeightUnit || null,
+        net_weight:        dimForm.netWeight !== '' ? Number(dimForm.netWeight) : null,
+        net_weight_unit:   dimForm.netWeightUnit || null,
+        volume:            dimForm.volume !== '' ? Number(dimForm.volume) : null,
+        coo:               dimForm.coo || null,
+        commodity_type:    dimForm.commodityType || null,
+        commodity_code:    dimForm.commodityCode || null,
+        commodity_desc:    dimForm.commodityDesc || null,
+        notes:             dimForm.notes || null,
+        status:            1,
+      };
+      if (dimEditId) {
+        await updateDimensionApi(dimEditId, payload);
+        toast({ title: 'Success', description: 'Dimension updated successfully.', variant: 'success' });
+      } else {
+        await createDimensionApi(payload);
+        toast({ title: 'Success', description: 'Dimension created successfully.', variant: 'success' });
+      }
+      setDimOpen(false);
+      setDimForm(DIM_EMPTY);
+      setDimErrors({});
+      setDimEditId(null);
+      loadDimensions();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save dimension.', variant: 'destructive' });
+    } finally {
+      setDimSaving(false);
     }
-    closeDimModal();
+  };
+
+  const handleDimDelete = async () => {
+    if (dimDeleteId === null) return;
+    try {
+      await deleteDimensionApi(dimDeleteId);
+      toast({ title: 'Success', description: 'Dimension deleted successfully.', variant: 'success' });
+      setDimDeleteId(null);
+      loadDimensions();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete dimension.', variant: 'destructive' });
+    }
   };
 
   // Shipping Instructions modal
@@ -278,10 +508,32 @@ const ViewOperation = () => {
     roroEngineNo: "",
   };
   const [siForm, setSiForm] = useState(initSi);
-  const [siRows, setSiRows] = useState<(typeof initSi)[]>([]);
-  const [siEditIndex, setSiEditIndex] = useState<number | null>(null);
-  const siChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setSiForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const [siRows, setSiRows] = useState<any[]>([]);
+  const [siLoading, setSiLoading] = useState(false);
+  const [siSaving, setSiSaving] = useState(false);
+  const [siEditId, setSiEditId] = useState<number | null>(null);
+  const [siDeleteId, setSiDeleteId] = useState<number | null>(null);
+  const [siErrors, setSiErrors] = useState<{ gWeight?: string; vWeight?: string; nWeight?: string; noOfPcs?: string }>({});
+
+  const loadCargoDetails = async () => {
+    if (!id) return;
+    setSiLoading(true);
+    try {
+      const res = await getCargoDetailsApi(Number(id));
+      setSiRows(res.data?.data ?? []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load cargo details.', variant: 'destructive' });
+    } finally {
+      setSiLoading(false);
+    }
+  };
+
+  const siChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setSiForm((prev) => ({ ...prev, [name]: value }));
+    if (name === 'gWeight' || name === 'vWeight' || name === 'nWeight' || name === 'noOfPcs')
+      setSiErrors(prev => ({ ...prev, [name]: '' }));
+  };
   const toggleSiHazard = (field: "unNoEnabled" | "dgClassEnabled") =>
     setSiForm((prev) => ({
       ...prev,
@@ -300,31 +552,134 @@ const ViewOperation = () => {
       frozenEnabled: !prev.frozenEnabled,
       ...(!prev.frozenEnabled ? {} : { temperature: "" }),
     }));
-  const openSiEdit = (index: number) => {
-    setSiEditIndex(index);
-    setSiForm({ ...siRows[index] });
+  const openSiEdit = (item: any) => {
+    setSiEditId(item.id);
+    setSiForm({
+      sNo:               String(item.s_no ?? ''),
+      noOfPcs:           String(item.no_of_pcs ?? ''),
+      packType:          item.pack_type ?? '',
+      noOfPallet:        String(item.no_of_pallet ?? ''),
+      gWeight:           item.g_weight ?? '',
+      gWeightUnit:       item.g_weight_unit ?? 'Kg',
+      vWeight:           item.v_weight ?? '',
+      vWeightUnit:       item.v_weight_unit ?? 'CBM',
+      nWeight:           item.n_weight ?? '',
+      nWeightUnit:       item.n_weight_unit ?? 'Kg',
+      volume:            item.volume ?? '',
+      chargeableUnit:    item.chargeable_unit ?? '',
+      commodityType:     item.commodity_type ?? '',
+      commodityCode:     item.commodity_code ?? '',
+      commodityDesc:     item.commodity_desc ?? '',
+      unNo:              '',
+      unNoEnabled:       false,
+      dgClass:           '',
+      dgClassEnabled:    false,
+      oversizedEnabled:  false,
+      dimension:         '',
+      frozenEnabled:     false,
+      temperature:       '',
+      manifestSeal:      item.manifest_seal ?? '',
+      actualLinerSeal:   item.actual_liner_seal ?? '',
+      customSeal:        item.custom_seal ?? '',
+      exciseSealNo:      item.excise_seal_no ?? '',
+      sealDate:          item.seal_date ? toApiDate(item.seal_date) : '',
+      sealTypeIndicator: item.seal_type_indicator ?? '',
+      sealDeviceId:      item.seal_device_id ?? '',
+      movementDocType:   item.movement_doc_type ?? '',
+      movementDocNo:     item.movement_doc_no ?? '',
+      notes:             item.notes ?? '',
+      roroYear:          item.roro_year ?? '',
+      roroBrand:         item.roro_brand ?? '',
+      roroModel:         item.roro_model ?? '',
+      roroSpecification: item.roro_specification ?? '',
+      roroChasisNo:      item.roro_chasis_no ?? '',
+      roroEngineNo:      item.roro_engine_no ?? '',
+    });
     setSiOpen(true);
   };
   const closeSiModal = () => {
     setSiOpen(false);
     setSiForm(initSi);
-    setSiEditIndex(null);
+    setSiEditId(null);
+    setSiErrors({});
   };
-  const saveSi = () => {
-    const payload = { ...siForm };
-    if (!payload.unNoEnabled) payload.unNo = "";
-    if (!payload.dgClassEnabled) payload.dgClass = "";
-    if (!payload.oversizedEnabled) payload.dimension = "";
-    if (!payload.frozenEnabled) payload.temperature = "";
-    if (siEditIndex !== null) {
-      setSiRows((prev) => prev.map((r, i) => (i === siEditIndex ? payload : r)));
-    } else {
-      setSiRows((prev) => [...prev, payload]);
+  const saveSi = async () => {
+    const errs: { gWeight?: string; vWeight?: string; nWeight?: string; noOfPcs?: string } = {};
+    if (siForm.noOfPcs !== '' && (isNaN(Number(siForm.noOfPcs)) || Number(siForm.noOfPcs) < 0))
+      errs.noOfPcs = 'Enter a valid positive number.';
+    if (siForm.gWeight !== '' && (isNaN(Number(siForm.gWeight)) || Number(siForm.gWeight) < 0))
+      errs.gWeight = 'Enter a valid positive number.';
+    if (siForm.vWeight !== '' && (isNaN(Number(siForm.vWeight)) || Number(siForm.vWeight) < 0))
+      errs.vWeight = 'Enter a valid positive number.';
+    if (siForm.nWeight !== '' && (isNaN(Number(siForm.nWeight)) || Number(siForm.nWeight) < 0))
+      errs.nWeight = 'Enter a valid positive number.';
+    if (Object.keys(errs).length) { setSiErrors(errs); return; }
+    setSiSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        operation_id:       Number(id),
+        s_no:               siForm.sNo !== '' ? Number(siForm.sNo) : null,
+        no_of_pcs:          siForm.noOfPcs !== '' ? Number(siForm.noOfPcs) : null,
+        pack_type:          siForm.packType || null,
+        no_of_pallet:       siForm.noOfPallet !== '' ? Number(siForm.noOfPallet) : null,
+        g_weight:           siForm.gWeight !== '' ? Number(siForm.gWeight) : null,
+        g_weight_unit:      siForm.gWeightUnit || null,
+        v_weight:           siForm.vWeight !== '' ? Number(siForm.vWeight) : null,
+        v_weight_unit:      siForm.vWeightUnit || null,
+        n_weight:           siForm.nWeight !== '' ? Number(siForm.nWeight) : null,
+        n_weight_unit:      siForm.nWeightUnit || null,
+        volume:             siForm.volume !== '' ? Number(siForm.volume) : null,
+        chargeable_unit:    siForm.chargeableUnit || null,
+        commodity_type:     siForm.commodityType || null,
+        commodity_code:     siForm.commodityCode || null,
+        commodity_desc:     siForm.commodityDesc || null,
+        manifest_seal:      siForm.manifestSeal || null,
+        actual_liner_seal:  siForm.actualLinerSeal || null,
+        custom_seal:        siForm.customSeal || null,
+        excise_seal_no:     siForm.exciseSealNo || null,
+        seal_date:          siForm.sealDate || null,
+        seal_type_indicator: siForm.sealTypeIndicator || null,
+        seal_device_id:     siForm.sealDeviceId || null,
+        movement_doc_type:  siForm.movementDocType || null,
+        movement_doc_no:    siForm.movementDocNo || null,
+        notes:              siForm.notes || null,
+        roro_year:          siForm.roroYear || null,
+        roro_brand:         siForm.roroBrand || null,
+        roro_model:         siForm.roroModel || null,
+        roro_specification: siForm.roroSpecification || null,
+        roro_chasis_no:     siForm.roroChasisNo || null,
+        roro_engine_no:     siForm.roroEngineNo || null,
+        status:             1,
+      };
+      if (siEditId) {
+        await updateCargoDetailApi(siEditId, payload);
+        toast({ title: 'Success', description: 'Cargo detail updated successfully.', variant: 'success' });
+      } else {
+        await createCargoDetailApi(payload);
+        toast({ title: 'Success', description: 'Cargo detail created successfully.', variant: 'success' });
+      }
+      closeSiModal();
+      setSiErrors({});
+      loadCargoDetails();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save cargo detail.', variant: 'destructive' });
+    } finally {
+      setSiSaving(false);
     }
-    closeSiModal();
+  };
+  const handleSiDelete = async () => {
+    if (siDeleteId === null) return;
+    try {
+      await deleteCargoDetailApi(siDeleteId);
+      toast({ title: 'Success', description: 'Cargo detail deleted successfully.', variant: 'success' });
+      setSiDeleteId(null);
+      loadCargoDetails();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete cargo detail.', variant: 'destructive' });
+    }
   };
 
-  // Shipping Bill modal
+  // Shipping Bill CRUD
   const [sbOpen, setSbOpen] = useState(false);
   const SB_PACK_TYPES = ["Boxes", "Pallets", "Cartons", "Bags", "Drums", "Crates", "Bundles"];
   const initSb = {
@@ -341,121 +696,325 @@ const ViewOperation = () => {
     commodityType: "",
     commodityDesc: "",
     note: "",
+    containerNo: "",
+    containerType: "",
   };
   const [sbForm, setSbForm] = useState(initSb);
   const [sbErrors, setSbErrors] = useState<Partial<Record<keyof typeof initSb, string>>>({});
-  const [sbRows, setSbRows] = useState<(typeof initSb)[]>([]);
-  const [sbEditIndex, setSbEditIndex] = useState<number | null>(null);
+  const [sbRows, setSbRows] = useState<any[]>([]);
+  const [sbLoading, setSbLoading] = useState(false);
+  const [sbSaving, setSbSaving] = useState(false);
+  const [sbEditId, setSbEditId] = useState<number | null>(null);
+  const [sbDeleteId, setSbDeleteId] = useState<number | null>(null);
+
+  const toApiDate = (d?: string | null): string => {
+    if (!d) return '';
+    const m = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : d;
+  };
+
+  const loadShippingBills = async () => {
+    if (!id) return;
+    setSbLoading(true);
+    try {
+      const res = await getShippingBillsApi(Number(id));
+      setSbRows(res.data?.data ?? []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load shipping bills.', variant: 'destructive' });
+    } finally { setSbLoading(false); }
+  };
+
   const sbChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setSbForm((prev) => ({ ...prev, [name]: value }));
     if (sbErrors[name as keyof typeof initSb]) setSbErrors((prev) => ({ ...prev, [name]: "" }));
   };
-  const openSbEdit = (index: number) => {
-    setSbEditIndex(index);
-    setSbForm({ ...sbRows[index] });
+
+  const openSbCreate = () => {
+    setSbEditId(null);
+    setSbForm(initSb);
     setSbErrors({});
     setSbOpen(true);
   };
+
+  const openSbEdit = (row: any) => {
+    setSbEditId(row.id);
+    setSbForm({
+      shippingBillNo:   row.shipping_bill_no ?? '',
+      shippingBillDate: row.shipping_bill_date ? toApiDate(row.shipping_bill_date) : '',
+      mateReceiptNo:    row.mate_receipt_no ?? '',
+      mateReceiptDate:  row.mate_receipt_date ? toApiDate(row.mate_receipt_date) : '',
+      noOfPcs:          row.no_of_pcs != null ? String(row.no_of_pcs) : '',
+      packType:         row.pack_type ?? '',
+      grossWeight:      row.gross_weight ?? '',
+      measurement:      row.measurement ?? '',
+      volume:           row.volume ?? '',
+      commodityCode:    row.commodity_code ?? '',
+      commodityType:    row.commodity_type ?? '',
+      commodityDesc:    row.commodity_desc ?? '',
+      note:             row.note ?? '',
+      containerNo:      row.container_no ?? '',
+      containerType:    row.container_type ?? '',
+    });
+    setSbErrors({});
+    setSbOpen(true);
+  };
+
   const closeSbModal = () => {
     setSbOpen(false);
     setSbForm(initSb);
     setSbErrors({});
-    setSbEditIndex(null);
-  };
-  const saveSb = () => {
-    const errs: Partial<Record<keyof typeof initSb, string>> = {};
-    if (!sbForm.shippingBillNo.trim()) errs.shippingBillNo = "Shipping Bill No is required";
-    if (!sbForm.shippingBillDate) errs.shippingBillDate = "Shipping Bill Date is required";
-    if (Object.keys(errs).length) {
-      setSbErrors(errs);
-      return;
-    }
-    if (sbEditIndex !== null) {
-      setSbRows((prev) => prev.map((r, i) => (i === sbEditIndex ? sbForm : r)));
-    } else {
-      setSbRows((prev) => [...prev, sbForm]);
-    }
-    closeSbModal();
+    setSbEditId(null);
   };
 
-  // House's List modal
+  const saveSb = async () => {
+    const errs: Partial<Record<keyof typeof initSb, string>> = {};
+    if (!sbForm.shippingBillNo.trim()) errs.shippingBillNo = 'Shipping Bill No is required.';
+    if (!sbForm.shippingBillDate)      errs.shippingBillDate = 'Shipping Bill Date is required.';
+    if (sbForm.noOfPcs !== '' && (isNaN(Number(sbForm.noOfPcs)) || Number(sbForm.noOfPcs) < 0)) errs.noOfPcs = 'Enter a valid positive number.';
+    if (sbForm.grossWeight !== '' && (isNaN(Number(sbForm.grossWeight)) || Number(sbForm.grossWeight) < 0)) errs.grossWeight = 'Enter a valid positive number.';
+    if (sbForm.volume !== '' && (isNaN(Number(sbForm.volume)) || Number(sbForm.volume) < 0)) errs.volume = 'Enter a valid positive number.';
+    if (!sbForm.commodityType.trim())  errs.commodityType = 'Commodity Type is required.';
+    if (!sbForm.containerType)         errs.containerType = 'Container Type is required.';
+    if (Object.keys(errs).length) { setSbErrors(errs); return; }
+    setSbSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        operation_id:       Number(id),
+        shipping_bill_no:   sbForm.shippingBillNo,
+        shipping_bill_date: sbForm.shippingBillDate || null,
+        mate_receipt_no:    sbForm.mateReceiptNo || null,
+        mate_receipt_date:  sbForm.mateReceiptDate || null,
+        no_of_pcs:          sbForm.noOfPcs !== '' ? Number(sbForm.noOfPcs) : null,
+        pack_type:          sbForm.packType || null,
+        gross_weight:       sbForm.grossWeight !== '' ? String(sbForm.grossWeight) : null,
+        measurement:        sbForm.measurement || null,
+        volume:             sbForm.volume !== '' ? String(sbForm.volume) : null,
+        commodity_code:     sbForm.commodityCode || null,
+        commodity_type:     sbForm.commodityType || null,
+        commodity_desc:     sbForm.commodityDesc || null,
+        note:               sbForm.note || null,
+        container_no:       sbForm.containerNo || null,
+        container_type:     sbForm.containerType || null,
+        status:             1,
+      };
+      if (sbEditId) {
+        await updateShippingBillApi(sbEditId, payload);
+        toast({ title: 'Success', description: 'Shipping bill updated successfully.', variant: 'success' });
+      } else {
+        await createShippingBillApi(payload);
+        toast({ title: 'Success', description: 'Shipping bill created successfully.', variant: 'success' });
+      }
+      closeSbModal();
+      loadShippingBills();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save shipping bill.', variant: 'destructive' });
+    } finally { setSbSaving(false); }
+  };
+
+  const handleSbDelete = async () => {
+    if (sbDeleteId === null) return;
+    try {
+      await deleteShippingBillApi(sbDeleteId);
+      toast({ title: 'Success', description: 'Shipping bill deleted successfully.', variant: 'success' });
+      setSbDeleteId(null);
+      loadShippingBills();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete shipping bill.', variant: 'destructive' });
+    }
+  };
+
+  // House Job CRUD
+  const [houseOpen, setHouseOpen] = useState(false);
+  const [houseList, setHouseList] = useState<any[]>([]);
+  const [houseLoading, setHouseLoading] = useState(false);
+  const [houseSaving, setHouseSaving] = useState(false);
+  const [houseEditId, setHouseEditId] = useState<number | null>(null);
+  const [houseDeleteId, setHouseDeleteId] = useState<number | null>(null);
+
   const HOUSE_INCO_TERMS = ["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP", "FAS", "FOB", "CFR", "CIF"];
   const HOUSE_FREIGHT_TERMS = ["Collect", "Prepaid"];
-  const HOUSE_CUSTOMERS = [
-    "ARCHEAN INDUSTRIES PRIVATE LIMITED",
-    "TEXELQ ENGINEERING INDIA PVT LTD",
-    "TEXGRAM INC DBA INOTEX",
-  ];
-  const HOUSE_SHIPPERS = ["TEAMGLOBAL LOGISTICS PVT LTD", "Maersk Line", "Emirates SkyCargo", "ONE Line"];
-  const HOUSE_CONSIGNEES = ["ARCHEAN INDUSTRIES PRIVATE LIMITED", "TEXELQ ENGINEERING INDIA PVT LTD"];
-  const HOUSE_NOTIFY = [
-    "ARCHEAN INDUSTRIES PRIVATE LIMITED",
-    "TEXELQ ENGINEERING INDIA PVT LTD",
-    "TEAMGLOBAL LOGISTICS PVT LTD",
-  ];
   const initHouse = {
-    placeOfReceipt: "",
-    placeOfDelivery: "",
-    incoTerm: "",
-    hawbNo: "",
-    hawbDate: "",
-    hawbMarkNo: "",
-    freightTerm: "Collect",
-    notes: "",
-    customer: "",
-    customerAddress: "",
-    shipper: "",
-    shipperAddress: "",
-    consignee: "",
-    consigneeAddress: "",
-    notify1: "",
-    notify1Address: "",
+    placeOfReceipt: "", placeOfDelivery: "", incoTerm: "",
+    hawbNo: "", hawbDate: "", hawbMarkNo: "", freightTerm: "Collect", notes: "",
+    customer: "", customerAddress: "", shipper: "", shipperAddress: "",
+    consignee: "", consigneeAddress: "", notify1: "", notify1Address: "",
   };
-  const [houseOpen, setHouseOpen] = useState(false);
   const [houseForm, setHouseForm] = useState(initHouse);
   const [houseErrors, setHouseErrors] = useState<Partial<Record<keyof typeof initHouse, string>>>({});
-  const [houseRows, setHouseRows] = useState<(typeof initHouse)[]>([]);
-  const [houseEditIndex, setHouseEditIndex] = useState<number | null>(null);
+
+  const loadHouseJobs = async () => {
+    if (!id) return;
+    setHouseLoading(true);
+    try {
+      const res = await getHouseJobsApi(Number(id));
+      setHouseList(res.data?.data ?? []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load house jobs.', variant: 'destructive' });
+    } finally { setHouseLoading(false); }
+  };
+
   const houseChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setHouseForm((prev) => ({ ...prev, [name]: value }));
-    if (houseErrors[name as keyof typeof initHouse]) setHouseErrors((prev) => ({ ...prev, [name]: "" }));
+    if (houseErrors[name as keyof typeof initHouse]) setHouseErrors((prev) => ({ ...prev, [name]: '' }));
   };
-  const openHouseEdit = (index: number) => {
-    setHouseEditIndex(index);
-    setHouseForm({ ...houseRows[index] });
+
+  const HOUSE_STATIC_CUSTOMERS = [
+    { name: 'ARCHEAN INDUSTRIES PRIVATE LIMITED', address: 'NO.2, NORTH CRESCENT ROAD, T.NAGAR, CHENNAI 600017 INDIA' },
+    { name: 'TEXELQ ENGINEERING INDIA PVT LTD', address: 'NO.77/2, KUTHAMPAKKAM ROAD, MEVVALURKKUPPAM, SRIPERUMBUDUR, KANCHIPURAM 602105' },
+    { name: 'TEXGRAM INC DBA INOTEX', address: '123, BUSINESS PARK, NEW YORK, USA' },
+    { name: 'ABC Logistics', address: '123, Nariman Point, Mumbai' },
+    { name: 'TEAMGLOBAL LOGISTICS PVT LTD', address: 'REFLECTIONS BUILDING.2, LEITH CASTLE CENTER STREET, SANTHOME HIGH RD, CHENNAI' },
+  ];
+
+  const HOUSE_STATIC_SHIPPERS = [
+    { name: 'TEAMGLOBAL LOGISTICS PVT LTD', address: 'REFLECTIONS BUILDING.2, LEITH CASTLE CENTER STREET, SANTHOME HIGH RD, CHENNAI' },
+    { name: 'XYZ Exporters', address: '456, Ring Road, Surat' },
+    { name: 'Maersk Line', address: 'Maersk House, 100 Harbour Road, Mumbai' },
+    { name: 'Emirates SkyCargo', address: 'Emirates Group HQ, Dubai, UAE' },
+    { name: 'ONE Line', address: 'Ocean Network Express, Singapore' },
+  ];
+
+  const HOUSE_STATIC_CONSIGNEES = [
+    { name: 'ARCHEAN INDUSTRIES PRIVATE LIMITED', address: 'NO.2, NORTH CRESCENT ROAD, T.NAGAR, CHENNAI 600017 INDIA' },
+    { name: 'TEXELQ ENGINEERING INDIA PVT LTD', address: 'NO.77/2, KUTHAMPAKKAM ROAD, MEVVALURKKUPPAM, SRIPERUMBUDUR, KANCHIPURAM 602105' },
+    { name: 'DEF Imports', address: '789, 5th Avenue, New York' },
+    { name: 'ABC Logistics', address: '123, Nariman Point, Mumbai' },
+  ];
+
+  const HOUSE_STATIC_NOTIFY = [
+    { name: 'ARCHEAN INDUSTRIES PRIVATE LIMITED', address: 'NO.2, NORTH CRESCENT ROAD, T.NAGAR, CHENNAI 600017 INDIA' },
+    { name: 'TEXELQ ENGINEERING INDIA PVT LTD', address: 'NO.77/2, KUTHAMPAKKAM ROAD, MEVVALURKKUPPAM, SRIPERUMBUDUR, KANCHIPURAM 602105' },
+    { name: 'GHI Notify', address: '321, Park Street, Delhi' },
+    { name: 'TEAMGLOBAL LOGISTICS PVT LTD', address: 'REFLECTIONS BUILDING.2, LEITH CASTLE CENTER STREET, SANTHOME HIGH RD, CHENNAI' },
+  ];
+
+  const houseSelectChange = (field: string, addrField: string, staticList: {name: string; address: string}[]) =>
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const val = e.target.value;
+      const found = staticList.find(s => s.name === val) ?? slList.find((s: any) => (s.customer_name ?? '') === val);
+      setHouseForm(prev => ({ ...prev, [field]: val, [addrField]: found?.address ?? prev[addrField as keyof typeof prev] as string }));
+    };
+
+  // Deduplicated API list: unique customer_name, case-insensitive dedup against a static list
+  const houseApiOptions = (staticList: {name: string}[]) => {
+    const seen = new Set<string>();
+    return slList.filter((s: any) => {
+      const name = (s.customer_name ?? '').trim();
+      if (!name) return false;
+      const key = name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return !staticList.some(st => st.name.toLowerCase() === key);
+    });
+  };
+
+  const openHouseCreate = () => {
+    setHouseEditId(null);
+    setHouseForm(initHouse);
+    setHouseErrors({});
+    if (slList.length === 0) loadSubledgers();
+    setHouseOpen(true);
+  };
+
+  const openHouseEdit = (row: any) => {
+    setHouseEditId(row.id);
+    if (slList.length === 0) loadSubledgers();
+    setHouseForm({
+      placeOfReceipt:  row.place_of_receipt ?? '',
+      placeOfDelivery: row.place_of_delivery ?? '',
+      incoTerm:        row.inco_term ?? '',
+      hawbNo:          row.hawb_no ?? '',
+      hawbDate:        row.hawb_date ? toApiDate(row.hawb_date) : '',
+      hawbMarkNo:      row.hawb_mark_no ?? '',
+      freightTerm:     row.freight_term ?? 'Collect',
+      notes:           row.notes ?? '',
+      customer:        row.customer ?? '',
+      customerAddress: row.customer_address ?? '',
+      shipper:         row.shipper ?? '',
+      shipperAddress:  row.shipper_address ?? '',
+      consignee:       row.consignee ?? '',
+      consigneeAddress: row.consignee_address ?? '',
+      notify1:         row.notify1 ?? '',
+      notify1Address:  row.notify1_address ?? '',
+    });
     setHouseErrors({});
     setHouseOpen(true);
   };
+
   const closeHouseModal = () => {
     setHouseOpen(false);
     setHouseForm(initHouse);
     setHouseErrors({});
-    setHouseEditIndex(null);
-  };
-  const saveHouse = () => {
-    const errs: Partial<Record<keyof typeof initHouse, string>> = {};
-    if (!houseForm.placeOfReceipt.trim()) errs.placeOfReceipt = "Place of Receipt is required";
-    if (!houseForm.placeOfDelivery.trim()) errs.placeOfDelivery = "Place of Delivery is required";
-    if (!houseForm.incoTerm) errs.incoTerm = "INCO Term is required";
-    if (!houseForm.customer) errs.customer = "Customer is required";
-    if (Object.keys(errs).length) {
-      setHouseErrors(errs);
-      return;
-    }
-    if (houseEditIndex !== null) {
-      setHouseRows((prev) => prev.map((r, i) => (i === houseEditIndex ? houseForm : r)));
-    } else {
-      setHouseRows((prev) => [...prev, houseForm]);
-    }
-    closeHouseModal();
+    setHouseEditId(null);
   };
 
-  // Routing modal
+  const saveHouse = async () => {
+    const errs: Partial<Record<keyof typeof initHouse, string>> = {};
+    if (!houseForm.placeOfReceipt.trim()) errs.placeOfReceipt = 'Place of Receipt is required.';
+    if (!houseForm.placeOfDelivery.trim()) errs.placeOfDelivery = 'Place of Delivery is required.';
+    if (!houseForm.incoTerm) errs.incoTerm = 'INCO Term is required.';
+    if (!houseForm.customer.trim()) errs.customer = 'Customer is required.';
+    if (Object.keys(errs).length) { setHouseErrors(errs); return; }
+    setHouseSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        operation_id:     Number(id),
+        place_of_receipt: houseForm.placeOfReceipt,
+        place_of_delivery: houseForm.placeOfDelivery,
+        inco_term:        houseForm.incoTerm,
+        hawb_no:          houseForm.hawbNo || null,
+        hawb_date:        houseForm.hawbDate || null,
+        hawb_mark_no:     houseForm.hawbMarkNo || null,
+        freight_term:     houseForm.freightTerm || null,
+        notes:            houseForm.notes || null,
+        customer:         houseForm.customer,
+        customer_address: houseForm.customerAddress || null,
+        shipper:          houseForm.shipper || null,
+        shipper_address:  houseForm.shipperAddress || null,
+        consignee:        houseForm.consignee || null,
+        consignee_address: houseForm.consigneeAddress || null,
+        notify1:          houseForm.notify1 || null,
+        notify1_address:  houseForm.notify1Address || null,
+        status:           1,
+      };
+      if (houseEditId) {
+        await updateHouseJobApi(houseEditId, payload);
+        toast({ title: 'Success', description: 'House job updated successfully.', variant: 'success' });
+      } else {
+        await createHouseJobApi(payload);
+        toast({ title: 'Success', description: 'House job created successfully.', variant: 'success' });
+      }
+      closeHouseModal();
+      loadHouseJobs();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save house job.', variant: 'destructive' });
+    } finally { setHouseSaving(false); }
+  };
+
+  const handleHouseDelete = async () => {
+    if (houseDeleteId === null) return;
+    try {
+      await deleteHouseJobApi(houseDeleteId);
+      toast({ title: 'Success', description: 'House job deleted successfully.', variant: 'success' });
+      setHouseDeleteId(null);
+      loadHouseJobs();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete house job.', variant: 'destructive' });
+    }
+  };
+
+  // Routing CRUD
   const [routingOpen, setRoutingOpen] = useState(false);
+  const [routingList, setRoutingList] = useState<any[]>([]);
+  const [routingLoading, setRoutingLoading] = useState(false);
+  const [routingSaving, setRoutingSaving] = useState(false);
+  const [routingEditId, setRoutingEditId] = useState<number | null>(null);
+  const [routingDeleteId, setRoutingDeleteId] = useState<number | null>(null);
   const PORT_OPTIONS = ["CHENNAI", "MUMBAI", "DELHI", "KOLKATA", "NHAVA SHEVA", "COCHIN", "JSD", "JNPT"];
-  const AIRLINE_OPTIONS = ["TEAMGLOBAL LOGISTICS PVT LTD", "Maersk Line", "Emirates SkyCargo", "ONE Line"];
+  const POSITION_OPTIONS_ROUTING = ["Opened", "In Transit", "Arrived", "Delivered", "Closed"];
+  const STATUS_OPTIONS_ROUTING = ["Planned", "Confirmed", "Departed", "Arrived", "Cancelled"];
   const initRouting = {
     sNo: "10",
     fromPortCode: "",
@@ -474,13 +1033,114 @@ const ViewOperation = () => {
     notes: "",
   };
   const [routingForm, setRoutingForm] = useState(initRouting);
-  const [routingRows, setRoutingRows] = useState<(typeof initRouting)[]>([]);
-  const routingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setRoutingForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  const saveRouting = () => {
-    setRoutingRows((prev) => [...prev, routingForm]);
-    setRoutingForm({ ...initRouting, sNo: String(Number(routingForm.sNo) + 10) });
+  const [routingErrors, setRoutingErrors] = useState<{ fromPortCode?: string; toPortCode?: string }>({});
+
+  const loadRoutings = async () => {
+    if (!id) return;
+    setRoutingLoading(true);
+    try {
+      const res = await getRoutingsApi(Number(id));
+      setRoutingList(res.data?.data ?? []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load routing records.', variant: 'destructive' });
+    } finally { setRoutingLoading(false); }
+  };
+
+  const openRoutingCreate = () => {
+    setRoutingEditId(null);
+    const nextSno = routingList.length > 0
+      ? Math.max(...routingList.map((r: any) => Number(r.s_no) || 0)) + 10
+      : 10;
+    setRoutingForm({ ...initRouting, sNo: String(nextSno) });
+    setRoutingErrors({});
+    setRoutingOpen(true);
+  };
+
+  const openRoutingEdit = (row: any) => {
+    setRoutingEditId(row.id);
+    setRoutingForm({
+      sNo:             String(row.s_no ?? '10'),
+      fromPortCode:    row.from_port_code ?? '',
+      fromPortName:    row.from_port_name ?? '',
+      fromEtd:         row.from_etd ? toApiDate(row.from_etd) : '',
+      fromAtd:         row.from_atd ? toApiDate(row.from_atd) : '',
+      toPortCode:      row.to_port_code ?? '',
+      toPortName:      row.to_port_name ?? '',
+      position:        row.position ?? 'Opened',
+      toEta:           row.to_eta ? toApiDate(row.to_eta) : '',
+      toAta:           row.to_ata ? toApiDate(row.to_ata) : '',
+      airlineCode:     row.airline_code ?? '',
+      flightName:      row.flight_name ?? '',
+      status:          row.status ?? 'Planned',
+      fromEtdFollowup: row.from_etd_followup ? 'Yes' : 'No',
+      notes:           row.notes ?? '',
+    });
+    setRoutingErrors({});
+    setRoutingOpen(true);
+  };
+
+  const closeRoutingModal = () => {
     setRoutingOpen(false);
+    setRoutingForm(initRouting);
+    setRoutingErrors({});
+    setRoutingEditId(null);
+  };
+
+  const routingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setRoutingForm((prev) => ({ ...prev, [name]: value }));
+    if (routingErrors[name as keyof typeof routingErrors]) setRoutingErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const saveRouting = async () => {
+    const errs: { fromPortCode?: string; toPortCode?: string } = {};
+    if (!routingForm.fromPortCode) errs.fromPortCode = 'From Port Code is required.';
+    if (!routingForm.toPortCode)   errs.toPortCode   = 'To Port Code is required.';
+    if (Object.keys(errs).length) { setRoutingErrors(errs); return; }
+    setRoutingSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        operation_id:     Number(id),
+        s_no:             routingForm.sNo !== '' ? Number(routingForm.sNo) : null,
+        from_port_code:   routingForm.fromPortCode,
+        from_port_name:   routingForm.fromPortName || null,
+        from_etd:         routingForm.fromEtd || null,
+        from_atd:         routingForm.fromAtd || null,
+        to_port_code:     routingForm.toPortCode,
+        to_port_name:     routingForm.toPortName || null,
+        position:         routingForm.position || null,
+        to_eta:           routingForm.toEta || null,
+        to_ata:           routingForm.toAta || null,
+        airline_code:     routingForm.airlineCode || null,
+        flight_name:      routingForm.flightName || null,
+        status:           routingForm.status || null,
+        from_etd_followup: routingForm.fromEtdFollowup === 'Yes' ? 1 : 0,
+        notes:            routingForm.notes || null,
+      };
+      if (routingEditId) {
+        await updateRoutingApi(routingEditId, payload);
+        toast({ title: 'Success', description: 'Routing updated successfully.', variant: 'success' });
+      } else {
+        await createRoutingApi(payload);
+        toast({ title: 'Success', description: 'Routing created successfully.', variant: 'success' });
+      }
+      closeRoutingModal();
+      loadRoutings();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save routing record.', variant: 'destructive' });
+    } finally { setRoutingSaving(false); }
+  };
+
+  const handleRoutingDelete = async () => {
+    if (routingDeleteId === null) return;
+    try {
+      await deleteRoutingApi(routingDeleteId);
+      toast({ title: 'Success', description: 'Routing deleted successfully.', variant: 'success' });
+      setRoutingDeleteId(null);
+      loadRoutings();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete routing record.', variant: 'destructive' });
+    }
   };
 
   // Profit Share modal
@@ -551,252 +1211,361 @@ const ViewOperation = () => {
     setTeamOpen(false);
   };
   const [slOpen, setSlOpen] = useState(false);
-  const initSl = {
-    customerName: "",
-    categories: "",
-    scacCode: "",
-    address: "",
-    pinCode: "",
-    phone: "",
-    mobile: "",
-    emailId: "",
-    gstState: "",
-    gstNo: "",
-    panNo: "",
-    country: "",
+  const SL_EMPTY = {
+    customerName: '', categories: '', scacCode: '', address: '',
+    pinCode: '', phone: '', mobile: '', emailId: '',
+    gstState: '', gstNo: '', panNo: '', country: '',
   };
-  const [slForm, setSlForm] = useState(initSl);
-  const [slErrors, setSlErrors] = useState<Partial<typeof initSl>>({});
+  const [slForm, setSlForm] = useState(SL_EMPTY);
+  const [slErrors, setSlErrors] = useState<Partial<typeof SL_EMPTY>>({});
   const [slEditId, setSlEditId] = useState<number | null>(null);
+  const [slList, setSlList] = useState<any[]>([]);
+  const [slLoading, setSlLoading] = useState(false);
+  const [slSaving, setSlSaving] = useState(false);
+  const [slDeleteId, setSlDeleteId] = useState<number | null>(null);
 
-  // Costing modal
-  const [costOpen, setCostOpen] = useState(false);
-  const initCost = {
-    sNo: "10",
-    charge: "",
-    freightPpCc: "",
-    description: "",
-    unit: "",
-    noOfUnit: "1",
-    sacCode: "",
-    note: "",
-    saleOtherTerritory: "No",
-    // Sale Charges
-    saleCustomer: "",
-    saleDrCr: "Cr (+)",
-    saleCurrency: "INR - INDIAN RUPEE",
-    saleExRate: "1",
-    salePerUnit: "1",
-    saleCrcyAmount: "1",
-    saleLocalAmount: "",
-    saleTaxPct: "",
-    saleTaxableAmount: "",
-    saleNonTaxableAmount: "",
-    saleCgst: "",
-    saleSgst: "",
-    saleIgst: "",
-    saleTotalTax: "0",
-    // Cost Charges
-    costVendor: "",
-    costDrCr: "Dr (+)",
-    costCurrency: "INR - INDIAN RUPEE",
-    costExRate: "1",
-    costPerUnit: "",
-    costCrcyAmount: "",
-    costLocalAmount: "",
-    costTaxPct: "",
-    costTaxableAmount: "",
-    costNonTaxableAmount: "",
-    costCgst: "",
-    costSgst: "",
-    costIgst: "",
-    costTotalTax: "",
-  };
-  const [costForm, setCostForm] = useState(initCost);
-  const costChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setCostForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  const ci = (name: keyof typeof initCost, cls = "") => (
-    <input
-      name={name}
-      value={costForm[name]}
-      onChange={costChange}
-      className={`w-full px-2 py-1 border border-input rounded text-xs bg-background ${cls}`}
-    />
-  );
-  const cs = (name: keyof typeof initCost, opts: string[], placeholder = "--Select--") => (
-    <select
-      name={name}
-      value={costForm[name]}
-      onChange={costChange}
-      className="w-full px-2 py-1 border border-input rounded text-xs bg-background"
-    >
-      {placeholder && <option value="">{placeholder}</option>}
-      {opts.map((o) => (
-        <option key={o}>{o}</option>
-      ))}
-    </select>
-  );
-  const CHARGES = ["Freight", "Documentation", "Handling", "THC", "BL Fee", "Customs", "Transport", "Other"];
-  const UNITS = ["KG", "CBM", "PCS", "BL", "Container", "Shipment", "Ton"];
-  const CURRENCIES = ["INR - INDIAN RUPEE", "USD - US DOLLAR", "EUR - EURO", "AED - UAE DIRHAM", "GBP - POUND"];
-  const TAX_PCTS = ["0%", "5%", "12%", "18%", "28%"];
-  const DR_CR_SALE = ["Cr (+)", "Dr (-)"];
-  const DR_CR_COST = ["Dr (+)", "Cr (-)"];
-  const CUSTOMERS = [
-    "ARCHEAN INDUSTRIES PRIVATE LIMITED",
-    "TEXELQ ENGINEERING INDIA PVT LTD",
-    "TEXGRAM INC DBA INOTEX",
-  ];
-  const VENDORS = ["TEAMGLOBAL LOGISTICS PVT LTD", "Maersk Line", "Emirates SkyCargo", "ONE Line"];
-  const saveCost = (keepOpen: boolean) => {
-    setCostForm(keepOpen ? { ...initCost, sNo: String(Number(costForm.sNo) + 10) } : initCost);
-    if (!keepOpen) setCostOpen(false);
-  };
-  const SL_CATEGORIES = ["Customer", "Shipper", "Consignee", "Notify Party", "Agent", "Carrier", "Co-Loader"];
-  const SL_GST_STATES = [
-    "Andhra Pradesh",
-    "Delhi",
-    "Gujarat",
-    "Karnataka",
-    "Maharashtra",
-    "Tamil Nadu",
-    "Telangana",
-    "West Bengal",
-  ];
-  const SL_COUNTRIES = ["India", "USA", "UAE", "Singapore", "UK", "China", "Germany", "Japan"];
-  const slChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setSlForm((prev) => ({ ...prev, [name]: value }));
-    if (slErrors[name as keyof typeof initSl]) setSlErrors((prev) => ({ ...prev, [name]: "" }));
-  };
-  const slSave = () => {
-    const errs: Partial<typeof initSl> = {};
-    if (!slForm.customerName.trim()) errs.customerName = "Required";
-    if (!slForm.categories) errs.categories = "Required";
-    if (!slForm.address.trim()) errs.address = "Required";
-    if (Object.keys(errs).length) {
-      setSlErrors(errs);
-      return;
+  const loadSubledgers = async () => {
+    setSlLoading(true);
+    try {
+      const res = await getSubledgersApi();
+      setSlList(res.data?.data ?? res.data ?? []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load subledgers.', variant: 'destructive' });
+    } finally {
+      setSlLoading(false);
     }
-    const newEntry = {
-      id: slEditId ?? Date.now(),
-      subledgerType: slForm.categories.toUpperCase(),
-      subledgerName: slForm.customerName,
-      address: slForm.address,
-      phone: slForm.phone,
-      fax: "",
-      mobile: slForm.mobile,
-      email: slForm.emailId,
-      city: "",
-    };
-    const current = (op!.subledgers ?? []).length === 0 ? STATIC_SUBLEDGERS : op!.subledgers;
-    const updated = slEditId ? current.map((s) => (s.id === slEditId ? newEntry : s)) : [...current, newEntry];
-    updateOperation(op!.id, { subledgers: updated });
-    setSlForm(initSl);
-    setSlErrors({});
-    setSlEditId(null);
-    setSlOpen(false);
   };
-  const openSlEdit = (sl: (typeof STATIC_SUBLEDGERS)[0]) => {
+
+  const openSlCreate = () => {
+    setSlEditId(null);
+    setSlForm(SL_EMPTY);
+    setSlErrors({});
+    setSlOpen(true);
+  };
+
+  const openSlEdit = (sl: any) => {
     setSlEditId(sl.id);
     setSlForm({
-      customerName: sl.subledgerName,
-      categories: sl.subledgerType.charAt(0) + sl.subledgerType.slice(1).toLowerCase(),
-      scacCode: "",
-      address: sl.address,
-      pinCode: "",
-      phone: sl.phone,
-      mobile: sl.mobile,
-      emailId: sl.email,
-      gstState: "",
-      gstNo: "",
-      panNo: "",
-      country: "",
+      customerName: sl.customer_name ?? sl.subledgerName ?? '',
+      categories:   sl.categories   ?? (sl.subledgerType ? sl.subledgerType.charAt(0) + sl.subledgerType.slice(1).toLowerCase() : ''),
+      scacCode:     sl.scac_code    ?? '',
+      address:      sl.address      ?? '',
+      pinCode:      sl.pin_code     ?? '',
+      phone:        sl.phone        ?? '',
+      mobile:       sl.mobile       ?? '',
+      emailId:      sl.email_id     ?? sl.email ?? '',
+      gstState:     sl.gst_state    ?? '',
+      gstNo:        sl.gst_no       ?? '',
+      panNo:        sl.pan_no       ?? '',
+      country:      sl.country      ?? '',
     });
     setSlErrors({});
     setSlOpen(true);
   };
-  const [rider, setRider] = useState({
-    containerNo: "",
-    containerType: "",
-    noOfPcs: "",
-    packType: "",
-    noOfPallet: "",
-    volume: "",
-    grossWeight: "",
-    grossMeasure: "Kg",
-    volumeWeight: "",
-    volumeMeasure: "Kg",
-    netWeight: "",
-    netMeasure: "Kg",
-    commodityType: "",
-    commodityCode: "",
-    commodityDesc: "",
-    manifestSeal: "",
-    actualSeal: "",
-    customSeal: "",
-  });
-  const riderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setRider((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  const sel = (name: string) => (
-    <select
-      name={name}
-      value={rider[name as keyof typeof rider]}
-      onChange={riderChange}
-      className="w-full px-2 py-1.5 border border-input rounded text-sm bg-background"
-    >
-      <option value="">--Select--</option>
-      {name === "containerType"
-        ? ["20GP", "40GP", "40HC", "45HC", "20RF", "40RF"].map((o) => <option key={o}>{o}</option>)
-        : ["Boxes", "Pallets", "Cartons", "Bags", "Drums", "Crates"].map((o) => <option key={o}>{o}</option>)}
-    </select>
-  );
-  const measureSel = (name: string) => (
-    <select
-      name={name}
-      value={rider[name as keyof typeof rider]}
-      onChange={riderChange}
-      className="w-full px-2 py-1.5 border border-input rounded text-sm bg-background"
-    >
-      {["Kg", "Lbs", "MT", "CBM"].map((o) => (
-        <option key={o}>{o}</option>
-      ))}
-    </select>
-  );
-  const inp = (name: string, placeholder = "") => (
-    <input
-      name={name}
-      value={rider[name as keyof typeof rider]}
-      onChange={riderChange}
-      placeholder={placeholder}
-      className="w-full px-2 py-1.5 border border-input rounded text-sm bg-background"
-    />
-  );
 
-  const handleDuplicate = () => {
-    if (!dupCarrier) {
-      setDupCarrierError(true);
-      return;
+  const slChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setSlForm(prev => ({ ...prev, [name]: value }));
+    if (slErrors[name as keyof typeof SL_EMPTY]) setSlErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const slSave = async () => {
+    const errs: Partial<typeof SL_EMPTY> = {};
+    if (!slForm.customerName.trim()) errs.customerName = 'Required';
+    if (!slForm.categories)          errs.categories   = 'Required';
+    if (!slForm.address.trim())      errs.address      = 'Required';
+    if (slForm.emailId && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(slForm.emailId)) errs.emailId = 'Invalid email address.';
+    if (Object.keys(errs).length) { setSlErrors(errs); return; }
+    setSlSaving(true);
+    try {
+      const payload = {
+        customer_name: slForm.customerName,
+        categories:    slForm.categories,
+        scac_code:     slForm.scacCode,
+        address:       slForm.address,
+        pin_code:      slForm.pinCode,
+        phone:         slForm.phone,
+        mobile:        slForm.mobile,
+        email_id:      slForm.emailId,
+        gst_state:     slForm.gstState,
+        gst_no:        slForm.gstNo,
+        pan_no:        slForm.panNo,
+        country:       slForm.country,
+        status:        '1',
+      };
+      if (slEditId) {
+        await updateSubledgerApi(slEditId, payload);
+        toast({ title: 'Success', description: 'Subledger updated successfully.', variant: 'success' });
+      } else {
+        await createSubledgerApi(payload);
+        toast({ title: 'Success', description: 'Subledger created successfully.', variant: 'success' });
+      }
+      setSlOpen(false);
+      setSlForm(SL_EMPTY);
+      setSlErrors({});
+      setSlEditId(null);
+      loadSubledgers();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save subledger.', variant: 'destructive' });
+    } finally {
+      setSlSaving(false);
     }
-    addOperation({
-      ...op,
-      id: Date.now(),
-      jobNo: "",
-      jobDate: dupDate,
-      carrier: dupCarrier,
-      status: "Created",
-      statusColor: "text-blue-500",
-      statusBgColor: "bg-blue-500/10",
+  };
+
+  const handleSlDelete = async () => {
+    if (slDeleteId === null) return;
+    try {
+      await deleteSubledgerApi(slDeleteId);
+      toast({ title: 'Success', description: 'Subledger deleted successfully.', variant: 'success' });
+      setSlDeleteId(null);
+      loadSubledgers();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete subledger.', variant: 'destructive' });
+    }
+  };
+
+  // Costing CRUD
+  const [costOpen, setCostOpen] = useState(false);
+  const [costList, setCostList] = useState<any[]>([]);
+  const [costLoading, setCostLoading] = useState(false);
+  const [costSaving, setCostSaving] = useState(false);
+  const [costEditId, setCostEditId] = useState<number | null>(null);
+  const [costDeleteId, setCostDeleteId] = useState<number | null>(null);
+  const initCost = {
+    sNo: "10", charge: "", freightPpCc: "", description: "", unit: "", noOfUnit: "1",
+    sacCode: "", note: "", saleOtherTerritory: "No",
+    saleCustomer: "", saleDrCr: "Cr (+)", saleCurrency: "INR - INDIAN RUPEE",
+    saleExRate: "1", salePerUnit: "", saleCrcyAmount: "", saleLocalAmount: "",
+    saleTaxPct: "18", saleTaxableAmount: "", saleNonTaxableAmount: "0",
+    saleCgst: "", saleSgst: "", saleIgst: "0", saleTotalTax: "",
+    costVendor: "", costDrCr: "Dr (+)", costCurrency: "INR - INDIAN RUPEE",
+    costExRate: "1", costPerUnit: "", costCrcyAmount: "", costLocalAmount: "",
+    costTaxPct: "18", costTaxableAmount: "", costNonTaxableAmount: "0",
+    costCgst: "", costSgst: "", costIgst: "0", costTotalTax: "",
+  };
+  const [costForm, setCostForm] = useState(initCost);
+  const CHARGES = ["Ocean Freight", "Air Freight", "Freight", "Documentation", "Handling", "THC", "BL Fee", "Customs", "Transport", "Other"];
+  const UNITS = ["Per BL", "Per KG", "Per CBM", "Per PCS", "Per Container", "Per Shipment", "Per Ton", "KG", "CBM"];
+  const CURRENCIES = ["INR - INDIAN RUPEE", "USD - US DOLLAR", "EUR - EURO", "AED - UAE DIRHAM", "GBP - POUND"];
+  const TAX_PCTS = ["0", "5", "12", "18", "28"];
+  const DR_CR_SALE = ["Cr (+)", "Dr (-)"];
+  const DR_CR_COST = ["Dr (+)", "Cr (-)"];
+  const CUSTOMERS = ["ABC Logistics", "ARCHEAN INDUSTRIES PRIVATE LIMITED", "TEXELQ ENGINEERING INDIA PVT LTD", "TEXGRAM INC DBA INOTEX"];
+  const VENDORS = ["Maersk Line", "TEAMGLOBAL LOGISTICS PVT LTD", "Emirates SkyCargo", "ONE Line"];
+  const [costErrors, setCostErrors] = useState<Partial<Record<keyof typeof initCost, string>>>({});
+  const costChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setCostForm((prev) => ({ ...prev, [name]: value }));
+    if (costErrors[name as keyof typeof initCost]) setCostErrors(prev => ({ ...prev, [name]: '' }));
+  };
+  const ci = (name: keyof typeof initCost, cls = "") => (
+    <div>
+      <input name={name} value={costForm[name]} onChange={costChange}
+        className={`w-full px-2 py-1 border rounded text-xs bg-background ${
+          costErrors[name] ? 'border-red-500' : 'border-input'
+        } ${cls}`} />
+      {costErrors[name] && <p className="text-xs text-red-500 mt-0.5">⚠ {costErrors[name]}</p>}
+    </div>
+  );
+  const cs = (name: keyof typeof initCost, opts: string[], placeholder = "--Select--") => (
+    <div>
+      <select name={name} value={costForm[name]} onChange={costChange}
+        className={`w-full px-2 py-1 border rounded text-xs bg-background ${
+          costErrors[name] ? 'border-red-500' : 'border-input'
+        }`}>
+        {placeholder && <option value="">{placeholder}</option>}
+        {opts.map((o) => (<option key={o}>{o}</option>))}
+      </select>
+      {costErrors[name] && <p className="text-xs text-red-500 mt-0.5">⚠ {costErrors[name]}</p>}
+    </div>
+  );
+  const loadCostings = async () => {
+    if (!id) return;
+    setCostLoading(true);
+    try {
+      const res = await getCostingsApi(Number(id));
+      const raw = res.data?.data ?? res.data ?? [];
+      setCostList(Array.isArray(raw) ? raw : []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load costing records.', variant: 'destructive' });
+    } finally { setCostLoading(false); }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'Costing' || activeTab === 'Show All') loadCostings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+  const openCostCreate = () => {
+    setCostDeleteId(null);
+    setCostEditId(null);
+    const nextSno = costList.length > 0
+      ? Math.max(...costList.map((c: any) => Number(c.id) || 0)) + 1
+      : 1;
+    setCostForm({ ...initCost, sNo: String(nextSno) });
+    setCostOpen(true);
+  };
+  const openCostEdit = (item: any) => {
+    setCostEditId(item.id);
+    setCostForm({
+      sNo: String(item.id ?? '10'), charge: item.charge ?? '', freightPpCc: item.freight_pp_cc ?? '',
+      description: item.description ?? '', unit: item.unit ?? '', noOfUnit: item.no_of_unit ?? '1',
+      sacCode: item.sac_code ?? '', note: item.note ?? '', saleOtherTerritory: item.sale_other_territory ?? 'No',
+      saleCustomer: item.sale_customer ?? '', saleDrCr: item.sale_dr_cr ?? 'Cr (+)',
+      saleCurrency: item.sale_currency ?? 'INR - INDIAN RUPEE', saleExRate: item.sale_ex_rate ?? '1',
+      salePerUnit: item.sale_per_unit ?? '', saleCrcyAmount: item.sale_crcy_amount ?? '',
+      saleLocalAmount: item.sale_local_amount ?? '', saleTaxPct: item.sale_tax_percent != null ? String(item.sale_tax_percent) : '18',
+      saleTaxableAmount: item.sale_taxable_amount ?? '', saleNonTaxableAmount: item.sale_non_taxable_amount ?? '',
+      saleCgst: item.sale_cgst_amount ?? '', saleSgst: item.sale_sgst_amount ?? '',
+      saleIgst: item.sale_igst_amount ?? '', saleTotalTax: item.sale_total_tax_amount ?? '0',
+      costVendor: item.cost_vendor ?? '', costDrCr: item.cost_dr_cr ?? 'Dr (+)',
+      costCurrency: item.cost_currency ?? 'INR - INDIAN RUPEE', costExRate: item.cost_ex_rate ?? '1',
+      costPerUnit: item.cost_per_unit ?? '', costCrcyAmount: item.cost_crcy_amount ?? '',
+      costLocalAmount: item.cost_local_amount ?? '', costTaxPct: item.cost_tax_percent != null ? String(item.cost_tax_percent) : '18',
+      costTaxableAmount: item.cost_taxable_amount ?? '', costNonTaxableAmount: item.cost_non_taxable_amount ?? '',
+      costCgst: item.cost_cgst_amount ?? '', costSgst: item.cost_sgst_amount ?? '',
+      costIgst: item.cost_igst_amount ?? '', costTotalTax: item.cost_total_tax_amount ?? '',
     });
-    setDupOpen(false);
+    setCostOpen(true);
+  };
+  const closeCostModal = () => { setCostOpen(false); setCostForm(initCost); setCostEditId(null); setCostErrors({}); };
+  const toNum = (v: string) => v !== '' ? Number(v) : null;
+  const saveCost = async (keepOpen: boolean) => {
+    const errs: Partial<Record<keyof typeof initCost, string>> = {};
+    if (!costForm.charge.trim()) errs.charge = 'Charge is required.';
+    if (!costForm.freightPpCc.trim()) errs.freightPpCc = 'Freight PP/CC is required.';
+    if (!costForm.unit.trim()) errs.unit = 'Unit is required.';
+    if (!costForm.sacCode.trim()) errs.sacCode = 'SAC Code is required.';
+    if (Object.keys(errs).length) { setCostErrors(errs); return; }
+    setCostSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        operation_id: Number(id),
+        charge: costForm.charge,
+        freight_pp_cc: costForm.freightPpCc,
+        description: costForm.description || null,
+        unit: costForm.unit,
+        no_of_unit: toNum(costForm.noOfUnit),
+        sac_code: costForm.sacCode,
+        note: costForm.note || null,
+        sale_other_territory: costForm.saleOtherTerritory || null,
+        sale_customer: costForm.saleCustomer || null,
+        sale_dr_cr: costForm.saleDrCr || null,
+        sale_currency: costForm.saleCurrency || null,
+        sale_ex_rate: toNum(costForm.saleExRate),
+        sale_per_unit: toNum(costForm.salePerUnit),
+        sale_crcy_amount: toNum(costForm.saleCrcyAmount),
+        sale_local_amount: toNum(costForm.saleLocalAmount),
+        sale_tax_percent: toNum(costForm.saleTaxPct),
+        sale_taxable_amount: toNum(costForm.saleTaxableAmount),
+        sale_non_taxable_amount: toNum(costForm.saleNonTaxableAmount),
+        sale_cgst_amount: toNum(costForm.saleCgst),
+        sale_sgst_amount: toNum(costForm.saleSgst),
+        sale_igst_amount: toNum(costForm.saleIgst),
+        sale_total_tax_amount: toNum(costForm.saleTotalTax),
+        cost_vendor: costForm.costVendor || null,
+        cost_dr_cr: costForm.costDrCr || null,
+        cost_currency: costForm.costCurrency || null,
+        cost_ex_rate: toNum(costForm.costExRate),
+        cost_per_unit: toNum(costForm.costPerUnit),
+        cost_crcy_amount: toNum(costForm.costCrcyAmount),
+        cost_local_amount: toNum(costForm.costLocalAmount),
+        cost_tax_percent: toNum(costForm.costTaxPct),
+        cost_taxable_amount: toNum(costForm.costTaxableAmount),
+        cost_non_taxable_amount: toNum(costForm.costNonTaxableAmount),
+        cost_cgst_amount: toNum(costForm.costCgst),
+        cost_sgst_amount: toNum(costForm.costSgst),
+        cost_igst_amount: toNum(costForm.costIgst),
+        cost_total_tax_amount: toNum(costForm.costTotalTax),
+        status: 1,
+      };
+      if (costEditId) {
+        await updateCostingApi(costEditId, payload);
+        toast({ title: 'Success', description: 'Costing updated successfully.', variant: 'success' });
+      } else {
+        await createCostingApi(payload);
+        toast({ title: 'Success', description: 'Costing created successfully.', variant: 'success' });
+      }
+      if (keepOpen) { setCostEditId(null); setCostErrors({}); setCostForm({ ...initCost, sNo: String(Number(costForm.sNo) + 10) }); }
+      else { closeCostModal(); }
+      loadCostings();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save costing record.', variant: 'destructive' });
+    } finally { setCostSaving(false); }
+  };
+  const handleCostDelete = async () => {
+    if (costDeleteId === null) return;
+    try {
+      await deleteCostingApi(costDeleteId);
+      toast({ title: 'Success', description: 'Costing deleted successfully.', variant: 'success' });
+      setCostDeleteId(null); loadCostings();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete costing record.', variant: 'destructive' });
+    }
+  };
+  const riderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setRiderForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  // Convert DD-MM-YYYY (API response) → YYYY-MM-DD (API request)
+  // (toApiDate is defined in the Shipping Bill section above)
+
+  const handleDuplicate = async () => {
+    if (!dupCarrier) { setDupCarrierError(true); return; }
+    setDupSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        document:          op.document          ?? '',
+        branch:            op.branch            ?? '',
+        job_date:          dupDate,
+        freight_pp_cc:     op.freight_pp_cc     ?? '',
+        place_of_receipt:  op.place_of_receipt  ?? '',
+        place_of_delivery: op.place_of_delivery ?? '',
+        pol:               op.pol               ?? '',
+        pod:               op.pod               ?? '',
+        pol_etd:           toApiDate(op.pol_etd),
+        pod_eta:           toApiDate(op.pod_eta),
+        flight_name:       op.flight_name       ?? '',
+        flight_number:     op.flight_number     ?? '',
+        service_type:      op.service_type      ?? '',
+        note:              op.note              ?? '',
+        customer:          op.customer          ?? '',
+        customer_branch:   op.customer_branch   ?? '',
+        customer_address:  op.customer_address  ?? '',
+        shipper:           op.shipper           ?? '',
+        shipper_address:   op.shipper_address   ?? '',
+        carrier:           dupCarrier,
+        carrier_address:   op.carrier_address   ?? '',
+        consignee:         op.consignee         ?? '',
+        consignee_address: op.consignee_address ?? '',
+        status:            op.status            ?? 1,
+      };
+      const res = await createOperationApi(payload);
+      const newId = res.data?.data?.id ?? res.data?.id;
+      toast({ title: 'Duplicated', description: 'Job duplicated successfully.', variant: 'success' });
+      refresh();
+      setDupOpen(false);
+      navigate(`/operations/view/${newId}`);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to duplicate job.', variant: 'destructive' });
+    } finally {
+      setDupSaving(false);
+    }
   };
 
   const openDup = () => {
-    setDupCarrier(op.carrier ?? "");
-    setDupDate(new Date().toISOString().split("T")[0]);
+    setDupCarrier(op?.carrier ?? '');
+    setDupDate(new Date().toISOString().split('T')[0]);
     setDupCarrierError(false);
     setDupOpen(true);
   };
+
+  if (opLoading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+        <span className="inline-block w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+        Loading operation...
+      </div>
+    );
+  }
 
   if (!op) {
     return (
@@ -809,15 +1578,9 @@ const ViewOperation = () => {
     );
   }
 
-  const isVessel = ["FCL Import", "FCL Export", "LCL Export", "LCL Import", "Land Export", "Land Import"].includes(
-    op.document,
-  );
+  const isVessel = ["FCL Import", "FCL Export", "LCL Export", "LCL Import", "Land Export", "Land Import"].includes(op.document ?? '');
   const flightLabel = isVessel ? "Vessel Name" : "Flight Name";
-  const numberLabel = ["Land Import", "Land Export"].includes(op.document)
-    ? "Vessel Number"
-    : isVessel
-      ? "Voyage Number"
-      : "Flight Number";
+  const numberLabel = ["Land Import", "Land Export"].includes(op.document ?? '') ? "Vessel Number" : isVessel ? "Voyage Number" : "Flight Number";
 
   return (
     <div className="space-y-4">
@@ -830,7 +1593,7 @@ const ViewOperation = () => {
             </button>
             {" › "}
             <span>
-              Job No# - ( {op.jobNo || "—"} ~ {op.jobDate} )
+              Job No# - ( {op.document || "—"} ~ {op.job_date} )
             </span>
           </p>
         </div>
@@ -855,7 +1618,16 @@ const ViewOperation = () => {
         {TABS.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              setActiveTab(tab);
+              if (tab === 'Subledgers') loadSubledgers();
+              if (tab === "Dimension's") loadDimensions();
+              if (tab === 'Cargo details') loadCargoDetails();
+              if (tab === 'Shipping Bill / BOE') loadShippingBills();
+              if (tab === "House's List") loadHouseJobs();
+              if (tab === 'Others') loadRoutings();
+              if (tab === 'Show All') { loadSubledgers(); loadDimensions(); loadCargoDetails(); loadShippingBills(); loadHouseJobs(); loadRoutings(); }
+            }}
             className={`px-4 py-2 font-medium border-b-2 transition-colors ${
               activeTab === tab
                 ? "border-primary text-primary"
@@ -886,21 +1658,21 @@ const ViewOperation = () => {
               {/* Column 1 */}
               <div className="col-span-1 space-y-0">
                 <Field label="Document Name" value={op.document} />
-                <Field label="Job Status" value={op.status} />
-                <Field label="Place of Receipt" value={op.placeOfReceipt} />
+                <Field label="Job Status" value={op.status === 1 ? 'Active' : 'Inactive'} />
+                <Field label="Place of Receipt" value={op.place_of_receipt} />
                 <Field label="POL Name" value={op.pol} />
-                <Field label="POL ETD" value={op.polEtd} />
-                <Field label="POD ETA" value={op.podEta} />
+                <Field label="POL ETD" value={op.pol_etd} />
+                <Field label="POD ETA" value={op.pod_eta} />
                 <Field label="INCO Term" value="" />
-                <Field label={flightLabel} value={op.flightName} />
-                <Field label="Service Type" value={op.serviceType} />
+                <Field label={flightLabel} value={op.flight_name} />
+                <Field label="Service Type" value={op.service_type} />
                 <div className="flex items-center gap-2 py-1.5">
                   <span className="text-sm font-semibold text-foreground w-40 shrink-0">AWB No</span>
                   <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white text-xs h-7 px-3">
                     Gen BL NO#
                   </Button>
                 </div>
-                <Field label="MAWB No" value={op.mblNo} />
+                <Field label="MAWB No" value={op.note} />
                 <Field label="Do No#" value="" />
                 <Field label="BL Place of Issue" value="" />
                 <Field label="On Board Date" value="" />
@@ -912,7 +1684,7 @@ const ViewOperation = () => {
                   <Button
                     size="sm"
                     className="bg-amber-400 hover:bg-amber-500 text-black text-xs font-semibold"
-                    onClick={() => setRiderOpen(true)}
+                    onClick={() => { setRiderOpen(true); loadRiderContainers(); }}
                   >
                     Rider Container
                   </Button>
@@ -921,15 +1693,15 @@ const ViewOperation = () => {
 
               {/* Column 2 */}
               <div className="col-span-1 space-y-0">
-                <Field label="Job Type" value={op.bookingType} />
-                <Field label="PP / CC" value={op.freightPpCc} />
-                <Field label="Place of Delivery" value={op.placeOfDelivery} />
+                <Field label="Job Type" value={op.document} />
+                <Field label="PP / CC" value={op.freight_pp_cc} />
+                <Field label="Place of Delivery" value={op.place_of_delivery} />
                 <Field label="POD Name" value={op.pod} />
                 <Field label="POL ATD" value="" />
                 <Field label="POD ATA" value="" />
                 <Field label="No of BL" value="" />
-                <Field label={numberLabel} value={op.flightNumber} />
-                <Field label="BL Status" value={op.blServiceType} />
+                <Field label={numberLabel} value={op.flight_number} />
+                <Field label="BL Status" value={op.service_type} />
                 <Field label="AWB Date" value="" />
                 <Field label="MAWB Date" value="" />
                 <Field label="Do Date" value="" />
@@ -947,10 +1719,10 @@ const ViewOperation = () => {
                     <Field label="Quote No" value="" />
                     <Field label="Quote Date" value="" />
                     <Field label="Booking No" value="" />
-                    <Field label="Booking Date" value={op.bookingDate} />
+                    <Field label="Booking Date" value={op.job_date} />
                     <Field label="No of Credit Days" value="" />
-                    <Field label="Delivery Status" value={op.deliveryStatus} />
-                    <Field label="Delivery Date" value={op.deliveryDate} />
+                    <Field label="Delivery Status" value="" />
+                    <Field label="Delivery Date" value="" />
                   </div>
                 </div>
               </div>
@@ -979,7 +1751,7 @@ const ViewOperation = () => {
                   <label className="text-sm font-semibold text-foreground whitespace-nowrap shrink-0">
                     From Job No
                   </label>
-                  <Input value="RLPL/AE/J0302" readOnly className="bg-muted text-sm min-w-0" />
+                  <Input value={op?.document || '—'} readOnly className="bg-muted text-sm min-w-0" />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-semibold text-foreground whitespace-nowrap shrink-0">
@@ -1012,10 +1784,8 @@ const ViewOperation = () => {
                     }`}
                   >
                     <option value="">--Select--</option>
-                    {CARRIER_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
+                    {carrierOptions.map((c) => (
+                      <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                   {dupCarrierError && <p className="text-xs text-destructive mt-1">Carrier is required</p>}
@@ -1024,179 +1794,266 @@ const ViewOperation = () => {
             </div>
             {/* Footer */}
             <div className="flex justify-end px-6 pb-5">
-              <Button size="sm" variant="outline" onClick={handleDuplicate} className="px-6">
-                Confirm
+              <Button size="sm" variant="outline" onClick={handleDuplicate} disabled={dupSaving} className="px-6">
+                {dupSaving ? 'Saving...' : 'Confirm'}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Rider Container Modal */}
+      {/* Rider Container Modal — full CRUD */}
       {riderOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setRiderOpen(false)} />
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-5xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
               <h3 className="text-lg font-bold text-primary">Rider BL (Container)</h3>
-              <button onClick={() => setRiderOpen(false)} className="p-2 hover:bg-muted rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold" onClick={openRiderCreate}>
+                  + Add Container
+                </Button>
+                <button onClick={() => setRiderOpen(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+              </div>
             </div>
 
-            {/* Body */}
+            {/* List */}
+            <div className="overflow-y-auto flex-1 p-4">
+              {riderLoading ? (
+                <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
+                  <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />Loading...
+                </div>
+              ) : riderList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <svg className="w-8 h-8 opacity-30 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" strokeWidth="2" /><path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" /></svg>
+                  <p className="text-sm">No containers found. Click "+ Add Container" to create one.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40">
+                        {['#', 'Container No', 'Type', 'Pcs', 'Pack Type', 'Pallet', 'Volume', 'G.Weight', 'V.Weight', 'N.Weight', 'Commodity Type', 'Code', 'Manifest Seal', 'Actual Seal', 'Custom Seal', 'Actions'].map(h => (
+                          <th key={h} className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {riderList.map((row, i) => (
+                        <tr key={row.id} className="border-b border-border hover:bg-muted/30">
+                          <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                          <td className="px-3 py-2 font-medium whitespace-nowrap">{row.container_no}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{row.container_type}</td>
+                          <td className="px-3 py-2">{row.no_of_pcs}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{row.pack_type}</td>
+                          <td className="px-3 py-2">{row.no_of_pallet}</td>
+                          <td className="px-3 py-2">{row.volume}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{row.gross_weight} {row.gross_weight_measurement}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{row.volume_weight} {row.volume_weight_measurement}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{row.net_weight} {row.net_weight_measurement}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{row.commodity_type}</td>
+                          <td className="px-3 py-2">{row.commodity_code}</td>
+                          <td className="px-3 py-2">{row.manifest_seal}</td>
+                          <td className="px-3 py-2">{row.actual_seal}</td>
+                          <td className="px-3 py-2">{row.custom_seal}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-1">
+                              <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openRiderEdit(row)}>
+                                <Pencil className="w-3.5 h-3.5 text-green-500" />
+                              </button>
+                              <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setRiderDeleteId(row.id)}>
+                                <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" onClick={() => setRiderOpen(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rider Container Form Modal (Create / Edit) */}
+      {riderFormOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRiderFormOpen(false)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">{riderEditing ? 'Edit Container' : 'Add Container'}</h3>
+              <button onClick={() => setRiderFormOpen(false)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+
             <div className="overflow-y-auto flex-1 p-5">
               <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                {/* Row 1 */}
+
+                {/* Container No */}
                 <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">Container No</label>
-                  {inp("containerNo")}
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">
-                    Container Type
-                  </label>
-                  {sel("containerType")}
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold"><span className="text-destructive mr-1">*</span>Container No</label>
+                  <div className="flex-1">
+                    <input name="container_no" value={riderForm.container_no} onChange={(e) => { riderChange(e); setRiderContainerNoError(''); }}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${riderContainerNoError ? 'border-destructive' : 'border-input'}`} />
+                    {riderContainerNoError && <p className="text-xs text-destructive mt-0.5">⚠ {riderContainerNoError}</p>}
+                  </div>
                 </div>
 
-                {/* Row 2 */}
+                {/* Container Type */}
                 <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">No of PCS</label>
-                  {inp("noOfPcs")}
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">Pack Type</label>
-                  {sel("packType")}
-                </div>
-
-                {/* Row 3 */}
-                <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">No of Pallet</label>
-                  {inp("noOfPallet")}
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">Volume</label>
-                  {inp("volume")}
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Container Type</label>
+                  <select name="container_type" value={riderForm.container_type} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value="">--Select--</option>
+                    {['20GP','40GP','40HC','45HC','20RF','40RF','20OT','40OT','20FR','40FR','40 FLAT COLLAPSIBLE','20 FLAT COLLAPSIBLE','20 FT','40 FT','LCL'].map(o => <option key={o}>{o}</option>)}
+                  </select>
                 </div>
 
-                {/* Row 4 — Gross Weight */}
+                {/* No of PCS */}
                 <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">Gross Weight</label>
-                  {inp("grossWeight")}
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">Measuremer</label>
-                  {measureSel("grossMeasure")}
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">No of PCS</label>
+                  <input name="no_of_pcs" value={riderForm.no_of_pcs} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
 
-                {/* Row 5 — Volume Weight */}
+                {/* Pack Type */}
                 <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">
-                    Volume Weight
-                  </label>
-                  {inp("volumeWeight")}
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">Measuremer</label>
-                  {measureSel("volumeMeasure")}
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Pack Type</label>
+                  <select name="pack_type" value={riderForm.pack_type} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value="">--Select--</option>
+                    {['BALES', 'Boxes', 'Pallets', 'Cartons', 'Bags', 'Drums', 'Crates'].map(o => <option key={o}>{o}</option>)}
+                  </select>
                 </div>
 
-                {/* Row 6 — Net Weight */}
+                {/* No of Pallet */}
                 <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">Net Weight</label>
-                  {inp("netWeight")}
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">Measuremer</label>
-                  {measureSel("netMeasure")}
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">No of Pallet</label>
+                  <input name="no_of_pallet" value={riderForm.no_of_pallet} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
 
-                {/* Row 7 — Commodity */}
+                {/* Volume */}
                 <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">
-                    Commodity Type
-                  </label>
-                  {inp("commodityType")}
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">
-                    Commodity Code
-                  </label>
-                  {inp("commodityCode")}
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Volume</label>
+                  <input name="volume" value={riderForm.volume} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
 
-                {/* Row 8 — Commodity Desc full width */}
+                {/* Gross Weight + Measurement */}
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Gross Weight</label>
+                  <input name="gross_weight" value={riderForm.gross_weight} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Measurement</label>
+                  <select name="gross_weight_measurement" value={riderForm.gross_weight_measurement} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {['Kg', 'Lbs', 'MT', 'CBM'].map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+
+                {/* Volume Weight + Measurement */}
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Volume Weight</label>
+                  <input name="volume_weight" value={riderForm.volume_weight} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Measurement</label>
+                  <select name="volume_weight_measurement" value={riderForm.volume_weight_measurement} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {['Kg', 'Lbs', 'MT', 'CBM'].map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+
+                {/* Net Weight + Measurement */}
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Net Weight</label>
+                  <input name="net_weight" value={riderForm.net_weight} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Measurement</label>
+                  <select name="net_weight_measurement" value={riderForm.net_weight_measurement} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {['Kg', 'Lbs', 'MT', 'CBM'].map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+
+                {/* Commodity Type */}
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Commodity Type</label>
+                  <input name="commodity_type" value={riderForm.commodity_type} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+
+                {/* Commodity Code */}
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Commodity Code</label>
+                  <input name="commodity_code" value={riderForm.commodity_code} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+
+                {/* Commodity Desc — full width */}
                 <div className="col-span-2 flex items-start gap-2">
-                  <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground pt-1">
-                    Commodity Desc
-                  </label>
-                  <textarea
-                    name="commodityDesc"
-                    value={rider.commodityDesc}
-                    onChange={riderChange}
-                    rows={3}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-sm bg-background resize-y"
-                  />
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold pt-1">Commodity Desc</label>
+                  <textarea name="commodity_desc" value={riderForm.commodity_desc} onChange={riderChange} rows={3}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
                 </div>
 
-                {/* Row 9 — Seals */}
-                <div className="col-span-2 flex items-center gap-4">
-                  <div className="flex items-center gap-2 flex-1">
-                    <label className="w-28 shrink-0 text-right text-xs font-semibold text-foreground">
-                      Manifest Seal
-                    </label>
-                    {inp("manifestSeal")}
-                  </div>
-                  <div className="flex items-center gap-2 flex-1">
-                    <label className="shrink-0 text-xs font-semibold text-foreground whitespace-nowrap">
-                      Actual Seal
-                    </label>
-                    {inp("actualSeal")}
-                  </div>
-                  <div className="flex items-center gap-2 flex-1">
-                    <label className="shrink-0 text-xs font-semibold text-foreground whitespace-nowrap">
-                      Custom Seal
-                    </label>
-                    {inp("customSeal")}
-                  </div>
+                {/* Seals */}
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Manifest Seal</label>
+                  <input name="manifest_seal" value={riderForm.manifest_seal} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
-              </div>
-
-              {/* Search toolbar */}
-              <div className="mt-4 bg-[#00BCD4] rounded px-3 py-2 flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-white rounded px-2 py-1">
-                  <span className="text-xs text-muted-foreground">Q</span>
-                  <span className="text-xs text-muted-foreground">▾</span>
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Actual Seal</label>
+                  <input name="actual_seal" value={riderForm.actual_seal} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
-                <input className="flex-1 px-2 py-1 text-sm rounded border border-input bg-white" />
-                <button className="px-3 py-1 bg-white text-xs font-semibold rounded border border-input">Go</button>
-                <button className="px-3 py-1 bg-white text-xs font-semibold rounded border border-input">
-                  Actions ▾
-                </button>
-              </div>
+                <div className="flex items-center gap-2">
+                  <label className="w-32 shrink-0 text-right text-xs font-semibold">Custom Seal</label>
+                  <input name="custom_seal" value={riderForm.custom_seal} onChange={riderChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
 
-              {/* Empty state */}
-              <div className="flex items-center justify-center h-24 text-muted-foreground">
-                <svg className="w-8 h-8 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8" strokeWidth="2" />
-                  <path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
-                </svg>
               </div>
             </div>
 
-            {/* Footer */}
             <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button
-                size="sm"
-                className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6"
-                onClick={() => setRiderOpen(false)}
-              >
-                Cancel
+              <Button size="sm" variant="outline" onClick={() => setRiderFormOpen(false)}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={handleRiderSave} disabled={riderSaving}>
+                {riderSaving ? 'Saving...' : riderEditing ? 'Update' : 'Create'}
               </Button>
-              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6">
-                Create
-              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rider Container Delete Confirmation */}
+      {riderDeleteId !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRiderDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Container</h3>
+              <button onClick={() => setRiderDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this container? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setRiderDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleRiderDelete}>Delete</Button>
             </div>
           </div>
         </div>
@@ -1207,6 +2064,13 @@ const ViewOperation = () => {
         <div className="material-card material-elevation-1 overflow-hidden">
           <div className="bg-white px-6 py-3 border-b border-border flex items-center justify-between">
             <h2 className="text-lg font-bold text-primary">Subledgers</h2>
+            <Button
+              size="sm"
+              className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold"
+              onClick={openSlCreate}
+            >
+              Add New Subledgers
+            </Button>
           </div>
           <div className="p-4">
             <table className="w-full text-sm border-collapse">
@@ -1217,10 +2081,8 @@ const ViewOperation = () => {
                     "Subledger Name",
                     "Address",
                     "Phone",
-                    "Fax",
                     "Mobile",
                     "Email",
-                    "City",
                     "Action",
                   ].map((h) => (
                     <th key={h} className="text-left px-3 py-2 font-semibold text-foreground text-xs whitespace-nowrap">
@@ -1230,34 +2092,32 @@ const ViewOperation = () => {
                 </tr>
               </thead>
               <tbody>
-                {((op.subledgers ?? []).length === 0 ? STATIC_SUBLEDGERS : op.subledgers).map((sl) => (
+                {slLoading ? (
+                  <tr><td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</td></tr>
+                ) : slList.length === 0 ? (
+                  <tr><td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">No subledgers found.</td></tr>
+                ) : slList.map((sl: any) => (
                   <tr key={sl.id} className="border-b border-border hover:bg-muted/30">
-                    <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.subledgerType}</td>
-                    <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.subledgerName}</td>
+                    <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.categories?.toUpperCase() ?? ''}</td>
+                    <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.customer_name ?? ''}</td>
                     <td className="px-3 py-2 text-xs text-foreground max-w-xs">{sl.address}</td>
                     <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.phone}</td>
-                    <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.fax}</td>
                     <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.mobile}</td>
-                    <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.email}</td>
-                    <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.city}</td>
+                    <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.email_id ?? sl.email ?? ''}</td>
                     <td className="px-3 py-2">
-                      <button className="text-red-400 hover:text-red-600" onClick={() => openSlEdit(sl)}>
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openSlEdit(sl)}>
+                          <Pencil className="w-3.5 h-3.5 text-green-500" />
+                        </button>
+                        <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setSlDeleteId(sl.id)}>
+                          <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="flex justify-end mt-3">
-              <Button
-                size="sm"
-                className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold"
-                onClick={() => setSlOpen(true)}
-              >
-                Add New Subledgers
-              </Button>
-            </div>
           </div>
         </div>
       )}
@@ -1267,79 +2127,51 @@ const ViewOperation = () => {
         <div className="material-card material-elevation-1 overflow-hidden">
           <div className="bg-white px-6 py-3 border-b border-border flex items-center justify-between">
             <h2 className="text-lg font-bold text-primary">Dimension's</h2>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs px-3 bg-white font-semibold"
-              onClick={() => {
-                setDimEditIndex(null);
-                setDimForm(initDim);
-                setDimOpen(true);
-              }}
-            >
+            <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold" onClick={openDimCreate}>
               Add Dimension
             </Button>
           </div>
-          {dimRows.length === 0 ? (
+          {dimLoading ? (
+            <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
+              <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />Loading...
+            </div>
+          ) : dimList.length === 0 ? (
             <NoData />
           ) : (
             <div className="p-4 overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {[
-                      "S.No#",
-                      "L×W×H",
-                      "Measurement",
-                      "No of Pcs",
-                      "Package Type",
-                      "G.Weight",
-                      "V.Weight",
-                      "Net Weight",
-                      "Volume",
-                      "COO",
-                      "Commodity Type",
-                      "Commodity Code",
-                      "Notes",
-                      "Action",
-                    ].map((h) => (
-                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">
-                        {h}
-                      </th>
+                    {['S.No#','L×W×H','Measurement','No of Pcs','Package Type','G.Weight','V.Weight','Net Weight','Volume','COO','Commodity Type','Commodity Code','Notes','Action'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {dimRows.map((row, i) => (
-                    <tr key={i} className="border-b border-border hover:bg-muted/30">
-                      <td className="px-3 py-2 text-xs text-foreground">{row.sNo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.lxwxh}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">
-                        {[row.length, row.width, row.height].filter(Boolean).join(" × ")}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.noOfPcs}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.packageType}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">
-                        {row.gWeight}
-                        {row.gWeight && ` ${row.gWeightUnit}`}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground">
-                        {row.vWeight}
-                        {row.vWeight && ` ${row.vWeightUnit}`}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground">
-                        {row.netWeight}
-                        {row.netWeight && ` ${row.netWeightUnit}`}
-                      </td>
+                  {dimList.map((row) => (
+                    <tr key={row.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground">{row.s_no}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{[row.length, row.width, row.height].filter(Boolean).join(' × ')}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.lxwxh_measurement}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.no_of_pcs}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.package_type}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.g_weight}{row.g_weight && ` ${row.g_weight_unit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.v_weight}{row.v_weight && ` ${row.v_weight_unit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.net_weight}{row.net_weight && ` ${row.net_weight_unit}`}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.volume}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.coo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityType}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityCode}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodity_type}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodity_code}</td>
                       <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.notes}</td>
                       <td className="px-3 py-2">
-                        <button className="text-red-400 hover:text-red-600" onClick={() => openDimEdit(i)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openDimEdit(row)}>
+                            <Pencil className="w-3.5 h-3.5 text-green-500" />
+                          </button>
+                          <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setDimDeleteId(row.id)}>
+                            <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1360,15 +2192,22 @@ const ViewOperation = () => {
               variant="outline"
               className="h-7 text-xs px-3 bg-white font-semibold"
               onClick={() => {
-                setSiEditIndex(null);
-                setSiForm(initSi);
+                setSiEditId(null);
+                const nextSno = siRows.length > 0
+                  ? Math.max(...siRows.map((r: any) => Number(r.id) || 0)) + 1
+                  : 1;
+                setSiForm({ ...initSi, sNo: String(nextSno) });
                 setSiOpen(true);
               }}
             >
               Add Job Consignment
             </Button>
           </div>
-          {siRows.length === 0 ? (
+          {siLoading ? (
+            <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
+              <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />Loading...
+            </div>
+          ) : siRows.length === 0 ? (
             <NoData />
           ) : (
             <div className="p-4 overflow-x-auto">
@@ -1376,82 +2215,56 @@ const ViewOperation = () => {
                 <thead>
                   <tr className="border-b border-border">
                     {[
-                      "S.No#",
-                      "No of PCS",
-                      "Pack Type",
-                      "No of Pallet",
-                      "G.Weight",
-                      "V.Weight",
-                      "N.Weight",
-                      "Volume",
-                      "Chargeable Unit",
-                      "Commodity Type",
-                      "Commodity Code",
-                      "Manifest Seal",
-                      "Actual/Liner Seal",
-                      "Custom Seal",
-                      "Excise Seal No",
-                      "Seal Date",
-                      "Seal Type",
-                      "Seal Device ID",
-                      "Movement Doc Type",
-                      "Movement Doc No",
-                      "Notes",
-                      "RORO Year",
-                      "RORO Brand",
-                      "RORO Model",
-                      "RORO Chasis No",
-                      "RORO Engine No",
+                      "S.No#", "No of PCS", "Pack Type", "No of Pallet",
+                      "G.Weight", "V.Weight", "N.Weight", "Volume", "Chargeable Unit",
+                      "Commodity Type", "Commodity Code", "Manifest Seal", "Actual/Liner Seal",
+                      "Custom Seal", "Excise Seal No", "Seal Date", "Seal Type",
+                      "Seal Device ID", "Movement Doc Type", "Movement Doc No", "Notes",
+                      "RORO Year", "RORO Brand", "RORO Model", "RORO Chasis No", "RORO Engine No",
                       "Action",
                     ].map((h) => (
-                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">
-                        {h}
-                      </th>
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {siRows.map((row, i) => (
-                    <tr key={i} className="border-b border-border hover:bg-muted/30">
-                      <td className="px-3 py-2 text-xs text-foreground">{row.sNo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.noOfPcs}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.packType}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.noOfPallet}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">
-                        {row.gWeight}
-                        {row.gWeight && ` ${row.gWeightUnit}`}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground">
-                        {row.vWeight}
-                        {row.vWeight && ` ${row.vWeightUnit}`}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground">
-                        {row.nWeight}
-                        {row.nWeight && ` ${row.nWeightUnit}`}
-                      </td>
+                  {siRows.map((row) => (
+                    <tr key={row.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground">{row.s_no}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.no_of_pcs}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.pack_type}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.no_of_pallet}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.g_weight}{row.g_weight && ` ${row.g_weight_unit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.v_weight}{row.v_weight && ` ${row.v_weight_unit}`}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.n_weight}{row.n_weight && ` ${row.n_weight_unit}`}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.volume}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.chargeableUnit}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityType}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityCode}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.manifestSeal}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.actualLinerSeal}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.customSeal}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.exciseSealNo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.sealDate}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.sealTypeIndicator}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.sealDeviceId}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.movementDocType}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.movementDocNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.chargeable_unit}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodity_type}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodity_code}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.manifest_seal}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.actual_liner_seal}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.custom_seal}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.excise_seal_no}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.seal_date}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.seal_type_indicator}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.seal_device_id}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.movement_doc_type}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.movement_doc_no}</td>
                       <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.notes}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.roroYear}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.roroBrand}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.roroModel}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.roroChasisNo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.roroEngineNo}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roro_year}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roro_brand}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roro_model}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roro_chasis_no}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.roro_engine_no}</td>
                       <td className="px-3 py-2">
-                        <button className="text-red-400 hover:text-red-600" onClick={() => openSiEdit(i)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openSiEdit(row)}>
+                            <Pencil className="w-3.5 h-3.5 text-green-500" />
+                          </button>
+                          <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setSiDeleteId(row.id)}>
+                            <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1495,38 +2308,183 @@ const ViewOperation = () => {
               <Button
                 size="sm"
                 className="h-7 text-xs px-3 bg-slate-400 hover:bg-slate-500 text-white border-0"
-                onClick={() => setCostOpen(true)}
+                onClick={openCostCreate}
               >
                 Add Costing
               </Button>
             </div>
           </div>
-          <div className="p-4">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-foreground">Sale Amount</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-foreground">Cost Amount</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-foreground">Profit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { sale: 125000, cost: 98000 },
-                  { sale: 87500, cost: 61200 },
-                ].map((row, i) => (
-                  <tr key={i} className="border-b border-border hover:bg-muted/30">
-                    <td className="px-3 py-2 text-xs text-foreground">{row.sale.toLocaleString("en-IN")}</td>
-                    <td className="px-3 py-2 text-xs text-foreground">{row.cost.toLocaleString("en-IN")}</td>
-                    <td
-                      className={`px-3 py-2 text-xs font-medium ${row.sale - row.cost >= 0 ? "text-green-600" : "text-red-500"}`}
-                    >
-                      {(row.sale - row.cost).toLocaleString("en-IN")}
-                    </td>
+          {costLoading ? (
+            <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
+              <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />Loading...
+            </div>
+          ) : costList.length === 0 ? (
+            <NoData />
+          ) : (
+            <div className="p-4 overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    {['#','Charge','PP/CC','Description','Unit','No of Unit','SAC Code',
+                      'Sale Customer','Sale Dr/Cr','Sale Currency','Sale Ex Rate','Sale/Unit','Sale Crcy Amt','Sale Local Amt','Sale Tax%','Sale Tax Amt',
+                      'Cost Vendor','Cost Dr/Cr','Cost Currency','Cost Ex Rate','Cost/Unit','Cost Crcy Amt','Cost Local Amt','Cost Tax%','Cost Tax Amt',
+                      'Actions'].map(h => (
+                      <th key={h} className="px-2 py-2 text-left font-semibold text-foreground whitespace-nowrap">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {costList.map((row, i) => (
+                    <tr key={row.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-2 py-2 text-muted-foreground">{i + 1}</td>
+                      <td className="px-2 py-2 font-medium whitespace-nowrap">{row.charge}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{row.freight_pp_cc}</td>
+                      <td className="px-2 py-2 max-w-[120px] truncate" title={row.description}>{row.description}</td>
+                      <td className="px-2 py-2">{row.unit}</td>
+                      <td className="px-2 py-2">{row.no_of_unit}</td>
+                      <td className="px-2 py-2">{row.sac_code}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{row.sale_customer}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{row.sale_dr_cr}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{row.sale_currency}</td>
+                      <td className="px-2 py-2">{row.sale_ex_rate}</td>
+                      <td className="px-2 py-2">{row.sale_per_unit}</td>
+                      <td className="px-2 py-2">{row.sale_crcy_amount}</td>
+                      <td className="px-2 py-2">{row.sale_local_amount}</td>
+                      <td className="px-2 py-2">{row.sale_tax_percent}</td>
+                      <td className="px-2 py-2">{row.sale_total_tax_amount}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{row.cost_vendor}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{row.cost_dr_cr}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{row.cost_currency}</td>
+                      <td className="px-2 py-2">{row.cost_ex_rate}</td>
+                      <td className="px-2 py-2">{row.cost_per_unit}</td>
+                      <td className="px-2 py-2">{row.cost_crcy_amount}</td>
+                      <td className="px-2 py-2">{row.cost_local_amount}</td>
+                      <td className="px-2 py-2">{row.cost_tax_percent}</td>
+                      <td className="px-2 py-2">{row.cost_total_tax_amount}</td>
+                      <td className="px-2 py-2">
+                        <div className="flex items-center gap-1">
+                          <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openCostEdit(row)}>
+                            <Pencil className="w-3.5 h-3.5 text-green-500" />
+                          </button>
+                          <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setCostDeleteId(row.id)}>
+                            <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Costing Form Modal */}
+      {costOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeCostModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-5xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">{costEditId ? 'Edit Costing' : 'Add Costing'}</h3>
+              <button onClick={closeCostModal} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-5 space-y-4 text-xs">
+
+              {/* Basic Info */}
+              <div className="grid grid-cols-4 gap-3">
+                <div className="flex flex-col gap-1"><label className="font-semibold">S.No#</label><input name="sNo" value={costForm.sNo} readOnly className="w-full px-2 py-1 border border-input rounded text-xs bg-muted cursor-not-allowed" /></div>
+                <div className="flex flex-col gap-1"><label className="font-semibold"><span className="text-destructive mr-1">*</span>Charge</label>{cs('charge', CHARGES)}</div>
+                <div className="flex flex-col gap-1"><label className="font-semibold"><span className="text-destructive mr-1">*</span>Freight PP/CC</label>{cs('freightPpCc', ['Prepaid','Collect'])}</div>
+                <div className="flex flex-col gap-1"><label className="font-semibold">Description</label>{ci('description')}</div>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                <div className="flex flex-col gap-1"><label className="font-semibold"><span className="text-destructive mr-1">*</span>Unit</label>{cs('unit', UNITS)}</div>
+                <div className="flex flex-col gap-1"><label className="font-semibold">No of Unit</label>{ci('noOfUnit')}</div>
+                <div className="flex flex-col gap-1"><label className="font-semibold"><span className="text-destructive mr-1">*</span>SAC Code</label>{ci('sacCode')}</div>
+                <div className="flex flex-col gap-1"><label className="font-semibold">Note</label>{ci('note')}</div>
+              </div>
+
+              {/* Sale Section */}
+              <div className="border border-border rounded overflow-hidden">
+                <div className="bg-[#00BCD4] px-3 py-2"><span className="text-white font-semibold text-xs">Sale Details</span></div>
+                <div className="p-3 grid grid-cols-4 gap-3">
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Other Territory</label>
+                    <select name="saleOtherTerritory" value={costForm.saleOtherTerritory} onChange={costChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                      {['No','Yes'].map(o => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Customer</label>{cs('saleCustomer', CUSTOMERS)}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Dr/Cr</label>{cs('saleDrCr', DR_CR_SALE, '')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Currency</label>{cs('saleCurrency', CURRENCIES, '')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Ex Rate</label>{ci('saleExRate')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Per Unit</label>{ci('salePerUnit')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Crcy Amount</label>{ci('saleCrcyAmount')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Local Amount</label>{ci('saleLocalAmount')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Tax %</label>{cs('saleTaxPct', TAX_PCTS)}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Taxable Amt</label>{ci('saleTaxableAmount')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Non-Taxable Amt</label>{ci('saleNonTaxableAmount')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">CGST</label>{ci('saleCgst')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">SGST</label>{ci('saleSgst')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">IGST</label>{ci('saleIgst')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Total Tax</label>{ci('saleTotalTax')}</div>
+                </div>
+              </div>
+
+              {/* Cost Section */}
+              <div className="border border-border rounded overflow-hidden">
+                <div className="bg-amber-400 px-3 py-2"><span className="text-white font-semibold text-xs">Cost Details</span></div>
+                <div className="p-3 grid grid-cols-4 gap-3">
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Vendor</label>{cs('costVendor', VENDORS)}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Dr/Cr</label>{cs('costDrCr', DR_CR_COST, '')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Currency</label>{cs('costCurrency', CURRENCIES, '')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Ex Rate</label>{ci('costExRate')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Per Unit</label>{ci('costPerUnit')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Crcy Amount</label>{ci('costCrcyAmount')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Local Amount</label>{ci('costLocalAmount')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Tax %</label>{cs('costTaxPct', TAX_PCTS)}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Taxable Amt</label>{ci('costTaxableAmount')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Non-Taxable Amt</label>{ci('costNonTaxableAmount')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">CGST</label>{ci('costCgst')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">SGST</label>{ci('costSgst')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">IGST</label>{ci('costIgst')}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Total Tax</label>{ci('costTotalTax')}</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" onClick={closeCostModal}>Cancel</Button>
+              <div className="flex gap-2">
+                {/* {!costEditId && (
+                  <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-black font-semibold" onClick={() => saveCost(true)} disabled={costSaving}>
+                    {costSaving ? 'Saving...' : 'Save & Add Next'}
+                  </Button>
+                )} */}
+                <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={() => saveCost(false)} disabled={costSaving}>
+                  {costSaving ? 'Saving...' : costEditId ? 'Update' : 'Save'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Costing Delete Confirmation */}
+      {costDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setCostDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Costing</h3>
+              <button onClick={() => setCostDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this costing record? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setCostDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleCostDelete}>Delete</Button>
+            </div>
           </div>
         </div>
       )}
@@ -1536,68 +2494,51 @@ const ViewOperation = () => {
         <div className="material-card material-elevation-1 overflow-hidden">
           <div className="bg-white px-6 py-3 border-b border-border flex items-center justify-between">
             <h2 className="text-lg font-bold text-primary">Shipping Bill / BOE</h2>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs px-3 bg-white font-semibold"
-              onClick={() => {
-                setSbEditIndex(null);
-                setSbForm(initSb);
-                setSbOpen(true);
-              }}
-            >
+            <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold" onClick={openSbCreate}>
               Add Shipping Bill
             </Button>
           </div>
-          {sbRows.length === 0 ? (
+          {sbLoading ? (
+            <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
+              <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />Loading...
+            </div>
+          ) : sbRows.length === 0 ? (
             <NoData />
           ) : (
             <div className="p-4 overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {[
-                      "Shipping Bill No",
-                      "Shipping Bill Date",
-                      "Mate Receipt No",
-                      "Mate Receipt Date",
-                      "No of PCS",
-                      "Pack Type",
-                      "Gross Weight",
-                      "Measurement",
-                      "Volume",
-                      "Commodity Code",
-                      "Commodity Type",
-                      "Commodity Desc",
-                      "Note",
-                      "Action",
-                    ].map((h) => (
-                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">
-                        {h}
-                      </th>
+                    {["Shipping Bill No","Shipping Bill Date","Mate Receipt No","Mate Receipt Date","No of PCS","Pack Type","Gross Weight","Measurement","Volume","Commodity Code","Commodity Type","Commodity Desc","Note","Action"].map((h) => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {sbRows.map((row, i) => (
-                    <tr key={i} className="border-b border-border hover:bg-muted/30">
-                      <td className="px-3 py-2 text-xs text-foreground">{row.shippingBillNo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.shippingBillDate}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.mateReceiptNo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.mateReceiptDate}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.noOfPcs}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.packType}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.grossWeight}</td>
+                  {sbRows.map((row) => (
+                    <tr key={row.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground">{row.shipping_bill_no}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.shipping_bill_date}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.mate_receipt_no}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.mate_receipt_date}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.no_of_pcs}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.pack_type}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.gross_weight}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.measurement}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.volume}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityCode}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.commodityType}</td>
-                      <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.commodityDesc}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodity_code}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.commodity_type}</td>
+                      <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.commodity_desc}</td>
                       <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.note}</td>
                       <td className="px-3 py-2">
-                        <button className="text-red-400 hover:text-red-600" onClick={() => openSbEdit(i)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openSbEdit(row)}>
+                            <Pencil className="w-3.5 h-3.5 text-green-500" />
+                          </button>
+                          <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setSbDeleteId(row.id)}>
+                            <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1617,62 +2558,51 @@ const ViewOperation = () => {
               size="sm"
               variant="outline"
               className="h-7 text-xs px-3 bg-white font-semibold"
-              onClick={() => {
-                setHouseEditIndex(null);
-                setHouseForm(initHouse);
-                setHouseOpen(true);
-              }}
+              onClick={openHouseCreate}
             >
               Add New House
             </Button>
           </div>
-          {houseRows.length === 0 ? (
+          {houseLoading ? (
+            <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
+              <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />Loading...
+            </div>
+          ) : houseList.length === 0 ? (
             <NoData />
           ) : (
             <div className="p-4 overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {[
-                      "HAWB No",
-                      "HAWB Date",
-                      "HAWB Mark No",
-                      "Place of Receipt",
-                      "Place of Delivery",
-                      "INCO Term",
-                      "Freight Term",
-                      "Customer",
-                      "Shipper",
-                      "Consignee",
-                      "Notify1",
-                      "Notes",
-                      "Action",
-                    ].map((h) => (
-                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">
-                        {h}
-                      </th>
+                    {["HAWB No","HAWB Date","HAWB Mark No","Place of Receipt","Place of Delivery","INCO Term","Freight Term","Customer","Shipper","Consignee","Notify1","Notes","Action"].map((h) => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {houseRows.map((row, i) => (
-                    <tr key={i} className="border-b border-border hover:bg-muted/30">
-                      <td className="px-3 py-2 text-xs text-foreground">{row.hawbNo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.hawbDate}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.hawbMarkNo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.placeOfReceipt}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.placeOfDelivery}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.incoTerm}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.freightTerm}</td>
+                  {houseList.map((row) => (
+                    <tr key={row.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground">{row.hawb_no}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.hawb_date}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.hawb_mark_no}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.place_of_receipt}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.place_of_delivery}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.inco_term}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.freight_term}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.customer}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.shipper}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.consignee}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.notify1}</td>
                       <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.notes}</td>
                       <td className="px-3 py-2">
-                        <button className="text-red-400 hover:text-red-600" onClick={() => openHouseEdit(i)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openHouseEdit(row)}>
+                            <Pencil className="w-3.5 h-3.5 text-green-500" />
+                          </button>
+                          <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setHouseDeleteId(row.id)}>
+                            <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1695,72 +2625,64 @@ const ViewOperation = () => {
             <div className="bg-[#00BCD4] px-6 py-2.5 flex items-center justify-between">
               <span className="text-white font-semibold text-sm">Routing (Vessel Movement)</span>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white">
-                  Get Schedule
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs px-3 bg-white font-semibold"
-                  onClick={() => setRoutingOpen(true)}
-                >
+                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white">Get Schedule</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold" onClick={openRoutingCreate}>
                   Routing +
                 </Button>
               </div>
             </div>
+            {routingLoading ? (
+              <div className="flex items-center justify-center h-16 text-muted-foreground text-sm">
+                <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />Loading...
+              </div>
+            ) : (
             <div className="p-4">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {[
-                      "Edit",
-                      "Line No",
-                      "From Port Code",
-                      "From Port Name",
-                      "From ETD",
-                      "From ATD",
-                      "To Port CODE",
-                      "To port Name",
-                      "To ETA",
-                      "To ATA",
-                      "Vessel / Flight Name",
-                      "Status",
-                      "Notes",
-                    ].map((h) => (
-                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">
-                        {h}
-                      </th>
+                    {["#","Line No","From Port Code","From Port Name","From ETD","From ATD","To Port Code","To Port Name","Position","To ETA","To ATA","Airline Code","Flight Name","Status","Followup","Notes","Action"].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {routingRows.map((row, i) => (
-                    <tr key={i} className="border-b border-border hover:bg-muted/30">
-                      <td className="px-3 py-2">
-                        <button className="text-red-400 hover:text-red-600">
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.sNo}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.fromPortCode}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.fromPortName}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.fromEtd}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.fromAtd}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.toPortCode}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.toPortName}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.toEta}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.toAta}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.flightName}</td>
+                  {routingList.length === 0 ? (
+                    <tr><td colSpan={17} className="px-3 py-8 text-center text-sm text-muted-foreground">No routing records found.</td></tr>
+                  ) : routingList.map((row, i) => (
+                    <tr key={row.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{i + 1}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.s_no}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.from_port_code}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.from_port_name}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.from_etd}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.from_atd}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.to_port_code}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.to_port_name}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.position}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.to_eta}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.to_ata}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.airline_code}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.flight_name}</td>
                       <td className="px-3 py-2 text-xs text-foreground uppercase">{row.status}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.notes}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{row.from_etd_followup ? 'Yes' : 'No'}</td>
+                      <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.notes}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1">
+                          <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openRoutingEdit(row)}>
+                            <Pencil className="w-3.5 h-3.5 text-green-500" />
+                          </button>
+                          <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setRoutingDeleteId(row.id)}>
+                            <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
-
-          {/* Team + Profit Share */}
+            )}
+          </div>{/* Team + Profit Share */}
           <div className="grid grid-cols-2 gap-0 border-b border-border">
             <div className="border-r border-border">
               <div className="bg-[#00BCD4] px-4 py-2.5 flex items-center justify-between">
@@ -1976,11 +2898,11 @@ const ViewOperation = () => {
                   <tr className="border-b border-border hover:bg-muted/30">
                     <td className="px-3 py-2 text-xs text-foreground">New Record</td>
                     <td className="px-3 py-2 text-xs text-foreground">info@relay-logistics.com</td>
-                    <td className="px-3 py-2 text-xs text-foreground">{op.jobNo || "RLPL/AE/J0303"}</td>
+                    <td className="px-3 py-2 text-xs text-foreground">{op.document || "RLPL/AE/J0303"}</td>
                     <td className="px-3 py-2 text-xs text-foreground">-</td>
                     <td className="px-3 py-2 text-xs text-foreground">-</td>
                     <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                      {op.jobDate ? `${op.jobDate} 12:03PM` : "24-MAR-2026 12:03PM"}
+                      {op.job_date ? `${op.job_date} 12:03PM` : "24-MAR-2026 12:03PM"}
                     </td>
                   </tr>
                 </tbody>
@@ -2169,24 +3091,24 @@ const ViewOperation = () => {
                       </td>
                       <td className="px-3 py-2 text-xs text-foreground">JSD</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.placeOfDelivery || ""}
+                        {op.place_of_delivery || ""}
                       </td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.polEtd || "25-MAR-26"}
+                        {op.pol_etd || "25-MAR-26"}
                       </td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.podEta || "26-MAR-26"}
+                        {op.pod_eta || "26-MAR-26"}
                       </td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.freightPpCc ? op.freightPpCc.toUpperCase() : "COLLECT"}
+                        {op.freight_pp_cc ? op.freight_pp_cc.toUpperCase() : "COLLECT"}
                       </td>
                       <td className="px-3 py-2 text-xs text-foreground"></td>
                       <td className="px-3 py-2 text-xs text-foreground"></td>
                       <td className="px-3 py-2 text-xs text-foreground"></td>
                       <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.flightName || ""}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.flight_name || ""}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.flightNumber || "111"}
+                        {op.flight_number || "111"}
                       </td>
                       <td className="px-3 py-2 text-xs text-foreground"></td>
                       <td className="px-3 py-2 text-xs text-foreground"></td>
@@ -2200,6 +3122,140 @@ const ViewOperation = () => {
         </div>
       )}
 
+      {/* Routing Modal */}
+      {routingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeRoutingModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">{routingEditId ? 'Edit Routing' : 'Add Routing'}</h3>
+              <button onClick={closeRoutingModal} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">S.No#</label>
+                  <input name="sNo" value={routingForm.sNo} readOnly className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-muted cursor-not-allowed" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0"><span className="text-destructive mr-1">*</span>From Port Code</label>
+                  <div className="flex-1">
+                    <select name="fromPortCode" value={routingForm.fromPortCode} onChange={routingChange} className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${routingErrors.fromPortCode ? 'border-destructive' : 'border-input'}`}>
+                      <option value="">--Select--</option>
+                      {PORT_OPTIONS.map(p => <option key={p}>{p}</option>)}
+                    </select>
+                    {routingErrors.fromPortCode && <p className="text-xs text-destructive mt-0.5">⚠ {routingErrors.fromPortCode}</p>}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">From Port Name</label>
+                  <input name="fromPortName" value={routingForm.fromPortName} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0"><span className="text-destructive mr-1">*</span>To Port Code</label>
+                  <div className="flex-1">
+                    <select name="toPortCode" value={routingForm.toPortCode} onChange={routingChange} className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${routingErrors.toPortCode ? 'border-destructive' : 'border-input'}`}>
+                      <option value="">--Select--</option>
+                      {PORT_OPTIONS.map(p => <option key={p}>{p}</option>)}
+                    </select>
+                    {routingErrors.toPortCode && <p className="text-xs text-destructive mt-0.5">⚠ {routingErrors.toPortCode}</p>}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">To Port Name</label>
+                  <input name="toPortName" value={routingForm.toPortName} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Position</label>
+                  <select name="position" value={routingForm.position} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {POSITION_OPTIONS_ROUTING.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">From ETD</label>
+                  <input type="date" name="fromEtd" value={routingForm.fromEtd} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">From ATD</label>
+                  <input type="date" name="fromAtd" value={routingForm.fromAtd} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">To ETA</label>
+                  <input type="date" name="toEta" value={routingForm.toEta} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">To ATA</label>
+                  <input type="date" name="toAta" value={routingForm.toAta} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Airline Code</label>
+                  <input name="airlineCode" value={routingForm.airlineCode} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Flight Name</label>
+                  <input name="flightName" value={routingForm.flightName} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Status</label>
+                  <select name="status" value={routingForm.status} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {STATUS_OPTIONS_ROUTING.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">ETD Followup</label>
+                  <select name="fromEtdFollowup" value={routingForm.fromEtdFollowup} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Notes</label>
+                <textarea name="notes" value={routingForm.notes} onChange={routingChange} rows={3} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6" onClick={closeRoutingModal}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={saveRouting} disabled={routingSaving}>
+                {routingSaving ? 'Saving...' : routingEditId ? 'Update' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Routing Delete Confirmation */}
+      {routingDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRoutingDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Routing</h3>
+              <button onClick={() => setRoutingDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this routing record? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setRoutingDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleRoutingDelete}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* House's List Modal */}
       {houseOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -2207,7 +3263,7 @@ const ViewOperation = () => {
           <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-4xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
               <h3 className="text-lg font-bold text-primary">
-                {houseEditIndex !== null ? "Edit House Job" : "Create New House Job"}
+                {houseEditId !== null ? "Edit House Job" : "Create New House Job"}
               </h3>
               <button onClick={closeHouseModal} className="p-2 hover:bg-muted rounded-lg">
                 <X className="w-5 h-5" />
@@ -2218,52 +3274,46 @@ const ViewOperation = () => {
               <div className="grid grid-cols-3 gap-4 text-xs">
                 <div className="flex items-start gap-2">
                   <span className="font-semibold text-foreground w-20 shrink-0">Job No</span>
-                  <span className="text-foreground">
-                    {op.jobNo || "RLPL/AE/J0306"} / {op.jobDate || "25-MAR-26"}
-                  </span>
+                  <span className="text-foreground">{op.document || ""} / {op.job_date || ""}</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="font-semibold text-foreground w-10 shrink-0">POL</span>
-                  <span className="text-foreground">{op.pol || "JSD / SIKORSKY HELIPORT-STRATFORD, CT"}</span>
+                  <span className="text-foreground">{op.pol || ""}</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="font-semibold text-foreground w-10 shrink-0">POD</span>
-                  <span className="text-foreground">{op.pod || "JSD / SIKORSKY HELIPORT-STRATFORD, CT"}</span>
+                  <span className="text-foreground">{op.pod || ""}</span>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-foreground w-20 shrink-0">ETD / ATD</span>
-                  <span className="text-foreground">{op.polEtd || "25-Mar-26"} /</span>
+                  <span className="text-foreground">{op.pol_etd || ""} /</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-foreground w-20 shrink-0">ETA / ATA</span>
-                  <span className="text-foreground">{op.podEta || "26-Mar-26"} /</span>
+                  <span className="text-foreground">{op.pod_eta || ""} /</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-foreground w-32 shrink-0">Flight Name / No.</span>
-                  <span className="text-foreground">{op.flightName || ""}</span>
+                  <span className="text-foreground">{op.flight_name || ""}</span>
                 </div>
               </div>
+
+              {/* Place of Receipt + Place of Delivery */}
               <div className="grid grid-cols-3 gap-4 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-foreground w-20 shrink-0">MAWB No. / Date</span>
-                  <span className="text-foreground">{op.mblNo || ""}</span>
+                  <span className="text-foreground">{op.note || ""}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="font-semibold text-foreground w-24 shrink-0">
                     Place of Receipt <span className="text-destructive">*</span>
                   </label>
                   <div className="flex-1">
-                    <input
-                      name="placeOfReceipt"
-                      value={houseForm.placeOfReceipt}
-                      onChange={houseChange}
-                      className={`w-full px-2 py-1 border rounded text-xs bg-background ${houseErrors.placeOfReceipt ? "border-destructive" : "border-input"}`}
-                    />
-                    {houseErrors.placeOfReceipt && (
-                      <p className="text-xs text-destructive mt-0.5">{houseErrors.placeOfReceipt}</p>
-                    )}
+                    <input name="placeOfReceipt" value={houseForm.placeOfReceipt} onChange={houseChange}
+                      className={`w-full px-2 py-1 border rounded text-xs bg-background ${houseErrors.placeOfReceipt ? 'border-destructive' : 'border-input'}`} />
+                    {houseErrors.placeOfReceipt && <p className="text-xs text-destructive mt-0.5">⚠ {houseErrors.placeOfReceipt}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2271,15 +3321,9 @@ const ViewOperation = () => {
                     Place of Delivery <span className="text-destructive">*</span>
                   </label>
                   <div className="flex-1">
-                    <input
-                      name="placeOfDelivery"
-                      value={houseForm.placeOfDelivery}
-                      onChange={houseChange}
-                      className={`w-full px-2 py-1 border rounded text-xs bg-background ${houseErrors.placeOfDelivery ? "border-destructive" : "border-input"}`}
-                    />
-                    {houseErrors.placeOfDelivery && (
-                      <p className="text-xs text-destructive mt-0.5">{houseErrors.placeOfDelivery}</p>
-                    )}
+                    <input name="placeOfDelivery" value={houseForm.placeOfDelivery} onChange={houseChange}
+                      className={`w-full px-2 py-1 border rounded text-xs bg-background ${houseErrors.placeOfDelivery ? 'border-destructive' : 'border-input'}`} />
+                    {houseErrors.placeOfDelivery && <p className="text-xs text-destructive mt-0.5">⚠ {houseErrors.placeOfDelivery}</p>}
                   </div>
                 </div>
               </div>
@@ -2291,38 +3335,23 @@ const ViewOperation = () => {
                     INCO Term <span className="text-destructive">*</span>
                   </label>
                   <div className="flex-1">
-                    <select
-                      name="incoTerm"
-                      value={houseForm.incoTerm}
-                      onChange={houseChange}
-                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${houseErrors.incoTerm ? "border-destructive" : "border-input"}`}
-                    >
+                    <select name="incoTerm" value={houseForm.incoTerm} onChange={houseChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${houseErrors.incoTerm ? 'border-destructive' : 'border-input'}`}>
                       <option value="">--Select--</option>
-                      {HOUSE_INCO_TERMS.map((t) => (
-                        <option key={t}>{t}</option>
-                      ))}
+                      {HOUSE_INCO_TERMS.map((t) => <option key={t}>{t}</option>)}
                     </select>
-                    {houseErrors.incoTerm && <p className="text-xs text-destructive mt-0.5">{houseErrors.incoTerm}</p>}
+                    {houseErrors.incoTerm && <p className="text-xs text-destructive mt-0.5">⚠ {houseErrors.incoTerm}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-20 shrink-0">HAWB No.</label>
-                  <input
-                    name="hawbNo"
-                    value={houseForm.hawbNo}
-                    onChange={houseChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <input name="hawbNo" value={houseForm.hawbNo} onChange={houseChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-24 shrink-0">HAWB Date</label>
-                  <input
-                    type="date"
-                    name="hawbDate"
-                    value={houseForm.hawbDate}
-                    onChange={houseChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <input type="date" name="hawbDate" value={houseForm.hawbDate} onChange={houseChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
               </div>
 
@@ -2330,45 +3359,27 @@ const ViewOperation = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-24 shrink-0">Freight Term</label>
-                  <select
-                    name="freightTerm"
-                    value={houseForm.freightTerm}
-                    onChange={houseChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    {HOUSE_FREIGHT_TERMS.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
+                  <select name="freightTerm" value={houseForm.freightTerm} onChange={houseChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {HOUSE_FREIGHT_TERMS.map((t) => <option key={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="flex items-start gap-2">
                   <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">HAWB Mark No.</label>
-                  <textarea
-                    name="hawbMarkNo"
-                    value={houseForm.hawbMarkNo}
-                    onChange={houseChange}
-                    rows={3}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                  />
+                  <textarea name="hawbMarkNo" value={houseForm.hawbMarkNo} onChange={houseChange} rows={3}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
                 </div>
                 <div className="flex items-start gap-2">
                   <label className="text-xs font-semibold text-foreground w-24 shrink-0 pt-1">Notes</label>
-                  <textarea
-                    name="notes"
-                    value={houseForm.notes}
-                    onChange={houseChange}
-                    rows={3}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                  />
+                  <textarea name="notes" value={houseForm.notes} onChange={houseChange} rows={3}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
                 </div>
               </div>
 
-              {/* Customer + Shipper panels */}
+              {/* Customer + Shipper */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="border border-border rounded overflow-hidden">
-                  <div className="bg-[#00BCD4] px-3 py-2">
-                    <h4 className="text-white font-semibold text-xs">Customer</h4>
-                  </div>
+                  <div className="bg-[#00BCD4] px-3 py-2"><h4 className="text-white font-semibold text-xs">Customer</h4></div>
                   <div className="p-3 space-y-3">
                     <div className="flex items-center gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0">
@@ -2378,145 +3389,151 @@ const ViewOperation = () => {
                         <select
                           name="customer"
                           value={houseForm.customer}
-                          onChange={houseChange}
-                          className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${houseErrors.customer ? "border-destructive" : "border-input"}`}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const fromApi = slList.find((s: any) => (s.customer_name ?? '') === val);
+                            const fromStatic = HOUSE_STATIC_CUSTOMERS.find(s => s.name === val);
+                            setHouseForm(prev => ({
+                              ...prev,
+                              customer: val,
+                              customerAddress: fromApi?.address ?? fromStatic?.address ?? prev.customerAddress,
+                            }));
+                            if (houseErrors.customer) setHouseErrors(prev => ({ ...prev, customer: '' }));
+                          }}
+                          className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${houseErrors.customer ? 'border-destructive' : 'border-input'}`}
                         >
                           <option value="">--Select Customer--</option>
-                          {HOUSE_CUSTOMERS.map((c) => (
-                            <option key={c}>{c}</option>
+                          {/* Static options */}
+                          {HOUSE_STATIC_CUSTOMERS.map(s => (
+                            <option key={`static-${s.name}`} value={s.name}>{s.name}</option>
+                          ))}
+                          {/* API options (exclude duplicates) */}
+                          {houseApiOptions(HOUSE_STATIC_CUSTOMERS).map((s: any) => (
+                            <option key={`api-${s.id}`} value={s.customer_name ?? ''}>{s.customer_name ?? ''}</option>
                           ))}
                         </select>
-                        {houseErrors.customer && (
-                          <p className="text-xs text-destructive mt-0.5">{houseErrors.customer}</p>
-                        )}
+                        {houseErrors.customer && <p className="text-xs text-destructive mt-0.5">⚠ {houseErrors.customer}</p>}
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
-                      <textarea
-                        name="customerAddress"
-                        value={houseForm.customerAddress}
-                        onChange={houseChange}
-                        rows={3}
-                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                      />
+                      <textarea name="customerAddress" value={houseForm.customerAddress} onChange={houseChange} rows={3}
+                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
                     </div>
                   </div>
                 </div>
                 <div className="border border-border rounded overflow-hidden">
-                  <div className="bg-[#00BCD4] px-3 py-2">
-                    <h4 className="text-white font-semibold text-xs">Shipper</h4>
-                  </div>
+                  <div className="bg-[#00BCD4] px-3 py-2"><h4 className="text-white font-semibold text-xs">Shipper</h4></div>
                   <div className="p-3 space-y-3">
                     <div className="flex items-center gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0">Shipper</label>
                       <select
                         name="shipper"
                         value={houseForm.shipper}
-                        onChange={houseChange}
+                        onChange={houseSelectChange('shipper', 'shipperAddress', HOUSE_STATIC_SHIPPERS)}
                         className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
                       >
                         <option value="">--Select Shipper--</option>
-                        {HOUSE_SHIPPERS.map((s) => (
-                          <option key={s}>{s}</option>
+                        {HOUSE_STATIC_SHIPPERS.map(s => (
+                          <option key={s.name} value={s.name}>{s.name}</option>
                         ))}
+                        {houseApiOptions(HOUSE_STATIC_SHIPPERS).map((s: any) => (
+                            <option key={`api-s-${s.id}`} value={s.customer_name ?? ''}>{s.customer_name ?? ''}</option>
+                          ))}
                       </select>
                     </div>
                     <div className="flex items-start gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
-                      <textarea
-                        name="shipperAddress"
-                        value={houseForm.shipperAddress}
-                        onChange={houseChange}
-                        rows={3}
-                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                      />
+                      <textarea name="shipperAddress" value={houseForm.shipperAddress} onChange={houseChange} rows={3}
+                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Consignee + Notify1 panels */}
+              {/* Consignee + Notify1 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="border border-border rounded overflow-hidden">
-                  <div className="bg-[#00BCD4] px-3 py-2">
-                    <h4 className="text-white font-semibold text-xs">Consignee</h4>
-                  </div>
+                  <div className="bg-[#00BCD4] px-3 py-2"><h4 className="text-white font-semibold text-xs">Consignee</h4></div>
                   <div className="p-3 space-y-3">
                     <div className="flex items-center gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0">Consignee</label>
                       <select
                         name="consignee"
                         value={houseForm.consignee}
-                        onChange={houseChange}
+                        onChange={houseSelectChange('consignee', 'consigneeAddress', HOUSE_STATIC_CONSIGNEES)}
                         className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
                       >
                         <option value="">--Select Consignee--</option>
-                        {HOUSE_CONSIGNEES.map((c) => (
-                          <option key={c}>{c}</option>
+                        {HOUSE_STATIC_CONSIGNEES.map(s => (
+                          <option key={s.name} value={s.name}>{s.name}</option>
                         ))}
+                        {houseApiOptions(HOUSE_STATIC_CONSIGNEES).map((s: any) => (
+                            <option key={`api-c-${s.id}`} value={s.customer_name ?? ''}>{s.customer_name ?? ''}</option>
+                          ))}
                       </select>
                     </div>
                     <div className="flex items-start gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
-                      <textarea
-                        name="consigneeAddress"
-                        value={houseForm.consigneeAddress}
-                        onChange={houseChange}
-                        rows={3}
-                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                      />
+                      <textarea name="consigneeAddress" value={houseForm.consigneeAddress} onChange={houseChange} rows={3}
+                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
                     </div>
                   </div>
                 </div>
                 <div className="border border-border rounded overflow-hidden">
-                  <div className="bg-amber-400 px-3 py-2">
-                    <h4 className="text-white font-semibold text-xs">Notify1</h4>
-                  </div>
+                  <div className="bg-amber-400 px-3 py-2"><h4 className="text-white font-semibold text-xs">Notify1</h4></div>
                   <div className="p-3 space-y-3">
                     <div className="flex items-center gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0">Notify1</label>
                       <select
                         name="notify1"
                         value={houseForm.notify1}
-                        onChange={houseChange}
+                        onChange={houseSelectChange('notify1', 'notify1Address', HOUSE_STATIC_NOTIFY)}
                         className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
                       >
                         <option value="">--Select Notify1--</option>
-                        {HOUSE_NOTIFY.map((n) => (
-                          <option key={n}>{n}</option>
+                        {HOUSE_STATIC_NOTIFY.map(s => (
+                          <option key={s.name} value={s.name}>{s.name}</option>
                         ))}
+                        {houseApiOptions(HOUSE_STATIC_NOTIFY).map((s: any) => (
+                            <option key={`api-n-${s.id}`} value={s.customer_name ?? ''}>{s.customer_name ?? ''}</option>
+                          ))}
                       </select>
                     </div>
                     <div className="flex items-start gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
-                      <textarea
-                        name="notify1Address"
-                        value={houseForm.notify1Address}
-                        onChange={houseChange}
-                        rows={3}
-                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                      />
+                      <textarea name="notify1Address" value={houseForm.notify1Address} onChange={houseChange} rows={3}
+                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button
-                size="sm"
-                className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6"
-                onClick={closeHouseModal}
-              >
-                Cancel
+              <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6" onClick={closeHouseModal}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={saveHouse} disabled={houseSaving}>
+                {houseSaving ? 'Saving...' : houseEditId ? 'Update House Job' : 'Create House Job'}
               </Button>
-              <Button
-                size="sm"
-                className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6"
-                onClick={saveHouse}
-              >
-                {houseEditIndex !== null ? "Update House Job" : "Create House Job"}
-              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* House Job Delete Confirmation */}
+      {houseDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setHouseDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete House Job</h3>
+              <button onClick={() => setHouseDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this house job? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setHouseDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleHouseDelete}>Delete</Button>
             </div>
           </div>
         </div>
@@ -2528,2128 +3545,166 @@ const ViewOperation = () => {
           <div className="absolute inset-0 bg-black/50" onClick={closeSbModal} />
           <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">Shipping Bill</h3>
-              <button onClick={closeSbModal} className="p-2 hover:bg-muted rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
+              <h3 className="text-lg font-bold text-primary">{sbEditId ? 'Edit Shipping Bill' : 'Add Shipping Bill'}</h3>
+              <button onClick={closeSbModal} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
-              {/* Row 1: Shipping Bill No + Shipping Bill Date */}
+              {/* Row 1 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">
-                    <span className="text-destructive mr-1">*</span>Shipping Bill No
-                  </label>
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0"><span className="text-destructive mr-1">*</span>Shipping Bill No</label>
                   <div className="flex-1">
-                    <input
-                      name="shippingBillNo"
-                      value={sbForm.shippingBillNo}
-                      onChange={sbChange}
-                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.shippingBillNo ? "border-destructive" : "border-input"}`}
-                    />
-                    {sbErrors.shippingBillNo && (
-                      <p className="text-xs text-destructive mt-0.5">{sbErrors.shippingBillNo}</p>
-                    )}
+                    <input name="shippingBillNo" value={sbForm.shippingBillNo} onChange={sbChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.shippingBillNo ? 'border-destructive' : 'border-input'}`} />
+                    {sbErrors.shippingBillNo && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.shippingBillNo}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">
-                    <span className="text-destructive mr-1">*</span>Shipping Bill Date
-                  </label>
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0"><span className="text-destructive mr-1">*</span>Shipping Bill Date</label>
                   <div className="flex-1">
-                    <input
-                      type="date"
-                      name="shippingBillDate"
-                      value={sbForm.shippingBillDate}
-                      onChange={sbChange}
-                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.shippingBillDate ? "border-destructive" : "border-input"}`}
-                    />
-                    {sbErrors.shippingBillDate && (
-                      <p className="text-xs text-destructive mt-0.5">{sbErrors.shippingBillDate}</p>
-                    )}
+                    <input type="date" name="shippingBillDate" value={sbForm.shippingBillDate} onChange={sbChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.shippingBillDate ? 'border-destructive' : 'border-input'}`} />
+                    {sbErrors.shippingBillDate && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.shippingBillDate}</p>}
                   </div>
                 </div>
               </div>
-
-              {/* Row 2: Mate Receipt No + Mate Receipt Date */}
+              {/* Row 2 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-32 shrink-0">Mate Receipt No</label>
-                  <input
-                    name="mateReceiptNo"
-                    value={sbForm.mateReceiptNo}
-                    onChange={sbChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <input name="mateReceiptNo" value={sbForm.mateReceiptNo} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-32 shrink-0">Mate Receipt Date</label>
-                  <input
-                    type="date"
-                    name="mateReceiptDate"
-                    value={sbForm.mateReceiptDate}
-                    onChange={sbChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <input type="date" name="mateReceiptDate" value={sbForm.mateReceiptDate} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
               </div>
-
-              {/* Row 3: No of PCS + Pack Type */}
+              {/* Row 3 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-32 shrink-0">No Of PCS</label>
-                  <input
-                    name="noOfPcs"
-                    value={sbForm.noOfPcs}
-                    onChange={sbChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <div className="flex-1">
+                    <input name="noOfPcs" value={sbForm.noOfPcs} onChange={sbChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.noOfPcs ? 'border-destructive' : 'border-input'}`} />
+                    {sbErrors.noOfPcs && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.noOfPcs}</p>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-32 shrink-0">Pack Type</label>
-                  <select
-                    name="packType"
-                    value={sbForm.packType}
-                    onChange={sbChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
+                  <select name="packType" value={sbForm.packType} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
                     <option value="">--Select--</option>
-                    {SB_PACK_TYPES.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
+                    {SB_PACK_TYPES.map(p => <option key={p}>{p}</option>)}
                   </select>
                 </div>
               </div>
-
-              {/* Row 4: Gross Weight + Measurement */}
+              {/* Row 4 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-32 shrink-0">Gross Weight</label>
-                  <input
-                    name="grossWeight"
-                    value={sbForm.grossWeight}
-                    onChange={sbChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <div className="flex-1">
+                    <input name="grossWeight" value={sbForm.grossWeight} onChange={sbChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.grossWeight ? 'border-destructive' : 'border-input'}`} />
+                    {sbErrors.grossWeight && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.grossWeight}</p>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-32 shrink-0">Measurement</label>
-                  <input
-                    name="measurement"
-                    value={sbForm.measurement}
-                    onChange={sbChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <input name="measurement" value={sbForm.measurement} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
               </div>
-
-              {/* Row 5: Volume + Commodity Code */}
+              {/* Row 5 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-32 shrink-0">Volume</label>
-                  <input
-                    name="volume"
-                    value={sbForm.volume}
-                    onChange={sbChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <div className="flex-1">
+                    <input name="volume" value={sbForm.volume} onChange={sbChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.volume ? 'border-destructive' : 'border-input'}`} />
+                    {sbErrors.volume && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.volume}</p>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-32 shrink-0">Commodity Code</label>
-                  <input
-                    name="commodityCode"
-                    value={sbForm.commodityCode}
-                    onChange={sbChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <input name="commodityCode" value={sbForm.commodityCode} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
               </div>
-
-              {/* Row 6: Commodity Type + Commodity Desc */}
+              {/* Row 6 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Commodity Type</label>
-                  <input
-                    name="commodityType"
-                    value={sbForm.commodityType}
-                    onChange={sbChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0"><span className="text-destructive mr-1">*</span>Commodity Type</label>
+                  <div className="flex-1">
+                    <input name="commodityType" value={sbForm.commodityType} onChange={sbChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.commodityType ? 'border-destructive' : 'border-input'}`} />
+                    {sbErrors.commodityType && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.commodityType}</p>}
+                  </div>
                 </div>
                 <div className="flex items-start gap-2">
                   <label className="text-xs font-semibold text-foreground w-32 shrink-0 pt-1">Commodity Desc</label>
-                  <textarea
-                    name="commodityDesc"
-                    value={sbForm.commodityDesc}
-                    onChange={sbChange}
-                    rows={3}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                  />
+                  <textarea name="commodityDesc" value={sbForm.commodityDesc} onChange={sbChange} rows={3}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
                 </div>
               </div>
-
-              {/* Row 7: Note (full width) */}
+              {/* Row 7 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Container No</label>
+                  <input name="containerNo" value={sbForm.containerNo} onChange={sbChange}
+                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-32 shrink-0"><span className="text-destructive mr-1">*</span>Container Type</label>
+                  <div className="flex-1">
+                    <select name="containerType" value={sbForm.containerType} onChange={sbChange}
+                      className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.containerType ? 'border-destructive' : 'border-input'}`}>
+                      <option value="">--Select--</option>
+                      {['20GP','40GP','40HC','45HC','20RF','40RF','20OT','40OT','20FR','40FR','40 FLAT COLLAPSIBLE','20 FLAT COLLAPSIBLE','20 FT','40 FT','LCL'].map(o => <option key={o}>{o}</option>)}
+                    </select>
+                    {sbErrors.containerType && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.containerType}</p>}
+                  </div>
+                </div>
+              </div>
+              {/* Row 8 */}
               <div className="flex items-start gap-2">
                 <label className="text-xs font-semibold text-foreground w-32 shrink-0 pt-1">Note</label>
-                <textarea
-                  name="note"
-                  value={sbForm.note}
-                  onChange={sbChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
+                <textarea name="note" value={sbForm.note} onChange={sbChange} rows={3}
+                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
               </div>
             </div>
             <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button
-                size="sm"
-                className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6"
-                onClick={closeSbModal}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6"
-                onClick={saveSb}
-              >
-                {sbEditIndex !== null ? "Update" : "Create"}
+              <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6" onClick={closeSbModal}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={saveSb} disabled={sbSaving}>
+                {sbSaving ? 'Saving...' : sbEditId ? 'Update' : 'Create'}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Shipping Instructions Modal */}
-      {siOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={closeSiModal} />
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">Job Consignment Details</h3>
-              <button onClick={closeSiModal} className="p-2 hover:bg-muted rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
+      {/* Shipping Bill Delete Confirmation */}
+      {sbDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSbDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Shipping Bill</h3>
+              <button onClick={() => setSbDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
             </div>
-            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
-              {/* Row 1: S.No# + No of PCS */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">S.No#</label>
-                  <input
-                    name="sNo"
-                    value={siForm.sNo}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background text-right"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">No of PCS</label>
-                  <input
-                    name="noOfPcs"
-                    value={siForm.noOfPcs}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-
-              {/* Row 2: Pack Type + No of Pallet */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Pack Type</label>
-                  <select
-                    name="packType"
-                    value={siForm.packType}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    <option value="">--Select--</option>
-                    {PACK_TYPES.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">No of Pallet</label>
-                  <input
-                    name="noOfPallet"
-                    value={siForm.noOfPallet}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-
-              {/* Row 3: G.Weight + G.Weight Unit */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">G.Weight</label>
-                  <input
-                    name="gWeight"
-                    value={siForm.gWeight}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">G.Weight Unit</label>
-                  <select
-                    name="gWeightUnit"
-                    value={siForm.gWeightUnit}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    {SI_WEIGHT_UNITS.map((u) => (
-                      <option key={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 4: V.Weight + V.Weight Unit */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">V.Weight</label>
-                  <input
-                    name="vWeight"
-                    value={siForm.vWeight}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">V.Weight Unit</label>
-                  <select
-                    name="vWeightUnit"
-                    value={siForm.vWeightUnit}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    {["CBM", "Kg", "Lbs", "MT"].map((u) => (
-                      <option key={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 5: N.Weight + N.Weight Unit */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">N.Weight</label>
-                  <input
-                    name="nWeight"
-                    value={siForm.nWeight}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">N.Weight Unit</label>
-                  <select
-                    name="nWeightUnit"
-                    value={siForm.nWeightUnit}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    {SI_WEIGHT_UNITS.map((u) => (
-                      <option key={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 6: Volume + Chargeable Unit */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Volume</label>
-                  <input
-                    name="volume"
-                    value={siForm.volume}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Chargeable Unit</label>
-                  <input
-                    name="chargeableUnit"
-                    value={siForm.chargeableUnit}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-
-              {/* Row 7: Commodity Type + Commodity Code */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Commodity Type</label>
-                  <select
-                    name="commodityType"
-                    value={siForm.commodityType}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    <option value="">--Select--</option>
-                    {SI_COMMODITY_TYPES.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Commodity Code</label>
-                  <input
-                    name="commodityCode"
-                    value={siForm.commodityCode}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-
-              {/* Frozen cargo field: Temperature */}
-              {siForm.commodityType === "Frozen cargo" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold text-foreground w-32 shrink-0">Temperature</label>
-                    <button
-                      type="button"
-                      onClick={toggleSiFrozen}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                        siForm.frozenEnabled ? "bg-[#00BCD4]" : "bg-muted-foreground/30"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
-                          siForm.frozenEnabled ? "translate-x-4" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                    <input
-                      name="temperature"
-                      value={siForm.temperature}
-                      onChange={siChange}
-                      disabled={!siForm.frozenEnabled}
-                      placeholder={siForm.frozenEnabled ? "Enter Temperature" : ""}
-                      className={`flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background transition-opacity ${
-                        !siForm.frozenEnabled ? "opacity-40 cursor-not-allowed" : ""
-                      }`}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Oversized field: Dimension */}
-              {siForm.commodityType === "Oversized" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold text-foreground w-32 shrink-0">Dimension</label>
-                    <button
-                      type="button"
-                      onClick={toggleSiOversized}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                        siForm.oversizedEnabled ? "bg-[#00BCD4]" : "bg-muted-foreground/30"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
-                          siForm.oversizedEnabled ? "translate-x-4" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                    <input
-                      name="dimension"
-                      value={siForm.dimension}
-                      onChange={siChange}
-                      disabled={!siForm.oversizedEnabled}
-                      placeholder={siForm.oversizedEnabled ? "Enter Dimension" : ""}
-                      className={`flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background transition-opacity ${
-                        !siForm.oversizedEnabled ? "opacity-40 cursor-not-allowed" : ""
-                      }`}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Hazardous fields: UN No + DG Class */}
-              {siForm.commodityType === "Hazardous" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold text-foreground w-32 shrink-0">UN No</label>
-                    <button
-                      type="button"
-                      onClick={() => toggleSiHazard("unNoEnabled")}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                        siForm.unNoEnabled ? "bg-[#00BCD4]" : "bg-muted-foreground/30"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
-                          siForm.unNoEnabled ? "translate-x-4" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                    <input
-                      name="unNo"
-                      value={siForm.unNo}
-                      onChange={siChange}
-                      disabled={!siForm.unNoEnabled}
-                      placeholder={siForm.unNoEnabled ? "Enter UN No" : ""}
-                      className={`flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background transition-opacity ${
-                        !siForm.unNoEnabled ? "opacity-40 cursor-not-allowed" : ""
-                      }`}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold text-foreground w-32 shrink-0">DG Class</label>
-                    <button
-                      type="button"
-                      onClick={() => toggleSiHazard("dgClassEnabled")}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                        siForm.dgClassEnabled ? "bg-[#00BCD4]" : "bg-muted-foreground/30"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
-                          siForm.dgClassEnabled ? "translate-x-4" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                    <input
-                      name="dgClass"
-                      value={siForm.dgClass}
-                      onChange={siChange}
-                      disabled={!siForm.dgClassEnabled}
-                      placeholder={siForm.dgClassEnabled ? "Enter DG Class" : ""}
-                      className={`flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background transition-opacity ${
-                        !siForm.dgClassEnabled ? "opacity-40 cursor-not-allowed" : ""
-                      }`}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Row 8: Commodity Desc (full width) */}
-              <div className="flex items-start gap-2">
-                <label className="text-xs font-semibold text-foreground w-32 shrink-0 pt-1">Commodity Desc</label>
-                <textarea
-                  name="commodityDesc"
-                  value={siForm.commodityDesc}
-                  onChange={siChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-
-              {/* Row 9: Manifest Seal + Actual/Liner Seal */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Manifest Seal</label>
-                  <input
-                    name="manifestSeal"
-                    value={siForm.manifestSeal}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Actual / Liner Seal</label>
-                  <input
-                    name="actualLinerSeal"
-                    value={siForm.actualLinerSeal}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-
-              {/* Row 10: Custom Seal + Excise Seal No */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Custom Seal</label>
-                  <input
-                    name="customSeal"
-                    value={siForm.customSeal}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Excise Seal No</label>
-                  <input
-                    name="exciseSealNo"
-                    value={siForm.exciseSealNo}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-
-              {/* Row 11: Seal Date + Seal Type Indicator */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Seal Date</label>
-                  <input
-                    type="date"
-                    name="sealDate"
-                    value={siForm.sealDate}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Seal Type Indicator</label>
-                  <select
-                    name="sealTypeIndicator"
-                    value={siForm.sealTypeIndicator}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    <option value="">--Select--</option>
-                    {SEAL_TYPE_OPTIONS.map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 12: Seal Device ID + Movement Doc Type */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Seal Device ID</label>
-                  <input
-                    name="sealDeviceId"
-                    value={siForm.sealDeviceId}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Movement Doc Type</label>
-                  <input
-                    name="movementDocType"
-                    value={siForm.movementDocType}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-
-              {/* Row 13: Movement Doc No + Notes */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Movement Doc No</label>
-                  <input
-                    name="movementDocNo"
-                    value={siForm.movementDocNo}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-32 shrink-0">Notes</label>
-                  <input
-                    name="notes"
-                    value={siForm.notes}
-                    onChange={siChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-
-              {/* RORO Section */}
-              <div className="rounded overflow-hidden border border-[#00BCD4]">
-                <button
-                  type="button"
-                  onClick={() => setRoroOpen((prev) => !prev)}
-                  className="w-full bg-[#00BCD4] px-3 py-2 flex items-center justify-between text-left"
-                >
-                  <span className="text-white font-semibold text-xs">RORO</span>
-                  <span
-                    className={`text-white text-xs transition-transform duration-200 ${roroOpen ? "rotate-180" : "rotate-0"}`}
-                  >
-                    ▼
-                  </span>
-                </button>
-                <div className={`overflow-hidden transition-all duration-200 ${roroOpen ? "max-h-96" : "max-h-0"}`}>
-                  <div className="p-3 space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Roro Year</label>
-                        <input
-                          name="roroYear"
-                          value={siForm.roroYear}
-                          onChange={siChange}
-                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Roro Brand</label>
-                        <input
-                          name="roroBrand"
-                          value={siForm.roroBrand}
-                          onChange={siChange}
-                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Roro Model</label>
-                        <input
-                          name="roroModel"
-                          value={siForm.roroModel}
-                          onChange={siChange}
-                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Roro Specification</label>
-                        <textarea
-                          name="roroSpecification"
-                          value={siForm.roroSpecification}
-                          onChange={siChange}
-                          rows={3}
-                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">RORO Chasis No#</label>
-                        <input
-                          name="roroChasisNo"
-                          value={siForm.roroChasisNo}
-                          onChange={siChange}
-                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">RORO Engine No#</label>
-                        <input
-                          name="roroEngineNo"
-                          value={siForm.roroEngineNo}
-                          onChange={siChange}
-                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this shipping bill? This action cannot be undone.</p>
             </div>
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button
-                size="sm"
-                className="bg-amber-400 hover:bg-amber-500 text-black font-semibold px-6"
-                onClick={closeSiModal}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6"
-                onClick={saveSi}
-              >
-                Save
-              </Button>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setSbDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleSbDelete}>Delete</Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Dimensions Modal */}
-      {dimOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={closeDimModal} />
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">Dimension Details</h3>
-              <button onClick={closeDimModal} className="p-2 hover:bg-muted rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
-              {/* Row 1: S.No# + L×W×H Measurement */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">
-                    S.No# <span className="text-destructive">*</span>
-                  </label>
-                  <input
-                    name="sNo"
-                    value={dimForm.sNo}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background text-right"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">
-                    L x W x H<br />
-                    Measurement
-                  </label>
-                  <input
-                    name="lxwxhMeasurement"
-                    value={dimForm.lxwxhMeasurement}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
 
-              {/* Row 2: L×W×H */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">
-                  L x W x H <span className="text-destructive">*</span>
-                </label>
-                <div className="flex items-center gap-1.5 flex-1">
-                  <input
-                    name="lxwxh"
-                    value={dimForm.lxwxh}
-                    onChange={dimChange}
-                    placeholder="L"
-                    className="w-0 flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                  <span className="text-xs text-muted-foreground shrink-0">×</span>
-                  <input
-                    name="width"
-                    value={dimForm.width}
-                    onChange={dimChange}
-                    placeholder="W"
-                    className="w-0 flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                  <span className="text-xs text-muted-foreground shrink-0">×</span>
-                  <input
-                    name="height"
-                    value={dimForm.height}
-                    onChange={dimChange}
-                    placeholder="H"
-                    className="w-0 flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-
-              {/* Row 3: No of Pcs + Package Type */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">No of Pcs</label>
-                  <input
-                    name="noOfPcs"
-                    value={dimForm.noOfPcs}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">
-                    Package Type
-                  </label>
-                  <select
-                    name="packageType"
-                    value={dimForm.packageType}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background ml-2"
-                  >
-                    <option value="">-- Select --</option>
-                    {PACKAGE_TYPES.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 4: G.Weight + unit */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">G.Weight</label>
-                  <input
-                    name="gWeight"
-                    value={dimForm.gWeight}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    name="gWeightUnit"
-                    value={dimForm.gWeightUnit}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    {WEIGHT_UNITS.map((u) => (
-                      <option key={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 5: V.Weight + unit */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">V.Weight</label>
-                  <input
-                    name="vWeight"
-                    value={dimForm.vWeight}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    name="vWeightUnit"
-                    value={dimForm.vWeightUnit}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    {WEIGHT_UNITS.map((u) => (
-                      <option key={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 6: Net Weight + unit */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Net Weight</label>
-                  <input
-                    name="netWeight"
-                    value={dimForm.netWeight}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    name="netWeightUnit"
-                    value={dimForm.netWeightUnit}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    {WEIGHT_UNITS.map((u) => (
-                      <option key={u}>{u}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 7: Volume + COO */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Volume</label>
-                  <input
-                    name="volume"
-                    value={dimForm.volume}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">COO</label>
-                  <input
-                    name="coo"
-                    value={dimForm.coo}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background ml-2"
-                  />
-                </div>
-              </div>
-
-              {/* Row 8: Commodity Type + Commodity Code */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Commodity Type</label>
-                  <select
-                    name="commodityType"
-                    value={dimForm.commodityType}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    <option value="">-- Select --</option>
-                    {COMMODITY_TYPES.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">
-                    Commodity Code
-                  </label>
-                  <input
-                    name="commodityCode"
-                    value={dimForm.commodityCode}
-                    onChange={dimChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background ml-2"
-                  />
-                </div>
-              </div>
-
-              {/* Row 9: Commodity Desc */}
-              <div className="flex items-start gap-2">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Commodity Desc</label>
-                <textarea
-                  name="commodityDesc"
-                  value={dimForm.commodityDesc}
-                  onChange={dimChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-
-              {/* Row 10: Notes */}
-              <div className="flex items-start gap-2">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Notes</label>
-                <textarea
-                  name="notes"
-                  value={dimForm.notes}
-                  onChange={dimChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button size="sm" variant="outline" className="px-5" onClick={closeDimModal}>
-                Cancel
-              </Button>
-              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveDim}>
-                Save
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Costing Details Modal */}
-      {costOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setCostOpen(false)} />
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-4xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">Costing Details</h3>
-              <button onClick={() => setCostOpen(false)} className="p-2 hover:bg-muted rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="overflow-y-auto flex-1 p-5 space-y-4">
-              {/* Row 1: S.No, Charge, Freight PP/CC */}
-              <div className="grid grid-cols-12 gap-3 items-end">
-                <div className="col-span-2">
-                  <label className="text-xs font-semibold text-foreground block mb-1">S.No#</label>
-                  {ci("sNo", "text-right")}
-                </div>
-                <div className="col-span-5">
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    <span className="text-destructive mr-1">*</span>Charge
-                  </label>
-                  {cs("charge", CHARGES)}
-                </div>
-                <div className="col-span-5">
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    <span className="text-destructive mr-1">*</span>Freight PP / CC
-                  </label>
-                  {cs("freightPpCc", ["Prepaid", "Collect"])}
-                </div>
-              </div>
-
-              {/* Row 2: Description, Unit, No of Unit */}
-              <div className="grid grid-cols-12 gap-3 items-end">
-                <div className="col-span-5">
-                  <label className="text-xs font-semibold text-foreground block mb-1">Description</label>
-                  {ci("description")}
-                </div>
-                <div className="col-span-3">
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    <span className="text-destructive mr-1">*</span>Unit
-                  </label>
-                  {cs("unit", UNITS)}
-                </div>
-                <div className="col-span-4">
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    <span className="text-destructive mr-1">*</span>No of Unit
-                  </label>
-                  {ci("noOfUnit", "text-right")}
-                </div>
-              </div>
-
-              {/* Row 3: SAC Code, Note */}
-              <div className="grid grid-cols-12 gap-3 items-start">
-                <div className="col-span-5">
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    <span className="text-destructive mr-1">*</span>SAC Code
-                  </label>
-                  {ci("sacCode")}
-                </div>
-                <div className="col-span-7">
-                  <label className="text-xs font-semibold text-foreground block mb-1">Note</label>
-                  <textarea
-                    name="note"
-                    value={costForm.note}
-                    onChange={costChange}
-                    rows={2}
-                    className="w-full px-2 py-1 border border-input rounded text-xs bg-background resize-none"
-                  />
-                </div>
-              </div>
-
-              {/* Row 4: Sale Other Territory */}
-              <div className="grid grid-cols-12 gap-3 items-end">
-                <div className="col-span-5">
-                  <label className="text-xs font-semibold text-foreground block mb-1">Sale Other Territory</label>
-                  {cs("saleOtherTerritory", ["No", "Yes"], "")}
-                </div>
-              </div>
-
-              {/* Sale Charges + Cost Charges panels */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Sale Charges */}
-                <div className="border border-border rounded overflow-hidden">
-                  <div className="bg-green-500 px-3 py-2">
-                    <h4 className="text-white font-semibold text-xs">Sale Charges</h4>
-                  </div>
-                  <div className="p-3 space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Customer</label>
-                        {cs("saleCustomer", CUSTOMERS)}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Sale Dr / Cr</label>
-                        {cs("saleDrCr", DR_CR_SALE, "")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Currency</label>
-                        {cs("saleCurrency", CURRENCIES, "")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Ex.Rate</label>
-                        {ci("saleExRate", "text-right")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Per Unit</label>
-                        {ci("salePerUnit", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Crcy Amount</label>
-                        {ci("saleCrcyAmount", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Local Amount</label>
-                        {ci("saleLocalAmount", "text-right")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Tax %</label>
-                        {cs("saleTaxPct", TAX_PCTS)}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Taxable Amount</label>
-                        {ci("saleTaxableAmount", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Non Taxable Amount</label>
-                        {ci("saleNonTaxableAmount", "text-right")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">CGST Amount</label>
-                        {ci("saleCgst", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">SGST Amount</label>
-                        {ci("saleSgst", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">IGST Amount</label>
-                        {ci("saleIgst", "text-right")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Total Tax Amount</label>
-                        {ci("saleTotalTax", "text-right")}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cost Charges */}
-                <div className="border border-border rounded overflow-hidden">
-                  <div className="bg-[#00BCD4] px-3 py-2">
-                    <h4 className="text-white font-semibold text-xs">Cost Charges</h4>
-                  </div>
-                  <div className="p-3 space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Vendor</label>
-                        {cs("costVendor", VENDORS)}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Cost Dr / Cr</label>
-                        {cs("costDrCr", DR_CR_COST, "")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Currency</label>
-                        {cs("costCurrency", CURRENCIES, "")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Ex.Rate</label>
-                        {ci("costExRate", "text-right")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Per Unit</label>
-                        {ci("costPerUnit", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Crcy Amount</label>
-                        {ci("costCrcyAmount", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Local Amount</label>
-                        {ci("costLocalAmount", "text-right")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Tax %</label>
-                        {cs("costTaxPct", TAX_PCTS)}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Taxable Amount</label>
-                        {ci("costTaxableAmount", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Non Taxable Amount</label>
-                        {ci("costNonTaxableAmount", "text-right")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">CGST Amount</label>
-                        {ci("costCgst", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">SGST Amount</label>
-                        {ci("costSgst", "text-right")}
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">IGST Amount</label>
-                        {ci("costIgst", "text-right")}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-foreground block mb-1">Total Tax Amount</label>
-                        {ci("costTotalTax", "text-right")}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button size="sm" variant="outline" className="px-5" onClick={() => setCostOpen(false)}>
-                Cancel
-              </Button>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="px-5" onClick={() => saveCost(true)}>
-                  Save &amp; New
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-green-500 hover:bg-green-600 text-white px-5"
-                  onClick={() => saveCost(false)}
-                >
-                  Save &amp; Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add New Subledger Modal */}
-      {slOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => {
-              setSlOpen(false);
-              setSlForm(initSl);
-              setSlErrors({});
-              setSlEditId(null);
-            }}
-          />
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-md mx-4 flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">{slEditId ? "Edit Subledger" : "New Customer"}</h3>
-              <button
-                onClick={() => {
-                  setSlOpen(false);
-                  setSlForm(initSl);
-                  setSlErrors({});
-                  setSlEditId(null);
-                }}
-                className="p-2 hover:bg-muted rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-3">
-              {/* Customer Name */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">
-                  <span className="text-destructive mr-1">*</span>Customer Name
-                </label>
-                <div className="flex-1">
-                  <input
-                    name="customerName"
-                    value={slForm.customerName}
-                    onChange={slChange}
-                    className={`w-full px-3 py-1.5 border rounded text-sm bg-background ${slErrors.customerName ? "border-destructive" : "border-input"}`}
-                  />
-                  {slErrors.customerName && <p className="text-xs text-destructive mt-0.5">{slErrors.customerName}</p>}
-                </div>
-              </div>
-              {/* Categories */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">
-                  <span className="text-destructive mr-1">*</span>Categories
-                </label>
-                <div className="flex-1">
-                  <select
-                    name="categories"
-                    value={slForm.categories}
-                    onChange={slChange}
-                    className={`w-full px-3 py-1.5 border rounded text-sm bg-background ${slErrors.categories ? "border-destructive" : "border-input"}`}
-                  >
-                    <option value="">--Select--</option>
-                    {SL_CATEGORIES.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
-                  {slErrors.categories && <p className="text-xs text-destructive mt-0.5">{slErrors.categories}</p>}
-                </div>
-              </div>
-              {/* SCAC Code */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">SCAC Code</label>
-                <input
-                  name="scacCode"
-                  value={slForm.scacCode}
-                  onChange={slChange}
-                  className="flex-1 px-3 py-1.5 border border-input rounded text-sm bg-background"
-                />
-              </div>
-              {/* Address */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">
-                  <span className="text-destructive mr-1">*</span>Address
-                </label>
-                <div className="flex-1">
-                  <input
-                    name="address"
-                    value={slForm.address}
-                    onChange={slChange}
-                    className={`w-full px-3 py-1.5 border rounded text-sm bg-background ${slErrors.address ? "border-destructive" : "border-input"}`}
-                  />
-                  {slErrors.address && <p className="text-xs text-destructive mt-0.5">{slErrors.address}</p>}
-                </div>
-              </div>
-              {/* Pin Code */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">Pin Code</label>
-                <input
-                  name="pinCode"
-                  value={slForm.pinCode}
-                  onChange={slChange}
-                  className="flex-1 px-3 py-1.5 border border-input rounded text-sm bg-background"
-                />
-              </div>
-              {/* Phone */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">Phone</label>
-                <input
-                  name="phone"
-                  value={slForm.phone}
-                  onChange={slChange}
-                  className="flex-1 px-3 py-1.5 border border-input rounded text-sm bg-background"
-                />
-              </div>
-              {/* Mobile */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">Mobile</label>
-                <input
-                  name="mobile"
-                  value={slForm.mobile}
-                  onChange={slChange}
-                  className="flex-1 px-3 py-1.5 border border-input rounded text-sm bg-background"
-                />
-              </div>
-              {/* Email Id */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">Email Id</label>
-                <input
-                  name="emailId"
-                  value={slForm.emailId}
-                  onChange={slChange}
-                  className="flex-1 px-3 py-1.5 border border-input rounded text-sm bg-background"
-                />
-              </div>
-              {/* GST State */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">GST State</label>
-                <select
-                  name="gstState"
-                  value={slForm.gstState}
-                  onChange={slChange}
-                  className="flex-1 px-3 py-1.5 border border-input rounded text-sm bg-background"
-                >
-                  <option value="">--Select--</option>
-                  {SL_GST_STATES.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              {/* GST No */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">GST No</label>
-                <input
-                  name="gstNo"
-                  value={slForm.gstNo}
-                  onChange={slChange}
-                  className="flex-1 px-3 py-1.5 border border-input rounded text-sm bg-background"
-                />
-              </div>
-              {/* PAN No */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">PAN No</label>
-                <input
-                  name="panNo"
-                  value={slForm.panNo}
-                  onChange={slChange}
-                  className="flex-1 px-3 py-1.5 border border-input rounded text-sm bg-background"
-                />
-              </div>
-              {/* Country */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground text-right w-28 shrink-0">Country</label>
-                <input
-                  name="country"
-                  value={slForm.country}
-                  onChange={slChange}
-                  className="flex-1 px-3 py-1.5 border border-input rounded text-sm bg-background"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end px-6 py-4 border-t border-border shrink-0">
-              <Button
-                size="sm"
-                className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6"
-                onClick={slSave}
-              >
-                {slEditId ? "Update" : "Create"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Profit Share Modal */}
-      {profitOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => {
-              setProfitOpen(false);
-              setProfitForm(initProfit);
-              setProfitErrors({});
-            }}
-          />
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">Profit Share</h3>
-              <button
-                onClick={() => {
-                  setProfitOpen(false);
-                  setProfitForm(initProfit);
-                  setProfitErrors({});
-                }}
-                className="p-2 hover:bg-muted rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="px-5 py-4 space-y-4">
-              {/* JOB No# + JOB Date */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">JOB No#</label>
-                  <input
-                    readOnly
-                    value={op.jobNo || "RLPL/AE/J0303"}
-                    className="w-full px-2 py-1.5 border border-input rounded text-xs bg-muted"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">JOB Date</label>
-                  <input
-                    readOnly
-                    value={op.jobDate || "24-MAR-26"}
-                    className="w-full px-2 py-1.5 border border-input rounded text-xs bg-muted"
-                  />
-                </div>
-              </div>
-              {/* Type */}
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">
-                  <span className="text-destructive mr-1">*</span>Type
-                </label>
-                <select
-                  name="type"
-                  value={profitForm.type}
-                  onChange={profitChange}
-                  className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
-                    profitErrors.type ? "border-destructive" : "border-input"
-                  }`}
-                >
-                  <option value="">--Select--</option>
-                  {PS_TYPE_OPTIONS.map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
-                {profitErrors.type && <p className="text-xs text-destructive mt-0.5">{profitErrors.type}</p>}
-              </div>
-              {/* To Name + To Name (Description) */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    <span className="text-destructive mr-1">*</span>To Name
-                  </label>
-                  <select
-                    name="toName"
-                    value={profitForm.toName}
-                    onChange={profitChange}
-                    className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
-                      profitErrors.toName ? "border-destructive" : "border-input"
-                    }`}
-                  >
-                    <option value="">--Select--</option>
-                    {PS_TO_NAME_OPTIONS.map((n) => (
-                      <option key={n}>{n}</option>
-                    ))}
-                  </select>
-                  {profitErrors.toName && <p className="text-xs text-destructive mt-0.5">{profitErrors.toName}</p>}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    <span className="text-destructive mr-1">*</span>To Name (Description)
-                  </label>
-                  <input
-                    name="toNameDesc"
-                    value={profitForm.toNameDesc}
-                    onChange={profitChange}
-                    className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-              {/* Percentage + Profit Amount */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    <span className="text-destructive mr-1">*</span>Percentage
-                  </label>
-                  <input
-                    name="percentage"
-                    value={profitForm.percentage}
-                    onChange={profitChange}
-                    className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
-                      profitErrors.percentage ? "border-destructive" : "border-input"
-                    }`}
-                  />
-                  {profitErrors.percentage && (
-                    <p className="text-xs text-destructive mt-0.5">{profitErrors.percentage}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">
-                    <span className="text-destructive mr-1">*</span>Profit Amount
-                  </label>
-                  <input
-                    name="profitAmount"
-                    value={profitForm.profitAmount}
-                    onChange={profitChange}
-                    className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
-                      profitErrors.profitAmount ? "border-destructive" : "border-input"
-                    }`}
-                  />
-                  {profitErrors.profitAmount && (
-                    <p className="text-xs text-destructive mt-0.5">{profitErrors.profitAmount}</p>
-                  )}
-                </div>
-              </div>
-              {/* Job Profit */}
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">
-                  <span className="text-destructive mr-1">*</span>Job Profit
-                </label>
-                <input
-                  name="jobProfit"
-                  value={profitForm.jobProfit}
-                  onChange={profitChange}
-                  className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
-                    profitErrors.jobProfit ? "border-destructive" : "border-input"
-                  }`}
-                />
-                {profitErrors.jobProfit && <p className="text-xs text-destructive mt-0.5">{profitErrors.jobProfit}</p>}
-              </div>
-              {/* Note */}
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Note</label>
-                <textarea
-                  name="note"
-                  value={profitForm.note}
-                  onChange={profitChange}
-                  rows={4}
-                  className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                className="px-5"
-                onClick={() => {
-                  setProfitOpen(false);
-                  setProfitForm(initProfit);
-                  setProfitErrors({});
-                }}
-              >
-                Cancel
-              </Button>
-              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveProfit}>
-                Create
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Working Team Modal */}
-      {teamOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => {
-              setTeamOpen(false);
-              setTeamForm(initTeam);
-              setTeamError("");
-            }}
-          />
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">Job Working Team</h3>
-              <button
-                onClick={() => {
-                  setTeamOpen(false);
-                  setTeamForm(initTeam);
-                  setTeamError("");
-                }}
-                className="p-2 hover:bg-muted rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="px-5 py-4 space-y-4">
-              {/* Employee */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground w-32 shrink-0">
-                  Employee <span className="text-destructive">*</span>
-                </label>
-                <div className="flex-1">
-                  <select
-                    name="employee"
-                    value={teamForm.employee}
-                    onChange={(e) => {
-                      teamChange(e);
-                      setTeamError("");
-                    }}
-                    className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${
-                      teamError ? "border-destructive" : "border-input"
-                    }`}
-                  >
-                    <option value="">--Select--</option>
-                    {EMPLOYEE_OPTIONS.map((e) => (
-                      <option key={e}>{e}</option>
-                    ))}
-                  </select>
-                  {teamError && <p className="text-xs text-destructive mt-0.5">{teamError}</p>}
-                </div>
-              </div>
-              {/* Department + Followup Required */}
-              <div className="grid grid-cols-2 gap-4 items-center">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">
-                    Department(Sec)
-                  </label>
-                  <select
-                    name="department"
-                    value={teamForm.department}
-                    onChange={teamChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    <option value=""></option>
-                    {DEPT_OPTIONS.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">
-                    Followup Required
-                  </label>
-                  <div className="flex rounded overflow-hidden border border-input ml-1">
-                    {["No", "Yes"].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setTeamForm((prev) => ({ ...prev, followupRequired: opt }))}
-                        className={`px-4 py-1.5 text-xs font-semibold transition-colors ${
-                          teamForm.followupRequired === opt
-                            ? "bg-[#00BCD4] text-white"
-                            : "bg-background text-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {/* Note */}
-              <div className="flex items-start gap-3">
-                <label className="text-xs font-semibold text-foreground w-32 shrink-0 pt-1">Note</label>
-                <textarea
-                  name="note"
-                  value={teamForm.note}
-                  onChange={teamChange}
-                  rows={4}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                className="px-5"
-                onClick={() => {
-                  setTeamOpen(false);
-                  setTeamForm(initTeam);
-                  setTeamError("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveTeam}>
-                Create
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Status Update Modal */}
-      {statusOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={closeStatusModal} />
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">
-                {statusEditIndex !== null ? "Edit Status Update" : "Status Update"}
-              </h3>
-              <button onClick={closeStatusModal} className="p-2 hover:bg-muted rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
-              {/* Row 1: Line No# + Update To (Type) */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">Line No#</label>
-                <input
-                  name="lineNo"
-                  value={statusForm.lineNo}
-                  onChange={statusChange}
-                  className="w-24 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                />
-                <label className="text-xs font-semibold text-foreground whitespace-nowrap ml-2">Update To (Type)</label>
-                <select
-                  name="updateTo"
-                  value={statusForm.updateTo}
-                  onChange={statusChange}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                >
-                  <option value="">--Select--</option>
-                  {UPDATE_TO_OPTIONS.map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Position */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">
-                  Position <span className="text-destructive">*</span>
-                </label>
-                <select
-                  name="position"
-                  value={statusForm.position}
-                  onChange={statusChange}
-                  className="w-48 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                >
-                  {POSITION_OPTIONS.map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Subject */}
-              <div className="flex items-start gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Subject</label>
-                <textarea
-                  name="subject"
-                  value={statusForm.subject}
-                  onChange={statusChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-              {/* From */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">From</label>
-                <input
-                  name="from"
-                  value={statusForm.from}
-                  onChange={statusChange}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                />
-              </div>
-              {/* To */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">To</label>
-                <input
-                  name="to"
-                  value={statusForm.to}
-                  onChange={statusChange}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                />
-              </div>
-              {/* Bcc */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">Bcc</label>
-                <input
-                  name="bcc"
-                  value={statusForm.bcc}
-                  onChange={statusChange}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                />
-              </div>
-              {/* Cc */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">Cc</label>
-                <input
-                  name="cc"
-                  value={statusForm.cc}
-                  onChange={statusChange}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                />
-              </div>
-              {/* Header */}
-              <div className="flex items-start gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Header</label>
-                <textarea
-                  name="header"
-                  value={statusForm.header}
-                  onChange={statusChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-              {/* Body */}
-              <div className="flex items-start gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Body</label>
-                <textarea
-                  name="body"
-                  value={statusForm.body}
-                  onChange={statusChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-              {/* Footer */}
-              <div className="flex items-start gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Footer</label>
-                <textarea
-                  name="footer"
-                  value={statusForm.footer}
-                  onChange={statusChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-              {/* Notes */}
-              <div className="flex items-start gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Notes</label>
-                <textarea
-                  name="notes"
-                  value={statusForm.notes}
-                  onChange={statusChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button size="sm" variant="outline" className="px-5" onClick={closeStatusModal}>
-                Cancel
-              </Button>
-              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveStatus}>
-                Save
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Routing Modal */}
-      {routingOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setRoutingOpen(false)} />
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">Routing</h3>
-              <button onClick={() => setRoutingOpen(false)} className="p-2 hover:bg-muted rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              {/* Row 1: S.No# + From Port Code */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">S.No#</label>
-                <input
-                  name="sNo"
-                  value={routingForm.sNo}
-                  onChange={routingChange}
-                  className="w-16 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                />
-                <label className="text-xs font-semibold text-foreground whitespace-nowrap ml-2">From Port Code</label>
-                <select
-                  name="fromPortCode"
-                  value={routingForm.fromPortCode}
-                  onChange={routingChange}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                >
-                  <option value="">--Select--</option>
-                  {PORT_OPTIONS.map((p) => (
-                    <option key={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Row 1b: From Port Name */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">From Port Name</label>
-                <input
-                  name="fromPortName"
-                  value={routingForm.fromPortName}
-                  onChange={routingChange}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                />
-              </div>
-              {/* Row 2: From ETD + From ATD */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">From ETD</label>
-                  <input
-                    type="date"
-                    name="fromEtd"
-                    value={routingForm.fromEtd}
-                    onChange={routingChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">From ATD</label>
-                  <input
-                    type="date"
-                    name="fromAtd"
-                    value={routingForm.fromAtd}
-                    onChange={routingChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-              {/* Row 3: To Port Code + Position */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">To Port Code</label>
-                  <select
-                    name="toPortCode"
-                    value={routingForm.toPortCode}
-                    onChange={routingChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    <option value="">--Select--</option>
-                    {PORT_OPTIONS.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground whitespace-nowrap shrink-0">
-                    Position <span className="text-destructive">*</span>
-                  </label>
-                  <select
-                    name="position"
-                    value={routingForm.position}
-                    onChange={routingChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background ml-2"
-                  >
-                    {["Opened", "Closed", "In Transit", "Arrived"].map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              {/* Row 3b: To Port Name */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-foreground w-20 shrink-0">To Port Name</label>
-                <input
-                  name="toPortName"
-                  value={routingForm.toPortName}
-                  onChange={routingChange}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                />
-              </div>
-              {/* Row 4: To ETA + To ATA */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">To ETA</label>
-                  <input
-                    type="date"
-                    name="toEta"
-                    value={routingForm.toEta}
-                    onChange={routingChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">To ATA</label>
-                  <input
-                    type="date"
-                    name="toAta"
-                    value={routingForm.toAta}
-                    onChange={routingChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-              </div>
-              {/* Row 5: Airline Code */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">Airline Code</label>
-                <select
-                  name="airlineCode"
-                  value={routingForm.airlineCode}
-                  onChange={routingChange}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                >
-                  <option value="">--Select--</option>
-                  {AIRLINE_OPTIONS.map((a) => (
-                    <option key={a}>{a}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Row 6: Flight Name + Status */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-20 shrink-0">Flight Name</label>
-                  <input
-                    name="flightName"
-                    value={routingForm.flightName}
-                    onChange={routingChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-14 shrink-0">Status</label>
-                  <select
-                    name="status"
-                    value={routingForm.status}
-                    onChange={routingChange}
-                    className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
-                  >
-                    {["Planned", "Confirmed", "Departed", "Arrived", "Cancelled"].map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              {/* Row 7: From ETD Followup toggle */}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0">From ETD Followup</label>
-                <div className="flex rounded overflow-hidden border border-input">
-                  {["No", "Yes"].map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setRoutingForm((prev) => ({ ...prev, fromEtdFollowup: opt }))}
-                      className={`px-5 py-1.5 text-xs font-semibold transition-colors ${
-                        routingForm.fromEtdFollowup === opt
-                          ? "bg-[#00BCD4] text-white"
-                          : "bg-background text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* Row 8: Notes */}
-              <div className="flex items-start gap-2">
-                <label className="text-xs font-semibold text-foreground w-28 shrink-0 pt-1">Notes</label>
-                <textarea
-                  name="notes"
-                  value={routingForm.notes}
-                  onChange={routingChange}
-                  rows={3}
-                  className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
-              <Button size="sm" variant="outline" className="px-5" onClick={() => setRoutingOpen(false)}>
-                Cancel
-              </Button>
-              <Button size="sm" className="bg-[#00BCD4] hover:bg-cyan-600 text-white px-6" onClick={saveRouting}>
-                Create
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
