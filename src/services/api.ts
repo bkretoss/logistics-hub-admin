@@ -215,14 +215,14 @@ export const updateUserMasterApi = (id: number, data: Record<string, unknown>) =
 export const deleteUserMasterApi = (id: number)                           => api.delete(`/user-master/${id}`);
 
 // Operation Dimension APIs
-export const getDimensionsApi   = () => api.get('/operation-dimension');
+export const getDimensionsApi   = (operationId?: number) => api.get('/operation-dimension', { params: { per_page: 100, ...(operationId ? { operation_id: operationId } : {}) } });
 export const getDimensionApi    = (id: number) => api.get(`/operation-dimension/${id}`);
 export const createDimensionApi = (data: Record<string, unknown>) => api.post('/operation-dimension', data);
 export const updateDimensionApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-dimension/${id}`, data);
 export const deleteDimensionApi = (id: number) => api.delete(`/operation-dimension/${id}`);
 
 // Operation Subledger APIs
-export const getSubledgersApi   = () => api.get('/operation-subledgers');
+export const getSubledgersApi   = (operationId?: number) => api.get('/operation-subledgers', { params: { per_page: 100, ...(operationId ? { operation_id: operationId } : {}) } });
 export const getSubledgerApi    = (id: number) => api.get(`/operation-subledgers/${id}`);
 export const createSubledgerApi = (data: Record<string, unknown>) => api.post('/operation-subledgers', data);
 export const updateSubledgerApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-subledgers/${id}`, data);

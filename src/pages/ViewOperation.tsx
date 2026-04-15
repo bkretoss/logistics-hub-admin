@@ -338,7 +338,7 @@ const ViewOperation = () => {
   const loadDimensions = async () => {
     setDimLoading(true);
     try {
-      const res = await getDimensionsApi();
+      const res = await getDimensionsApi(Number(id));
       setDimList(res.data?.data ?? res.data ?? []);
     } catch {
       toast({ title: 'Error', description: 'Failed to load dimensions.', variant: 'destructive' });
@@ -407,6 +407,7 @@ const ViewOperation = () => {
     setDimSaving(true);
     try {
       const payload: Record<string, unknown> = {
+        operation_id:      Number(id),
         s_no:              Number(dimForm.sNo),
         lxwxh_measurement: dimForm.lxwxhMeasurement || null,
         length:            Number(dimForm.length),
@@ -457,6 +458,13 @@ const ViewOperation = () => {
     } catch {
       toast({ title: 'Error', description: 'Failed to delete dimension.', variant: 'destructive' });
     }
+  };
+
+  const closeDimModal = () => {
+    setDimOpen(false);
+    setDimForm(DIM_EMPTY);
+    setDimEditId(null);
+    setDimErrors({});
   };
 
   // Shipping Instructions modal
@@ -1227,7 +1235,7 @@ const ViewOperation = () => {
   const loadSubledgers = async () => {
     setSlLoading(true);
     try {
-      const res = await getSubledgersApi();
+      const res = await getSubledgersApi(Number(id));
       setSlList(res.data?.data ?? res.data ?? []);
     } catch {
       toast({ title: 'Error', description: 'Failed to load subledgers.', variant: 'destructive' });
@@ -1263,7 +1271,7 @@ const ViewOperation = () => {
     setSlOpen(true);
   };
 
-  const slChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const slChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setSlForm(prev => ({ ...prev, [name]: value }));
     if (slErrors[name as keyof typeof SL_EMPTY]) setSlErrors(prev => ({ ...prev, [name]: '' }));
@@ -1279,6 +1287,7 @@ const ViewOperation = () => {
     setSlSaving(true);
     try {
       const payload = {
+        operation_id:  Number(id),
         customer_name: slForm.customerName,
         categories:    slForm.categories,
         scac_code:     slForm.scacCode,
@@ -1322,6 +1331,13 @@ const ViewOperation = () => {
     } catch {
       toast({ title: 'Error', description: 'Failed to delete subledger.', variant: 'destructive' });
     }
+  };
+
+  const closeSlModal = () => {
+    setSlOpen(false);
+    setSlForm(SL_EMPTY);
+    setSlEditId(null);
+    setSlErrors({});
   };
 
   // Costing CRUD
@@ -2182,6 +2198,158 @@ const ViewOperation = () => {
         </div>
       )}
 
+      {/* Dimension Form Modal */}
+      {dimOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeDimModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-4xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">{dimEditId ? 'Edit Dimension' : 'Add Dimension'}</h3>
+              <button onClick={closeDimModal} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-5 space-y-4 text-xs">
+              <div className="grid grid-cols-4 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">S.No#</label>
+                  <input name="sNo" value={dimForm.sNo} readOnly className="w-full px-2 py-1 border border-input rounded text-xs bg-muted cursor-not-allowed" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold"><span className="text-destructive mr-1">*</span>Length</label>
+                  <input name="length" value={dimForm.length} onChange={dimChange} placeholder="Enter length" className={`w-full px-2 py-1 border rounded text-xs ${dimErrors.length ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {dimErrors.length && <span className="text-red-500 text-xs">{dimErrors.length}</span>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold"><span className="text-destructive mr-1">*</span>Width</label>
+                  <input name="width" value={dimForm.width} onChange={dimChange} placeholder="Enter width" className={`w-full px-2 py-1 border rounded text-xs ${dimErrors.width ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {dimErrors.width && <span className="text-red-500 text-xs">{dimErrors.width}</span>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold"><span className="text-destructive mr-1">*</span>Height</label>
+                  <input name="height" value={dimForm.height} onChange={dimChange} placeholder="Enter height" className={`w-full px-2 py-1 border rounded text-xs ${dimErrors.height ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {dimErrors.height && <span className="text-red-500 text-xs">{dimErrors.height}</span>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">L×W×H Measurement</label>
+                  <input name="lxwxhMeasurement" value={dimForm.lxwxhMeasurement} onChange={dimChange} placeholder="e.g. CM" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">No of Pcs</label>
+                  <input name="noOfPcs" value={dimForm.noOfPcs} onChange={dimChange} placeholder="Enter number" className={`w-full px-2 py-1 border rounded text-xs ${dimErrors.noOfPcs ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {dimErrors.noOfPcs && <span className="text-red-500 text-xs">{dimErrors.noOfPcs}</span>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Package Type</label>
+                  <select name="packageType" value={dimForm.packageType} onChange={dimChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                    <option value="">--Select--</option>
+                    {PACKAGE_TYPES.map(pt => <option key={pt} value={pt}>{pt}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Volume</label>
+                  <input name="volume" value={dimForm.volume} onChange={dimChange} placeholder="Enter volume" className={`w-full px-2 py-1 border rounded text-xs ${dimErrors.volume ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {dimErrors.volume && <span className="text-red-500 text-xs">{dimErrors.volume}</span>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">G.Weight</label>
+                  <input name="gWeight" value={dimForm.gWeight} onChange={dimChange} placeholder="Enter weight" className={`w-full px-2 py-1 border rounded text-xs ${dimErrors.gWeight ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {dimErrors.gWeight && <span className="text-red-500 text-xs">{dimErrors.gWeight}</span>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">G.Weight Unit</label>
+                  <select name="gWeightUnit" value={dimForm.gWeightUnit} onChange={dimChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                    {WEIGHT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">V.Weight</label>
+                  <input name="vWeight" value={dimForm.vWeight} onChange={dimChange} placeholder="Enter weight" className={`w-full px-2 py-1 border rounded text-xs ${dimErrors.vWeight ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {dimErrors.vWeight && <span className="text-red-500 text-xs">{dimErrors.vWeight}</span>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">V.Weight Unit</label>
+                  <select name="vWeightUnit" value={dimForm.vWeightUnit} onChange={dimChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                    {WEIGHT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Net Weight</label>
+                  <input name="netWeight" value={dimForm.netWeight} onChange={dimChange} placeholder="Enter weight" className={`w-full px-2 py-1 border rounded text-xs ${dimErrors.netWeight ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {dimErrors.netWeight && <span className="text-red-500 text-xs">{dimErrors.netWeight}</span>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Net Weight Unit</label>
+                  <select name="netWeightUnit" value={dimForm.netWeightUnit} onChange={dimChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                    {WEIGHT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">COO</label>
+                  <input name="coo" value={dimForm.coo} onChange={dimChange} placeholder="Country of Origin" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Commodity Type</label>
+                  <select name="commodityType" value={dimForm.commodityType} onChange={dimChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                    <option value="">--Select--</option>
+                    {COMMODITY_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Commodity Code</label>
+                  <input name="commodityCode" value={dimForm.commodityCode} onChange={dimChange} placeholder="Enter code" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex flex-col gap-1 col-span-2">
+                  <label className="font-semibold">Commodity Description</label>
+                  <textarea name="commodityDesc" value={dimForm.commodityDesc} onChange={dimChange} placeholder="Enter description" className="w-full px-2 py-1 border border-input rounded text-xs resize-none bg-background" rows={2} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="font-semibold">Notes</label>
+                <textarea name="notes" value={dimForm.notes} onChange={dimChange} placeholder="Enter notes" className="w-full px-2 py-1 border border-input rounded text-xs resize-none bg-background" rows={2} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" onClick={closeDimModal}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={saveDim} disabled={dimSaving}>
+                {dimSaving ? 'Saving...' : dimEditId ? 'Update' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dimension Delete Confirmation */}
+      {dimDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDimDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Dimension</h3>
+              <button onClick={() => setDimDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this dimension? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setDimDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleDimDelete}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Shipping Instructions card */}
       {(activeTab === "Cargo details" || activeTab === "Show All") && (
         <div className="material-card material-elevation-1 overflow-hidden">
@@ -2272,6 +2440,275 @@ const ViewOperation = () => {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Cargo Details Form Modal */}
+      {siOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeSiModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-5xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">{siEditId ? 'Edit Job Consignment' : 'Add Job Consignment'}</h3>
+              <button onClick={closeSiModal} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-5 space-y-4 text-xs">
+              {/* Basic Info */}
+              <div className="border border-border rounded overflow-hidden">
+                <div className="bg-cyan-500 px-3 py-2"><span className="text-white font-semibold text-xs">Basic Information</span></div>
+                <div className="p-3 grid grid-cols-5 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">S.No#</label>
+                    <input name="sNo" value={siForm.sNo} readOnly className="w-full px-2 py-1 border border-input rounded text-xs bg-muted cursor-not-allowed" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">No of PCS</label>
+                    <input name="noOfPcs" value={siForm.noOfPcs} onChange={siChange} placeholder="Enter count" className={`w-full px-2 py-1 border rounded text-xs ${siErrors.noOfPcs ? 'border-red-500' : 'border-input'} bg-background`} />
+                    {siErrors.noOfPcs && <span className="text-red-500 text-xs">{siErrors.noOfPcs}</span>}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Pack Type</label>
+                    <select name="packType" value={siForm.packType} onChange={siChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                      <option value="">--Select--</option>
+                      {PACK_TYPES.map(pt => <option key={pt} value={pt}>{pt}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">No of Pallet</label>
+                    <input name="noOfPallet" value={siForm.noOfPallet} onChange={siChange} placeholder="Enter count" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Chargeable Unit</label>
+                    <input name="chargeableUnit" value={siForm.chargeableUnit} onChange={siChange} placeholder="Enter unit" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Weight Section */}
+              <div className="border border-border rounded overflow-hidden">
+                <div className="bg-orange-500 px-3 py-2"><span className="text-white font-semibold text-xs">Weight & Dimensions</span></div>
+                <div className="p-3 grid grid-cols-4 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">G.Weight</label>
+                    <input name="gWeight" value={siForm.gWeight} onChange={siChange} placeholder="Enter weight" className={`w-full px-2 py-1 border rounded text-xs ${siErrors.gWeight ? 'border-red-500' : 'border-input'} bg-background`} />
+                    {siErrors.gWeight && <span className="text-red-500 text-xs">{siErrors.gWeight}</span>}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">G.Weight Unit</label>
+                    <select name="gWeightUnit" value={siForm.gWeightUnit} onChange={siChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                      {SI_WEIGHT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">V.Weight</label>
+                    <input name="vWeight" value={siForm.vWeight} onChange={siChange} placeholder="Enter weight" className={`w-full px-2 py-1 border rounded text-xs ${siErrors.vWeight ? 'border-red-500' : 'border-input'} bg-background`} />
+                    {siErrors.vWeight && <span className="text-red-500 text-xs">{siErrors.vWeight}</span>}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">V.Weight Unit</label>
+                    <select name="vWeightUnit" value={siForm.vWeightUnit} onChange={siChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                      {SI_WEIGHT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">N.Weight</label>
+                    <input name="nWeight" value={siForm.nWeight} onChange={siChange} placeholder="Enter weight" className={`w-full px-2 py-1 border rounded text-xs ${siErrors.nWeight ? 'border-red-500' : 'border-input'} bg-background`} />
+                    {siErrors.nWeight && <span className="text-red-500 text-xs">{siErrors.nWeight}</span>}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">N.Weight Unit</label>
+                    <select name="nWeightUnit" value={siForm.nWeightUnit} onChange={siChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                      {SI_WEIGHT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1 col-span-2">
+                    <label className="font-semibold">Volume</label>
+                    <input name="volume" value={siForm.volume} onChange={siChange} placeholder="Enter volume" className={`w-full px-2 py-1 border rounded text-xs ${siErrors.volume ? 'border-red-500' : 'border-input'} bg-background`} />
+                    {siErrors.volume && <span className="text-red-500 text-xs">{siErrors.volume}</span>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Commodity Section */}
+              <div className="border border-border rounded overflow-hidden">
+                <div className="bg-green-600 px-3 py-2"><span className="text-white font-semibold text-xs">Commodity Details</span></div>
+                <div className="p-3 grid grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Commodity Type</label>
+                    <select name="commodityType" value={siForm.commodityType} onChange={siChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                      <option value="">--Select--</option>
+                      {SI_COMMODITY_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Commodity Code</label>
+                    <input name="commodityCode" value={siForm.commodityCode} onChange={siChange} placeholder="Enter code" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Commodity Description</label>
+                    <textarea name="commodityDesc" value={siForm.commodityDesc} onChange={siChange} placeholder="Enter description" className="w-full px-2 py-1 border border-input rounded text-xs resize-none bg-background" rows={1} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Hazard & Special Cargo */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="border border-border rounded overflow-hidden">
+                  <div className="bg-red-600 px-3 py-2"><span className="text-white font-semibold text-xs">Hazardous Cargo</span></div>
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="unNoEnabled" checked={siForm.unNoEnabled} onChange={() => toggleSiHazard("unNoEnabled")} className="rounded" />
+                      <label htmlFor="unNoEnabled" className="font-semibold">UN Number</label>
+                    </div>
+                    {siForm.unNoEnabled && (
+                      <input name="unNo" value={siForm.unNo} onChange={siChange} placeholder="Enter UN number" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                    )}
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="dgClassEnabled" checked={siForm.dgClassEnabled} onChange={() => toggleSiHazard("dgClassEnabled")} className="rounded" />
+                      <label htmlFor="dgClassEnabled" className="font-semibold">DG Class</label>
+                    </div>
+                    {siForm.dgClassEnabled && (
+                      <input name="dgClass" value={siForm.dgClass} onChange={siChange} placeholder="Enter DG class" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="border border-border rounded overflow-hidden">
+                  <div className="bg-blue-600 px-3 py-2"><span className="text-white font-semibold text-xs">Special Conditions</span></div>
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="oversizedEnabled" checked={siForm.oversizedEnabled} onChange={toggleSiOversized} className="rounded" />
+                      <label htmlFor="oversizedEnabled" className="font-semibold">Oversized</label>
+                    </div>
+                    {siForm.oversizedEnabled && (
+                      <input name="dimension" value={siForm.dimension} onChange={siChange} placeholder="Enter dimension" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                    )}
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="frozenEnabled" checked={siForm.frozenEnabled} onChange={toggleSiFrozen} className="rounded" />
+                      <label htmlFor="frozenEnabled" className="font-semibold">Frozen Cargo</label>
+                    </div>
+                    {siForm.frozenEnabled && (
+                      <input name="temperature" value={siForm.temperature} onChange={siChange} placeholder="Enter temperature" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Seal Details */}
+              <div className="border border-border rounded overflow-hidden">
+                <div className="bg-purple-600 px-3 py-2"><span className="text-white font-semibold text-xs">Seal Details</span></div>
+                <div className="p-3 grid grid-cols-4 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Manifest Seal</label>
+                    <input name="manifestSeal" value={siForm.manifestSeal} onChange={siChange} placeholder="Enter seal" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Actual/Liner Seal</label>
+                    <input name="actualLinerSeal" value={siForm.actualLinerSeal} onChange={siChange} placeholder="Enter seal" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Custom Seal</label>
+                    <input name="customSeal" value={siForm.customSeal} onChange={siChange} placeholder="Enter seal" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Excise Seal No</label>
+                    <input name="exciseSealNo" value={siForm.exciseSealNo} onChange={siChange} placeholder="Enter seal" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Seal Date</label>
+                    <input name="sealDate" type="date" value={siForm.sealDate} onChange={siChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Seal Type</label>
+                    <select name="sealTypeIndicator" value={siForm.sealTypeIndicator} onChange={siChange} className="w-full px-2 py-1 border border-input rounded text-xs bg-background">
+                      <option value="">--Select--</option>
+                      {SEAL_TYPE_OPTIONS.map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1 col-span-2">
+                    <label className="font-semibold">Seal Device ID</label>
+                    <input name="sealDeviceId" value={siForm.sealDeviceId} onChange={siChange} placeholder="Enter device ID" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Document Details */}
+              <div className="border border-border rounded overflow-hidden">
+                <div className="bg-slate-600 px-3 py-2"><span className="text-white font-semibold text-xs">Document Details</span></div>
+                <div className="p-3 grid grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Movement Doc Type</label>
+                    <input name="movementDocType" value={siForm.movementDocType} onChange={siChange} placeholder="Enter type" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Movement Doc No</label>
+                    <input name="movementDocNo" value={siForm.movementDocNo} onChange={siChange} placeholder="Enter no" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Notes</label>
+                    <textarea name="notes" value={siForm.notes} onChange={siChange} placeholder="Enter notes" className="w-full px-2 py-1 border border-input rounded text-xs resize-none bg-background" rows={1} />
+                  </div>
+                </div>
+              </div>
+
+              {/* RORO Details */}
+              <div className="border border-border rounded overflow-hidden">
+                <div className="bg-indigo-600 px-3 py-2"><span className="text-white font-semibold text-xs">RORO Details</span></div>
+                <div className="p-3 grid grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Year</label>
+                    <input name="roroYear" value={siForm.roroYear} onChange={siChange} placeholder="Enter year" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Brand</label>
+                    <input name="roroBrand" value={siForm.roroBrand} onChange={siChange} placeholder="Enter brand" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Model</label>
+                    <input name="roroModel" value={siForm.roroModel} onChange={siChange} placeholder="Enter model" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Specification</label>
+                    <input name="roroSpecification" value={siForm.roroSpecification} onChange={siChange} placeholder="Enter spec" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Chassis No</label>
+                    <input name="roroChasisNo" value={siForm.roroChasisNo} onChange={siChange} placeholder="Enter chassis no" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-semibold">Engine No</label>
+                    <input name="roroEngineNo" value={siForm.roroEngineNo} onChange={siChange} placeholder="Enter engine no" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" onClick={closeSiModal}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={saveSi} disabled={siSaving}>
+                {siSaving ? 'Saving...' : siEditId ? 'Update' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cargo Detail Delete Confirmation */}
+      {siDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSiDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Cargo Detail</h3>
+              <button onClick={() => setSiDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this cargo detail? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setSiDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleSiDelete}>Delete</Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2484,6 +2921,115 @@ const ViewOperation = () => {
             <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
               <Button variant="outline" size="sm" onClick={() => setCostDeleteId(null)}>Cancel</Button>
               <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleCostDelete}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subledger Form Modal */}
+      {slOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeSlModal} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">{slEditId ? 'Edit Subledger' : 'Add New Subledger'}</h3>
+              <button onClick={closeSlModal} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-5 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold"><span className="text-destructive mr-1">*</span>Subledger Type</label>
+                  <select name="categories" value={slForm.categories} onChange={slChange} className={`w-full px-2 py-1 border rounded text-xs ${slErrors.categories ? 'border-red-500' : 'border-input'} bg-background`}>
+                    <option value="">--Select Type--</option>
+                    <option value="Customer">Customer</option>
+                    <option value="Airline">Airline</option>
+                    <option value="Agent">Agent</option>
+                    <option value="Consignee">Consignee</option>
+                  </select>
+                  {slErrors.categories && <span className="text-red-500 text-xs">{slErrors.categories}</span>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold"><span className="text-destructive mr-1">*</span>Subledger Name</label>
+                  <input name="customerName" value={slForm.customerName} onChange={slChange} placeholder="Enter name" className={`w-full px-2 py-1 border rounded text-xs ${slErrors.customerName ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {slErrors.customerName && <span className="text-red-500 text-xs">{slErrors.customerName}</span>}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">SCAC Code</label>
+                  <input name="scacCode" value={slForm.scacCode} onChange={slChange} placeholder="Enter SCAC code" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Country</label>
+                  <input name="country" value={slForm.country} onChange={slChange} placeholder="Enter country" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="font-semibold"><span className="text-destructive mr-1">*</span>Address</label>
+                <textarea name="address" value={slForm.address} onChange={slChange} placeholder="Enter full address" className={`w-full px-2 py-1 border rounded text-xs resize-none ${slErrors.address ? 'border-red-500' : 'border-input'} bg-background`} rows={2} />
+                {slErrors.address && <span className="text-red-500 text-xs">{slErrors.address}</span>}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">PIN Code</label>
+                  <input name="pinCode" value={slForm.pinCode} onChange={slChange} placeholder="Enter PIN code" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">GST State</label>
+                  <input name="gstState" value={slForm.gstState} onChange={slChange} placeholder="Enter GST state" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">GST No</label>
+                  <input name="gstNo" value={slForm.gstNo} onChange={slChange} placeholder="Enter GST number" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">PAN No</label>
+                  <input name="panNo" value={slForm.panNo} onChange={slChange} placeholder="Enter PAN number" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Phone</label>
+                  <input name="phone" value={slForm.phone} onChange={slChange} placeholder="Enter phone" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Mobile</label>
+                  <input name="mobile" value={slForm.mobile} onChange={slChange} placeholder="Enter mobile" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Email</label>
+                  <input name="emailId" value={slForm.emailId} onChange={slChange} placeholder="Enter email" className={`w-full px-2 py-1 border rounded text-xs ${slErrors.emailId ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {slErrors.emailId && <span className="text-red-500 text-xs">{slErrors.emailId}</span>}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <Button size="sm" variant="outline" onClick={closeSlModal}>Cancel</Button>
+              <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6" onClick={slSave} disabled={slSaving}>
+                {slSaving ? 'Saving...' : slEditId ? 'Update' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subledger Delete Confirmation */}
+      {slDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSlDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Subledger</h3>
+              <button onClick={() => setSlDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this subledger? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setSlDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleSlDelete}>Delete</Button>
             </div>
           </div>
         </div>
