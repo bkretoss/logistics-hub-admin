@@ -70,7 +70,7 @@ const menuItems: MenuItem[] = [
     title: "Setting",
     icon: Settings,
     children: [
-      { title: "Customer Master", icon: Users, path: "/setting/customer-master" },
+      { title: "Company Master", icon: Users, path: "/setting/company-master" },
     ],
   },
 

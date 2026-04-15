@@ -49,7 +49,7 @@ const CustomerViewModal: React.FC<Props> = ({ customer: c, onClose, onEdit }) =>
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h3 className="text-lg font-bold text-primary">View Customer</h3>
+          <h3 className="text-lg font-bold text-primary">View Company</h3>
           <p className="text-xs text-muted-foreground mt-0.5">{val(c.name)} — {val(c.actualName)}</p>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-colors">
@@ -62,14 +62,14 @@ const CustomerViewModal: React.FC<Props> = ({ customer: c, onClose, onEdit }) =>
         <Section title="Basic Information" color="bg-[#4CAF50]">
           <Row2 fields={[["Name", val(c.name)], ["Actual Name", val(c.actualName)]]} />
           <Row2 fields={[["Categories", val(c.categories)], ["Position", val(c.position)]]} />
-          <Row2 fields={[["Sales Person", val(c.salesPerson)], ["Website", val(c.website)]]} />
+          {/* <Row2 fields={[["Sales Person", val(c.salesPerson)], ["Website", val(c.website)]]} /> */}
           <Row2 fields={[["User Name", val(c.userName)], ["Interest Calculation", val(c.interestCalculation)]]} />
           <Row label="Status" value={c.status} />
         </Section>
 
         <Section title="Codes & Identifiers" color="bg-[#00BCD4]">
           <Row2 fields={[["SCAC Code", val(c.scacCode)], ["IEC Code", val(c.iecCode)]]} />
-          <Row2 fields={[["IATA Code", val(c.iataCode)], ["Customer Logo", val(c.customerLogo)]]} />
+          <Row2 fields={[["IATA Code", val(c.iataCode)], ["Customer Logo", val(c.logo)]]} />
         </Section>
 
         {c.notes && (

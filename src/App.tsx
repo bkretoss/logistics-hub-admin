@@ -32,7 +32,7 @@ import EmployeeMasterList from "@/pages/EmployeeMasterList";
 import NewEmployee from "@/pages/NewEmployee";
 import UserMasterList from "@/pages/UserMasterList";
 import NewUser from "@/pages/NewUser";
-import CustomerMasterList from "@/pages/CustomerMasterList";
+import CustomerMasterList from "@/pages/CustomerMasterList"; // CompanyMaster
 import NewCustomer from "@/pages/NewCustomer";
 import RateRequests from "@/pages/RateRequests";
 import NewRateRequest from "@/pages/NewRateRequest";
@@ -152,9 +152,11 @@ const App = () => (
             <Route path="/master/commodity" element={<ProtectedRoute><AppLayout><CommodityList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/service-mode" element={<ProtectedRoute><AppLayout><ServiceModeList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/sales-agent" element={<ProtectedRoute><AppLayout><SalesAgentList /></AppLayout></ProtectedRoute>} />
-            <Route path="/setting/customer-master" element={<ProtectedRoute><AppLayout><CustomerMasterList /></AppLayout></ProtectedRoute>} />
-            <Route path="/setting/customer-master/new" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
-            <Route path="/setting/customer-master/edit/:id" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
+            <Route path="/setting/company-master" element={<ProtectedRoute><AppLayout><CustomerMasterList /></AppLayout></ProtectedRoute>} />
+            <Route path="/setting/company-master/new" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
+            <Route path="/setting/company-master/edit/:id" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
+            <Route path="/setting/customer-master" element={<Navigate to="/setting/company-master" replace />} />
+            <Route path="/setting/customer-master/new" element={<Navigate to="/setting/company-master/new" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

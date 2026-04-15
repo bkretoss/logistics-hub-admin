@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 
 export interface COARow {
   id: number;
+  savedId?: number;
   lineNo: string;
   customerCOA: string;
   paymentMode: string;

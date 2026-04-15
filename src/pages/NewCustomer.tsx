@@ -2,7 +2,25 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, X, Eye, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { customerStore, type Customer } from "./CustomerMasterList";
+import { toast } from "@/hooks/use-toast";
+import {
+  getMasterCompanyApi,
+  createMasterCompanyApi,
+  updateMasterCompanyApi,
+  getMasterCompanyAddressesApi,
+  createMasterCompanyAddressApi,
+  updateMasterCompanyAddressApi,
+  deleteMasterCompanyAddressApi,
+  getMasterCompanyCOAsApi,
+  createMasterCompanyCOAApi,
+  updateMasterCompanyCOAApi,
+  deleteMasterCompanyCOAApi,
+  getMasterCompanyDocumentsApi,
+  createMasterCompanyDocumentApi,
+  updateMasterCompanyDocumentApi,
+  deleteMasterCompanyDocumentApi,
+} from "@/services/api";
+import type { Customer } from "./CustomerMasterList";
 import AddressViewModal from "./AddressViewModal";
 import COAViewModal from "./COAViewModal";
 import DocumentViewModal from "./DocumentViewModal";
@@ -41,6 +59,8 @@ const emptyAddress = (): AddressRow => ({
 
 export interface DocumentRow {
   id: number;
+  savedId?: number;
+  attachmentFile?: File | null;
   lineNo: string;
   position: string;
   documentType: string;
@@ -57,7 +77,7 @@ export interface DocumentRow {
 interface CustomerFormData {
   name: string;
   actualName: string;
-  customerLogo: string;
+  logo: string;
   scacCode: string;
   iecCode: string;
   categories: string;
@@ -80,7 +100,7 @@ interface CustomerFormData {
 const initialForm: CustomerFormData = {
   name: "",
   actualName: "",
-  customerLogo: "",
+  logo: "",
   scacCode: "",
   iecCode: "",
   categories: "",
@@ -113,14 +133,13 @@ const DOCUMENT_TYPES = ["--Select--", "License", "Certificate", "Contract", "Agr
 const NewCustomer = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const editCustomer = id ? customerStore.data.find((c) => c.id === Number(id)) : undefined;
-  const isEdit = !!editCustomer;
+  const isEdit = !!id;
 
-  const [form, setForm] = useState<CustomerFormData>(() =>
-    editCustomer ? { ...initialForm, ...editCustomer } : initialForm,
-  );
+  const [form, setForm] = useState<CustomerFormData>(initialForm);
   const [errors, setErrors] = useState<Partial<Record<keyof CustomerFormData, string>>>({});
   const [logoFileName, setLogoFileName] = useState<string>("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"address" | "coa" | "documents">("address");
   const [addressModal, setAddressModal] = useState(false);
   const [addressDraft, setAddressDraft] = useState<AddressRow>(emptyAddress);
@@ -177,8 +196,213 @@ const NewCustomer = () => {
   const [deleteDocConfirmId, setDeleteDocConfirmId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (editCustomer) setForm({ ...initialForm, ...editCustomer });
+    if (!id) return;
+    getMasterCompanyApi(Number(id)).then(res => {
+      const r = res.data?.data ?? res.data;
+      setForm(prev => ({
+        ...prev,
+        name: r.name ?? "",
+        actualName: r.actual_name ?? "",
+        logo: r.logo ?? "",
+        scacCode: r.scac_code ?? "",
+        iecCode: r.iec_code ?? "",
+        categories: r.categories ?? "",
+        salesPerson: r.sales_person_id ? String(r.sales_person_id) : "",
+        userName: r.username ?? "",
+        interestCalculation: r.interest_calculation ?? "No",
+        iataCode: r.iata_code ?? "",
+        bond: r.bond ?? "",
+        expireBondDate: (() => {
+          const d = r.expire_bond_date ?? "";
+          // API returns DD-MM-YYYY, input[type=date] needs YYYY-MM-DD
+          if (/^\d{2}-\d{2}-\d{4}$/.test(d)) {
+            const [dd, mm, yyyy] = d.split("-");
+            return `${yyyy}-${mm}-${dd}`;
+          }
+          return d;
+        })(),
+        position: r.position ?? "Opened",
+        website: r.website ?? "",
+        password: r.password ?? "",
+        notes: r.notes ?? "",
+        status: r.status === 1 || r.status === "1" ? "Active" : "Inactive",
+        addresses: [],
+        coas: [],
+        documents: [],
+      }));
+    }).catch(() => {
+      toast({ title: "Error", description: "Failed to load company data.", variant: "destructive" });
+    });
   }, [id]);
+
+  const [companyId, setCompanyId] = useState<number | null>(id ? Number(id) : null);
+  const [addressLoading, setAddressLoading] = useState(false);
+
+  const loadAddresses = (companyId?: number) => {
+    setAddressLoading(true);
+    getMasterCompanyAddressesApi(companyId ?? 0).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const mapped: AddressRow[] = raw.map(r => ({
+        id: r.id,
+        savedId: r.id,
+        addressType: r.address_type ?? "",
+        position: r.position ?? "Opened",
+        address: r.address ?? "",
+        city: r.city ?? "",
+        panNo: r.pan_no ?? "",
+        pinNo: r.pin_no ?? "",
+        gstinNo: r.gstin_no ?? "",
+        phoneNo: r.phone_no ?? "",
+        gstStateCode: r.gst_state_code ?? "",
+        sezZone: r.sez_zone === "Yes" ? "Yes" : "No",
+        faxNo: r.fax_no ?? "",
+        state: r.state ?? "",
+        mobileNo: r.mobile_no ?? "",
+        emailId: r.email ?? "",
+        country: r.country ?? "",
+        contactPerson: r.contact_person ?? "",
+        personDesignation: r.person_designation ?? "",
+        department: r.department ?? "",
+        taxRegistrationType: r.tax_registration_type ?? "",
+        whatsApp: r.whatsapp ?? "",
+        notes: r.notes ?? "",
+        einNo: r.ein_no ?? "",
+        businessNo: r.business_no ?? "",
+      }));
+      setForm(prev => ({ ...prev, addresses: mapped }));
+    }).catch(() => {}).finally(() => setAddressLoading(false));
+  };
+
+  useEffect(() => {
+    loadAddresses(id ? Number(id) : undefined);
+  }, [id]);
+
+  const [coaLoading, setCoaLoading] = useState(false);
+
+  const loadCOAs = (cid?: number) => {
+    setCoaLoading(true);
+    getMasterCompanyCOAsApi(cid).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const mapped: COARow[] = raw.map(r => ({
+        id: r.id,
+        savedId: r.id,
+        lineNo: String(r.line_no ?? ""),
+        customerCOA: r.customer_coa ?? "",
+        currency: r.currency ?? "",
+        paymentMode: r.payment_mode ?? "",
+        creditApprover: r.credit_approver ?? "",
+        osCollector: r.os_collector ?? "",
+        approvedCreditPeriod: r.approved_credit_period ?? "",
+        approvedCreditAmount: r.approved_credit_amount ?? "",
+        alertCreditDays: String(r.alert_credit_days ?? ""),
+        alertCreditAmount: r.alert_credit_amount ?? "",
+        alertToEmail: r.alert_to_email ?? "",
+        alertCCEmail: r.alert_cc_email ?? "",
+        alertBCCEmail: r.alert_bcc_email ?? "",
+        notes: r.notes ?? "",
+      }));
+      setForm(prev => ({ ...prev, coas: mapped }));
+    }).catch(() => {}).finally(() => setCoaLoading(false));
+  };
+
+  useEffect(() => {
+    loadCOAs(id ? Number(id) : undefined);
+  }, [id]);
+
+  const buildCOAPayload = (coa: COARow, cid: number) => ({
+    company_id: cid,
+    line_no: Number(coa.lineNo) || 1,
+    customer_coa: coa.customerCOA,
+    currency: coa.currency,
+    payment_mode: coa.paymentMode,
+    credit_approver: coa.creditApprover,
+    os_collector: coa.osCollector,
+    approved_credit_period: coa.approvedCreditPeriod,
+    approved_credit_amount: coa.approvedCreditAmount,
+    alert_credit_days: Number(coa.alertCreditDays) || 0,
+    alert_credit_amount: coa.alertCreditAmount,
+    alert_to_email: coa.alertToEmail,
+    alert_cc_email: coa.alertCCEmail,
+    alert_bcc_email: coa.alertBCCEmail,
+    notes: coa.notes,
+    status: 1,
+  });
+
+  const [docLoading, setDocLoading] = useState(false);
+
+  const loadDocuments = (cid?: number) => {
+    setDocLoading(true);
+    getMasterCompanyDocumentsApi(cid).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const mapped: DocumentRow[] = raw.map(r => ({
+        id: r.id,
+        savedId: r.id,
+        attachmentFile: null,
+        lineNo: String(r.line_no ?? ""),
+        position: r.position ?? "Opened",
+        documentType: r.document_type ?? "",
+        documentNo: r.document_no ?? "",
+        issuedPlace: r.issued_place ?? "",
+        issuedBy: r.issued_by ?? "",
+        issuedDate: r.issued_date ?? "",
+        expiryDate: r.expiry_date ?? "",
+        fileName: r.file_name ?? "",
+        attachment: r.attachment ?? "",
+        note: r.note ?? "",
+      }));
+      setForm(prev => ({ ...prev, documents: mapped }));
+    }).catch(() => {}).finally(() => setDocLoading(false));
+  };
+
+  useEffect(() => {
+    loadDocuments(id ? Number(id) : undefined);
+  }, [id]);
+
+  const buildDocumentFormData = (doc: DocumentRow, cid: number): FormData => {
+    const fd = new FormData();
+    fd.append("company_id", String(cid));
+    fd.append("line_no", doc.lineNo || "1");
+    fd.append("position", doc.position);
+    fd.append("document_type", doc.documentType);
+    fd.append("document_no", doc.documentNo);
+    fd.append("issued_place", doc.issuedPlace);
+    fd.append("issued_by", doc.issuedBy);
+    fd.append("issued_date", doc.issuedDate);
+    fd.append("expiry_date", doc.expiryDate);
+    fd.append("file_name", doc.fileName);
+    fd.append("note", doc.note);
+    fd.append("status", "1");
+    if (doc.attachmentFile) fd.append("attachment", doc.attachmentFile);
+    return fd;
+  };
+
+  const buildAddressPayload = (addr: AddressRow, cid: number) => ({
+    company_id: cid,
+    address_type: addr.addressType,
+    position: addr.position,
+    address: addr.address,
+    city: addr.city,
+    pan_no: addr.panNo,
+    pin_no: addr.pinNo,
+    gstin_no: addr.gstinNo,
+    phone_no: addr.phoneNo,
+    gst_state_code: addr.gstStateCode,
+    sez_zone: addr.sezZone,
+    fax_no: addr.faxNo,
+    state: addr.state,
+    mobile_no: addr.mobileNo,
+    email: addr.emailId,
+    country: addr.country,
+    contact_person: addr.contactPerson,
+    person_designation: addr.personDesignation,
+    department: addr.department,
+    tax_registration_type: addr.taxRegistrationType,
+    whatsapp: addr.whatsApp,
+    notes: addr.notes,
+    ein_no: addr.einNo,
+    business_no: addr.businessNo,
+    status: 1,
+  });
 
   const validateField = (name: keyof CustomerFormData, value: string): string => {
     if (name === "name") return !value.trim() ? "Name is required" : "";
@@ -195,8 +419,9 @@ const NewCustomer = () => {
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    setLogoFile(file ?? null);
     setLogoFileName(file ? file.name : "");
-    setForm((prev) => ({ ...prev, customerLogo: file ? file.name : "" }));
+    setForm((prev) => ({ ...prev, logo: file ? file.name : "" }));
   };
 
   const openAddressModal = () => {
@@ -238,28 +463,98 @@ const NewCustomer = () => {
     return Object.keys(e).length === 0;
   };
 
-  const saveAddress = () => {
+  const getOrCreateCompany = async (): Promise<number | null> => {
+    if (companyId) return companyId;
+    // Validate required company fields first
+    if (!form.name.trim() || !form.actualName.trim() || !form.categories.trim()) {
+      toast({ title: "Required", description: "Please fill Name, Actual Name and Categories before adding an address.", variant: "destructive" });
+      return null;
+    }
+    try {
+      const fd = new FormData();
+      fd.append("name", form.name.trim());
+      fd.append("actual_name", form.actualName.trim());
+      fd.append("categories", form.categories.trim());
+      fd.append("position", form.position);
+      fd.append("website", form.website.trim());
+      fd.append("username", form.userName.trim());
+      fd.append("password", form.password);
+      fd.append("scac_code", form.scacCode.trim());
+      fd.append("interest_calculation", form.interestCalculation);
+      fd.append("notes", form.notes);
+      fd.append("iec_code", form.iecCode.trim());
+      fd.append("iata_code", form.iataCode.trim());
+      fd.append("bond", form.bond.trim());
+      const expireDateForApi = form.expireBondDate ? form.expireBondDate.split("-").reverse().join("-") : "";
+      fd.append("expire_bond_date", expireDateForApi);
+      fd.append("status", form.status === "Active" ? "1" : "0");
+      if (logoFile) fd.append("logo", logoFile);
+      const res = await createMasterCompanyApi(fd);
+      const newId: number = res.data?.data?.id ?? res.data?.id;
+      setCompanyId(newId);
+      toast({ title: "Success", description: "Company saved. Now adding address.", variant: "success" });
+      return newId;
+    } catch (err: any) {
+      const msg: string = err?.response?.data?.message ?? "";
+      toast({ title: "Error", description: msg || "Failed to save company.", variant: "destructive" });
+      return null;
+    }
+  };
+
+  const saveAddress = async () => {
     if (!validateAddressDraft()) return;
 
     if (addressModalMode === "add") {
-      // Add new address
-      setForm((prev) => ({ ...prev, addresses: [...prev.addresses, { ...addressDraft, id: Date.now() }] }));
+      const cid = await getOrCreateCompany();
+      if (!cid) return;
+      try {
+        await createMasterCompanyAddressApi(buildAddressPayload(addressDraft, cid));
+        toast({ title: "Success", description: "Address added.", variant: "success" });
+        loadAddresses(cid);
+      } catch (err: any) {
+        const msg: string = err?.response?.data?.message ?? "";
+        toast({ title: "Error", description: msg || "Failed to add address.", variant: "destructive" });
+        return;
+      }
     } else if (addressModalMode === "edit") {
-      // Update existing address
-      setForm((prev) => ({
-        ...prev,
-        addresses: prev.addresses.map((a) => (a.id === addressDraft.id ? addressDraft : a)),
-      }));
+      const cid = companyId ?? (id ? Number(id) : null);
+      if (addressDraft.savedId && cid) {
+        try {
+          await updateMasterCompanyAddressApi(addressDraft.savedId, buildAddressPayload(addressDraft, cid));
+          toast({ title: "Success", description: "Address updated.", variant: "success" });
+          loadAddresses(cid);
+        } catch {
+          toast({ title: "Error", description: "Failed to update address.", variant: "destructive" });
+          return;
+        }
+      } else {
+        setForm(prev => ({
+          ...prev,
+          addresses: prev.addresses.map(a => a.id === addressDraft.id ? addressDraft : a),
+        }));
+      }
     }
 
     setAddressModal(false);
   };
 
-  const confirmDeleteAddress = () => {
-    if (deleteConfirmId !== null) {
-      setForm((prev) => ({ ...prev, addresses: prev.addresses.filter((a) => a.id !== deleteConfirmId) }));
-      setDeleteConfirmId(null);
+  const confirmDeleteAddress = async () => {
+    if (deleteConfirmId === null) return;
+    const addr = form.addresses.find(a => a.id === deleteConfirmId);
+    if (addr?.savedId) {
+      try {
+        await deleteMasterCompanyAddressApi(addr.savedId);
+        toast({ title: "Success", description: "Address deleted.", variant: "success" });
+        loadAddresses(companyId ?? undefined);
+      } catch {
+        toast({ title: "Error", description: "Failed to delete address.", variant: "destructive" });
+        setDeleteConfirmId(null);
+        return;
+      }
+    } else {
+      setForm(prev => ({ ...prev, addresses: prev.addresses.filter(a => a.id !== deleteConfirmId) }));
     }
+    setDeleteConfirmId(null);
   };
 
   const removeAddress = (id: number) => {
@@ -288,30 +583,74 @@ const NewCustomer = () => {
   const validateCOADraft = () => {
     const e: Partial<Record<keyof COARow, string>> = {};
     if (!coaDraft.lineNo.trim()) e.lineNo = "Line No is required";
-    if (!coaDraft.customerCOA.trim()) e.customerCOA = "Customer COA is required";
+    if (!coaDraft.customerCOA.trim()) e.customerCOA = "Company COA is required";
     if (!coaDraft.paymentMode.trim()) e.paymentMode = "Payment Mode is required";
+    if (!coaDraft.approvedCreditAmount.trim()) {
+      e.approvedCreditAmount = "Approved Credit Amount is required";
+    } else if (isNaN(Number(coaDraft.approvedCreditAmount)) || Number(coaDraft.approvedCreditAmount) < 0) {
+      e.approvedCreditAmount = "Approved Credit Amount must be a valid positive number";
+    }
+    if (!coaDraft.alertCreditAmount.trim()) {
+      e.alertCreditAmount = "Alert Credit Amount is required";
+    } else if (isNaN(Number(coaDraft.alertCreditAmount)) || Number(coaDraft.alertCreditAmount) < 0) {
+      e.alertCreditAmount = "Alert Credit Amount must be a valid positive number";
+    }
     setCOAErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const saveCOA = () => {
+  const saveCOA = async () => {
     if (!validateCOADraft()) return;
     if (coaModalMode === "add") {
-      setForm((prev) => ({ ...prev, coas: [...prev.coas, { ...coaDraft, id: Date.now() }] }));
+      const cid = await getOrCreateCompany();
+      if (!cid) return;
+      try {
+        await createMasterCompanyCOAApi(buildCOAPayload(coaDraft, cid));
+        toast({ title: "Success", description: "COA added.", variant: "success" });
+        loadCOAs(cid);
+      } catch (err: any) {
+        const msg: string = err?.response?.data?.message ?? "";
+        toast({ title: "Error", description: msg || "Failed to add COA.", variant: "destructive" });
+        return;
+      }
     } else {
-      setForm((prev) => ({
-        ...prev,
-        coas: prev.coas.map((c) => (c.id === coaDraft.id ? coaDraft : c)),
-      }));
+      const cid = companyId ?? (id ? Number(id) : null);
+      if (coaDraft.savedId && cid) {
+        try {
+          await updateMasterCompanyCOAApi(coaDraft.savedId, buildCOAPayload(coaDraft, cid));
+          toast({ title: "Success", description: "COA updated.", variant: "success" });
+          loadCOAs(cid);
+        } catch {
+          toast({ title: "Error", description: "Failed to update COA.", variant: "destructive" });
+          return;
+        }
+      } else {
+        setForm(prev => ({
+          ...prev,
+          coas: prev.coas.map(c => c.id === coaDraft.id ? coaDraft : c),
+        }));
+      }
     }
     setCOAModal(false);
   };
 
-  const confirmDeleteCOA = () => {
-    if (deleteCOAConfirmId !== null) {
-      setForm((prev) => ({ ...prev, coas: prev.coas.filter((c) => c.id !== deleteCOAConfirmId) }));
-      setDeleteCOAConfirmId(null);
+  const confirmDeleteCOA = async () => {
+    if (deleteCOAConfirmId === null) return;
+    const coa = form.coas.find(c => c.id === deleteCOAConfirmId);
+    if (coa?.savedId) {
+      try {
+        await deleteMasterCompanyCOAApi(coa.savedId);
+        toast({ title: "Success", description: "COA deleted.", variant: "success" });
+        loadCOAs(companyId ?? undefined);
+      } catch {
+        toast({ title: "Error", description: "Failed to delete COA.", variant: "destructive" });
+        setDeleteCOAConfirmId(null);
+        return;
+      }
+    } else {
+      setForm(prev => ({ ...prev, coas: prev.coas.filter(c => c.id !== deleteCOAConfirmId) }));
     }
+    setDeleteCOAConfirmId(null);
   };
 
   const openDocModal = () => {
@@ -342,21 +681,55 @@ const NewCustomer = () => {
     return Object.keys(e).length === 0;
   };
 
-  const saveDoc = () => {
+  const saveDoc = async () => {
     if (!validateDocDraft()) return;
     if (docModalMode === "add") {
-      setForm((prev) => ({ ...prev, documents: [...prev.documents, { ...docDraft, id: Date.now() }] }));
+      const cid = await getOrCreateCompany();
+      if (!cid) return;
+      try {
+        await createMasterCompanyDocumentApi(buildDocumentFormData(docDraft, cid));
+        toast({ title: "Success", description: "Document added.", variant: "success" });
+        loadDocuments(cid);
+      } catch (err: any) {
+        const msg: string = err?.response?.data?.message ?? "";
+        toast({ title: "Error", description: msg || "Failed to add document.", variant: "destructive" });
+        return;
+      }
     } else {
-      setForm((prev) => ({ ...prev, documents: prev.documents.map((d) => (d.id === docDraft.id ? docDraft : d)) }));
+      const cid = companyId ?? (id ? Number(id) : null);
+      if (docDraft.savedId && cid) {
+        try {
+          await updateMasterCompanyDocumentApi(docDraft.savedId, buildDocumentFormData(docDraft, cid));
+          toast({ title: "Success", description: "Document updated.", variant: "success" });
+          loadDocuments(cid);
+        } catch {
+          toast({ title: "Error", description: "Failed to update document.", variant: "destructive" });
+          return;
+        }
+      } else {
+        setForm(prev => ({ ...prev, documents: prev.documents.map(d => d.id === docDraft.id ? docDraft : d) }));
+      }
     }
     setDocModal(false);
   };
 
-  const confirmDeleteDoc = () => {
-    if (deleteDocConfirmId !== null) {
-      setForm((prev) => ({ ...prev, documents: prev.documents.filter((d) => d.id !== deleteDocConfirmId) }));
-      setDeleteDocConfirmId(null);
+  const confirmDeleteDoc = async () => {
+    if (deleteDocConfirmId === null) return;
+    const doc = form.documents.find(d => d.id === deleteDocConfirmId);
+    if (doc?.savedId) {
+      try {
+        await deleteMasterCompanyDocumentApi(doc.savedId);
+        toast({ title: "Success", description: "Document deleted.", variant: "success" });
+        loadDocuments(companyId ?? undefined);
+      } catch {
+        toast({ title: "Error", description: "Failed to delete document.", variant: "destructive" });
+        setDeleteDocConfirmId(null);
+        return;
+      }
+    } else {
+      setForm(prev => ({ ...prev, documents: prev.documents.filter(d => d.id !== deleteDocConfirmId) }));
     }
+    setDeleteDocConfirmId(null);
   };
 
   const validate = () => {
@@ -369,23 +742,50 @@ const NewCustomer = () => {
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    const record: Customer = {
-      id: isEdit && editCustomer ? editCustomer.id : Date.now(),
-      ...form,
-    };
-    if (isEdit && editCustomer) {
-      const idx = customerStore.data.findIndex((c) => c.id === editCustomer.id);
-      if (idx !== -1) {
-        const updated = [...customerStore.data];
-        updated[idx] = record;
-        customerStore.set(updated);
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append("name", form.name.trim());
+      fd.append("actual_name", form.actualName.trim());
+      fd.append("categories", form.categories.trim());
+      fd.append("position", form.position);
+      fd.append("website", form.website.trim());
+      fd.append("username", form.userName.trim());
+      fd.append("password", form.password);
+      fd.append("scac_code", form.scacCode.trim());
+      fd.append("interest_calculation", form.interestCalculation);
+      fd.append("notes", form.notes);
+      fd.append("iec_code", form.iecCode.trim());
+      fd.append("iata_code", form.iataCode.trim());
+      fd.append("bond", form.bond.trim());
+      const expireDateForApi = form.expireBondDate
+        ? form.expireBondDate.split("-").reverse().join("-")
+        : "";
+      fd.append("expire_bond_date", expireDateForApi);
+      fd.append("status", form.status === "Active" ? "1" : "0");
+      if (logoFile) fd.append("logo", logoFile);
+
+      let savedCompanyId: number;
+      if (isEdit && id) {
+        await updateMasterCompanyApi(Number(id), fd);
+        savedCompanyId = Number(id);
+        toast({ title: "Success", description: "Company updated successfully.", variant: "success" });
+      } else {
+        const res = await createMasterCompanyApi(fd);
+        savedCompanyId = res.data?.data?.id ?? res.data?.id;
+        setCompanyId(savedCompanyId);
+        toast({ title: "Success", description: "Company created successfully.", variant: "success" });
       }
-    } else {
-      customerStore.set([...customerStore.data, record]);
+
+      navigate("/setting/company-master");
+    } catch (err: any) {
+      const msg: string = err?.response?.data?.message ?? "";
+      toast({ title: "Error", description: msg || "Failed to save company.", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-    navigate("/setting/customer-master");
   };
 
   const textField = (label: string, name: keyof CustomerFormData, required = false, type = "text") => (
@@ -431,15 +831,15 @@ const NewCustomer = () => {
     <div className="space-y-6">
       {/* Page header */}
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => navigate("/setting/customer-master")}>
+        <Button variant="outline" size="icon" onClick={() => navigate("/setting/company-master")}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">
-            {isEdit ? "Edit Customer" : "New Customer"}
+            {isEdit ? "Edit Company" : "New Company"}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {isEdit ? `Editing ${editCustomer?.name}` : "Create a new customer record"}
+            {isEdit ? `Editing ${form.name || "company"}` : "Create a new company record"}
           </p>
         </div>
       </div>
@@ -455,7 +855,7 @@ const NewCustomer = () => {
         {/* Row 2: Actual Name | Sales Person | Website */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {textField("Actual Name", "actualName", true)}
-          {selectField("Sales Person", "salesPerson", SALES_PERSONS)}
+          {/* {selectField("Sales Person", "salesPerson", SALES_PERSONS)} */}
           {textField("Website", "website")}
         </div>
 
@@ -470,7 +870,7 @@ const NewCustomer = () => {
                 <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
               </label>
               <span className="text-sm text-muted-foreground truncate">
-                {logoFileName || (form.customerLogo ? form.customerLogo : "No file chosen")}
+                {logoFileName || (form.logo ? form.logo : "No file chosen")}
               </span>
             </div>
           </div>
@@ -554,9 +954,19 @@ const NewCustomer = () => {
             {/* Blue header bar */}
             <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-2">
               <span className="text-white font-medium text-sm">Address</span>
-              <Button onClick={openAddressModal} size="sm" className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3">
-                <Plus className="w-3 h-3 mr-1" /> Add Address
-              </Button>
+              <div className="flex items-center gap-2">
+                {!companyId && (
+                  <span className="text-white/80 text-xs italic">Save company first to add addresses</span>
+                )}
+                <Button
+                  onClick={openAddressModal}
+                  size="sm"
+                  disabled={!companyId}
+                  className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-3 h-3 mr-1" /> Add Address
+                </Button>
+              </div>
             </div>
             {/* Table */}
             <div className="overflow-x-auto">
@@ -577,7 +987,11 @@ const NewCustomer = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {form.addresses.length === 0 ? (
+                  {addressLoading ? (
+                    <tr>
+                      <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading addresses...</td>
+                    </tr>
+                  ) : form.addresses.length === 0 ? (
                     <tr>
                       <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">
                         No addresses added yet.
@@ -636,9 +1050,19 @@ const NewCustomer = () => {
             {/* Blue header bar */}
             <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-2">
               <span className="text-white font-medium text-sm">COA</span>
-              <Button onClick={openCOAModal} size="sm" className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3">
-                <Plus className="w-3 h-3 mr-1" /> Add COA
-              </Button>
+              <div className="flex items-center gap-2">
+                {!companyId && (
+                  <span className="text-white/80 text-xs italic">Save company first to add COA</span>
+                )}
+                <Button
+                  onClick={openCOAModal}
+                  size="sm"
+                  disabled={!companyId}
+                  className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-3 h-3 mr-1" /> Add COA
+                </Button>
+              </div>
             </div>
             {/* Table */}
             <div className="overflow-x-auto">
@@ -646,7 +1070,7 @@ const NewCustomer = () => {
                 <thead>
                   <tr className="border-b bg-gray-50">
                     <th className="px-3 py-2 text-left font-medium text-gray-600 w-10">#</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Customer COA</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Company COA</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-600">Payment Mode</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-600">Credit Approver</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-600">O/S Collector</th>
@@ -663,7 +1087,9 @@ const NewCustomer = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {form.coas.length === 0 ? (
+                  {coaLoading ? (
+                    <tr><td colSpan={15} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading COA records...</td></tr>
+                  ) : form.coas.length === 0 ? (
                     <tr>
                       <td colSpan={15} className="px-3 py-6 text-center text-muted-foreground text-sm">
                         No COA records added yet.
@@ -713,9 +1139,19 @@ const NewCustomer = () => {
           <div className="p-0">
             <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-2">
               <span className="text-white font-medium text-sm">Documents</span>
-              <Button onClick={openDocModal} size="sm" className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3">
-                <Plus className="w-3 h-3 mr-1" /> Add Document
-              </Button>
+              <div className="flex items-center gap-2">
+                {!companyId && (
+                  <span className="text-white/80 text-xs italic">Save company first to add documents</span>
+                )}
+                <Button
+                  onClick={openDocModal}
+                  size="sm"
+                  disabled={!companyId}
+                  className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-3 h-3 mr-1" /> Add Document
+                </Button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -733,7 +1169,9 @@ const NewCustomer = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {form.documents.length === 0 ? (
+                  {docLoading ? (
+                    <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading documents...</td></tr>
+                  ) : form.documents.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">No documents added yet.</td>
                     </tr>
@@ -776,12 +1214,12 @@ const NewCustomer = () => {
         <Button
           type="button"
           className="bg-red-400 text-black hover:bg-red-350"
-          onClick={() => navigate("/setting/customer-master")}
+          onClick={() => navigate("/setting/company-master")}
         >
           Cancel
         </Button>
-        <Button type="button" className="material-button text-black" onClick={handleSave}>
-          {isEdit ? "Update" : "Save"}
+        <Button type="button" className="material-button text-black" onClick={handleSave} disabled={saving}>
+          {saving ? (isEdit ? "Updating..." : "Saving...") : (isEdit ? "Update" : "Save")}
         </Button>
       </div>
       {/* Address Modal */}
@@ -791,7 +1229,7 @@ const NewCustomer = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-3 rounded-t-lg">
               <h2 className="text-white font-semibold text-base">
-                {addressModalMode === "add" ? "Add Customer Address" : "Edit Customer Address"}
+                {addressModalMode === "add" ? "Add Company Address" : "Edit Customer Address"}
               </h2>
               <button onClick={() => setAddressModal(false)} className="text-white hover:text-gray-200">
                 <X className="w-5 h-5" />
@@ -1072,7 +1510,7 @@ const NewCustomer = () => {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-3 rounded-t-lg">
-              <h2 className="text-white font-semibold text-base">CUSTOMER COA</h2>
+              <h2 className="text-white font-semibold text-base">COMPANY COA</h2>
               <button onClick={() => setCOAModal(false)} className="text-white hover:text-gray-200">
                 <X className="w-5 h-5" />
               </button>
@@ -1087,7 +1525,7 @@ const NewCustomer = () => {
                   {coaErrors.lineNo && <p className="text-xs text-red-500">{coaErrors.lineNo}</p>}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-medium"><span className="text-red-500 mr-0.5">*</span>Customer COA</label>
+                  <label className="text-sm font-medium"><span className="text-red-500 mr-0.5">*</span>Company COA</label>
                   <select value={coaDraft.customerCOA} onChange={(e) => handleCOADraftChange("customerCOA", e.target.value)} className={`w-full px-3 py-2 border rounded text-sm ${coaErrors.customerCOA ? "border-red-400" : "border-input"}`}>
                     <option value="">--Select--</option>
                     <option value="Sundry Debtors">Sundry Debtors</option>
@@ -1136,8 +1574,15 @@ const NewCustomer = () => {
                   <input value={coaDraft.approvedCreditPeriod} onChange={(e) => handleCOADraftChange("approvedCreditPeriod", e.target.value)} className="w-full px-3 py-2 border border-input rounded text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-medium">Approved Credit Amount</label>
-                  <input value={coaDraft.approvedCreditAmount} onChange={(e) => handleCOADraftChange("approvedCreditAmount", e.target.value)} className="w-full px-3 py-2 border border-input rounded text-sm" />
+                  <label className="text-sm font-medium"><span className="text-red-500 mr-0.5">*</span>Approved Credit Amount</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={coaDraft.approvedCreditAmount}
+                    onChange={(e) => handleCOADraftChange("approvedCreditAmount", e.target.value)}
+                    className={`w-full px-3 py-2 border rounded text-sm ${coaErrors.approvedCreditAmount ? "border-red-400" : "border-input"}`}
+                  />
+                  {coaErrors.approvedCreditAmount && <p className="text-xs text-red-500">{coaErrors.approvedCreditAmount}</p>}
                 </div>
               </div>
               {/* Alert Credit Days | Alert Credit Amount */}
@@ -1147,8 +1592,15 @@ const NewCustomer = () => {
                   <input value={coaDraft.alertCreditDays} onChange={(e) => handleCOADraftChange("alertCreditDays", e.target.value)} className="w-full px-3 py-2 border border-input rounded text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-medium">Alert Credit Amount</label>
-                  <input value={coaDraft.alertCreditAmount} onChange={(e) => handleCOADraftChange("alertCreditAmount", e.target.value)} className="w-full px-3 py-2 border border-input rounded text-sm" />
+                  <label className="text-sm font-medium"><span className="text-red-500 mr-0.5">*</span>Alert Credit Amount</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={coaDraft.alertCreditAmount}
+                    onChange={(e) => handleCOADraftChange("alertCreditAmount", e.target.value)}
+                    className={`w-full px-3 py-2 border rounded text-sm ${coaErrors.alertCreditAmount ? "border-red-400" : "border-input"}`}
+                  />
+                  {coaErrors.alertCreditAmount && <p className="text-xs text-red-500">{coaErrors.alertCreditAmount}</p>}
                 </div>
               </div>
               {/* Alert To Email */}
@@ -1265,10 +1717,18 @@ const NewCustomer = () => {
                       Choose File
                       <input type="file" className="hidden" onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleDocDraftChange("attachment", file.name);
+                        if (file) {
+                          setDocDraft(prev => ({ ...prev, attachmentFile: file, fileName: prev.fileName || file.name }));
+                        }
                       }} />
                     </label>
-                    <span className="text-sm text-muted-foreground truncate">{docDraft.attachment || "No file chosen"}</span>
+                    <span className="text-sm text-muted-foreground truncate">
+                      {docDraft.attachmentFile
+                        ? docDraft.attachmentFile.name
+                        : docDraft.attachment
+                          ? <a href={docDraft.attachment} target="_blank" rel="noreferrer" className="text-blue-500 underline truncate max-w-[160px] inline-block">{docDraft.fileName || "View file"}</a>
+                          : "No file chosen"}
+                    </span>
                   </div>
                 </div>
               </div>

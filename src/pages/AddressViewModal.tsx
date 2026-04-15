@@ -3,7 +3,8 @@ import { X, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface AddressRow {
-  id: number;
+  id: number;        // local UI key
+  savedId?: number;  // server-side id (set after save)
   addressType: string;
   position: string;
   address: string;

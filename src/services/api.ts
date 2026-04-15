@@ -147,6 +147,32 @@ export const updateCompanyApi   = (id: number, data: Record<string, unknown>) =>
 export const deleteCompanyApi   = (id: number)                     => api.delete(`/companies/${id}`);
 export const updateCompanyStatusApi = (id: number, status: number) => api.patch(`/companies/${id}/status`, { status });
 
+// Master Company APIs
+export const getMasterCompaniesApi   = (page = 1, perPage = 9999) => api.get('/master-company', { params: { page, per_page: perPage } });
+export const getMasterCompanyApi     = (id: number)               => api.get(`/master-company/${id}`);
+export const createMasterCompanyApi  = (data: FormData)           => api.post('/master-company', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const updateMasterCompanyApi  = (id: number, data: FormData) => api.put(`/master-company/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const deleteMasterCompanyApi  = (id: number)               => api.delete(`/master-company/${id}`);
+export const updateMasterCompanyStatusApi = (id: number, status: number) => api.patch(`/master-company/${id}/status`, { status });
+
+// Master Company Address APIs
+export const getMasterCompanyAddressesApi  = (companyId?: number)                         => api.get('/master-company-address', { params: { ...(companyId ? { company_id: companyId } : {}), per_page: 9999 } });
+export const createMasterCompanyAddressApi = (data: Record<string, unknown>)              => api.post('/master-company-address', data);
+export const updateMasterCompanyAddressApi = (id: number, data: Record<string, unknown>)  => api.put(`/master-company-address/${id}`, data);
+export const deleteMasterCompanyAddressApi = (id: number)                                 => api.delete(`/master-company-address/${id}`);
+
+// Master Company COA APIs
+export const getMasterCompanyCOAsApi  = (companyId?: number)                        => api.get('/master-company-coa', { params: { ...(companyId ? { company_id: companyId } : {}), per_page: 9999 } });
+export const createMasterCompanyCOAApi = (data: Record<string, unknown>)            => api.post('/master-company-coa', data);
+export const updateMasterCompanyCOAApi = (id: number, data: Record<string, unknown>) => api.put(`/master-company-coa/${id}`, data);
+export const deleteMasterCompanyCOAApi = (id: number)                               => api.delete(`/master-company-coa/${id}`);
+
+// Master Company Document APIs
+export const getMasterCompanyDocumentsApi  = (companyId?: number)                  => api.get('/master-company-document', { params: { ...(companyId ? { company_id: companyId } : {}), per_page: 9999 } });
+export const createMasterCompanyDocumentApi = (data: FormData)                     => api.post('/master-company-document', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const updateMasterCompanyDocumentApi = (id: number, data: FormData)         => api.put(`/master-company-document/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const deleteMasterCompanyDocumentApi = (id: number)                         => api.delete(`/master-company-document/${id}`);
+
 // Sales Agent APIs
 export const getSalesAgentsApi        = (page = 1, perPage = 10, search = '', country = '', status = '') => api.get('/sales-agents', { params: { page, per_page: perPage, ...(search && { search }), ...(country && { country }), ...(status && { status }) } });
 export const getSalesAgentApi         = (id: number)                     => api.get(`/sales-agents/${id}`);
