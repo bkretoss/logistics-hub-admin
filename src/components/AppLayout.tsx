@@ -88,6 +88,7 @@ const menuItems: MenuItem[] = [
       { title: "Department",          icon: Users,     path: "/master/department"        },
       { title: "Designation",         icon: Users,     path: "/master/designation"       },
       { title: "Incoterm",            icon: FileText,  path: "/master/incoterm"          },
+      { title: "Port",               icon: Package,   path: "/master/port"             },
       { title: "Pricing Team",        icon: Users,     path: "/master/pricing-team"      },
       { title: "Prospects",           icon: Users,     path: "/master/prospects"         },
       { title: "Sales Agent",         icon: Users,     path: "/master/sales-agent"       },

@@ -53,6 +53,7 @@ const emptyAddress = (): AddressRow => ({
   department: "",
   taxRegistrationType: "",
   whatsApp: "",
+  branchName: "",
   notes: "",
   einNo: "",
   businessNo: "",
@@ -293,6 +294,7 @@ const NewCustomer = () => {
         department: r.department ?? "",
         taxRegistrationType: r.tax_registration_type ?? "",
         whatsApp: r.whatsapp ?? "",
+        branchName: r.branch_name ?? "",
         notes: r.notes ?? "",
         einNo: r.ein_no ?? "",
         businessNo: r.business_no ?? "",
@@ -406,6 +408,7 @@ const NewCustomer = () => {
 
   const buildAddressPayload = (addr: AddressRow, cid: number) => ({
     company_id: cid,
+    branch_name: addr.branchName,
     address_type: addr.addressType,
     position: addr.position,
     address: addr.address,
@@ -475,7 +478,6 @@ const NewCustomer = () => {
   const validateAddressDraft = () => {
     const e: Partial<Record<keyof AddressRow, string>> = {};
     if (!addressDraft.address.trim()) e.address = "Address is required";
-    if (!addressDraft.city.trim()) e.city = "City is required";
     if (!addressDraft.pinNo.trim()) e.pinNo = "PIN No is required";
     setAddressErrors(e);
     return Object.keys(e).length === 0;
@@ -524,16 +526,21 @@ const NewCustomer = () => {
     if (!validateAddressDraft()) return;
 
     if (addressModalMode === "add") {
-      const cid = await getOrCreateCompany();
-      if (!cid) return;
-      try {
-        await createMasterCompanyAddressApi(buildAddressPayload(addressDraft, cid));
-        toast({ title: "Success", description: "Address added.", variant: "success" });
-        loadAddresses(cid);
-      } catch (err: any) {
-        const msg: string = err?.response?.data?.message ?? "";
-        toast({ title: "Error", description: msg || "Failed to add address.", variant: "destructive" });
-        return;
+      if (companyId) {
+        // Company already saved — persist directly
+        try {
+          await createMasterCompanyAddressApi(buildAddressPayload(addressDraft, companyId));
+          toast({ title: "Success", description: "Address added.", variant: "success" });
+          loadAddresses(companyId);
+        } catch (err: any) {
+          const msg: string = err?.response?.data?.message ?? "";
+          toast({ title: "Error", description: msg || "Failed to add address.", variant: "destructive" });
+          return;
+        }
+      } else {
+        // Company not saved yet — store locally, will be submitted on Save
+        setForm(prev => ({ ...prev, addresses: [...prev.addresses, { ...addressDraft, id: Date.now() }] }));
+        toast({ title: "Address added", description: "Address will be saved when you click Save.", variant: "success" });
       }
     } else if (addressModalMode === "edit") {
       const cid = companyId ?? (id ? Number(id) : null);
@@ -621,16 +628,19 @@ const NewCustomer = () => {
   const saveCOA = async () => {
     if (!validateCOADraft()) return;
     if (coaModalMode === "add") {
-      const cid = await getOrCreateCompany();
-      if (!cid) return;
-      try {
-        await createMasterCompanyCOAApi(buildCOAPayload(coaDraft, cid));
-        toast({ title: "Success", description: "COA added.", variant: "success" });
-        loadCOAs(cid);
-      } catch (err: any) {
-        const msg: string = err?.response?.data?.message ?? "";
-        toast({ title: "Error", description: msg || "Failed to add COA.", variant: "destructive" });
-        return;
+      if (companyId) {
+        try {
+          await createMasterCompanyCOAApi(buildCOAPayload(coaDraft, companyId));
+          toast({ title: "Success", description: "COA added.", variant: "success" });
+          loadCOAs(companyId);
+        } catch (err: any) {
+          const msg: string = err?.response?.data?.message ?? "";
+          toast({ title: "Error", description: msg || "Failed to add COA.", variant: "destructive" });
+          return;
+        }
+      } else {
+        setForm(prev => ({ ...prev, coas: [...prev.coas, { ...coaDraft, id: Date.now() }] }));
+        toast({ title: "COA added", description: "COA will be saved when you click Save.", variant: "success" });
       }
     } else {
       const cid = companyId ?? (id ? Number(id) : null);
@@ -703,16 +713,19 @@ const NewCustomer = () => {
   const saveDoc = async () => {
     if (!validateDocDraft()) return;
     if (docModalMode === "add") {
-      const cid = await getOrCreateCompany();
-      if (!cid) return;
-      try {
-        await createMasterCompanyDocumentApi(buildDocumentFormData(docDraft, cid));
-        toast({ title: "Success", description: "Document added.", variant: "success" });
-        loadDocuments(cid);
-      } catch (err: any) {
-        const msg: string = err?.response?.data?.message ?? "";
-        toast({ title: "Error", description: msg || "Failed to add document.", variant: "destructive" });
-        return;
+      if (companyId) {
+        try {
+          await createMasterCompanyDocumentApi(buildDocumentFormData(docDraft, companyId));
+          toast({ title: "Success", description: "Document added.", variant: "success" });
+          loadDocuments(companyId);
+        } catch (err: any) {
+          const msg: string = err?.response?.data?.message ?? "";
+          toast({ title: "Error", description: msg || "Failed to add document.", variant: "destructive" });
+          return;
+        }
+      } else {
+        setForm(prev => ({ ...prev, documents: [...prev.documents, { ...docDraft, id: Date.now() }] }));
+        toast({ title: "Document added", description: "Document will be saved when you click Save.", variant: "success" });
       }
     } else {
       const cid = companyId ?? (id ? Number(id) : null);
@@ -791,14 +804,31 @@ const NewCustomer = () => {
       if (isEdit && id) {
         await updateMasterCompanyApi(Number(id), fd);
         savedCompanyId = Number(id);
-        toast({ title: "Success", description: "Company updated successfully.", variant: "success" });
       } else {
         const res = await createMasterCompanyApi(fd);
         savedCompanyId = res.data?.data?.id ?? res.data?.id;
         setCompanyId(savedCompanyId);
-        toast({ title: "Success", description: "Company created successfully.", variant: "success" });
       }
 
+      // Submit all pending addresses
+      const pendingAddresses = form.addresses.filter(a => !a.savedId);
+      await Promise.all(
+        pendingAddresses.map(addr => createMasterCompanyAddressApi(buildAddressPayload(addr, savedCompanyId)))
+      );
+
+      // Submit all pending COAs
+      const pendingCOAs = form.coas.filter(c => !c.savedId);
+      await Promise.all(
+        pendingCOAs.map(coa => createMasterCompanyCOAApi(buildCOAPayload(coa, savedCompanyId)))
+      );
+
+      // Submit all pending documents
+      const pendingDocs = form.documents.filter(d => !d.savedId);
+      await Promise.all(
+        pendingDocs.map(doc => createMasterCompanyDocumentApi(buildDocumentFormData(doc, savedCompanyId)))
+      );
+
+      toast({ title: "Success", description: isEdit ? "Company updated successfully." : "Company created successfully.", variant: "success" });
       navigate("/setting/company-master");
     } catch (err: any) {
       const msg: string = err?.response?.data?.message ?? "";
@@ -872,11 +902,11 @@ const NewCustomer = () => {
           {selectField("Position", "position", POSITIONS)}
         </div>
 
-        {/* Row 2: Actual Name | Website | Branch */}
+        {/* Row 2: Actual Name | Website */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {textField("Actual Name", "actualName", true)}
           {textField("Website", "website")}
-          {textField("Branch", "branchId")}
+          <div />
         </div>
 
         {/* Row 3: Customer Logo | User Name | Password */}
@@ -975,182 +1005,141 @@ const NewCustomer = () => {
             <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-2">
               <span className="text-white font-medium text-sm">Address</span>
               <div className="flex items-center gap-2">
-                {!companyId && (
-                  <span className="text-white/80 text-xs italic">Save company first to add addresses</span>
-                )}
                 <Button
                   onClick={openAddressModal}
                   size="sm"
-                  disabled={!companyId}
-                  className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3"
                 >
                   <Plus className="w-3 h-3 mr-1" /> Add Address
                 </Button>
               </div>
             </div>
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Address</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Phone No</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Fax No</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Mobile No</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Email ID</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">City</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Country</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Contact Person</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Person Designation</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {addressLoading ? (
-                    <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading addresses...</td>
+
+            {/* Table - only in edit mode */}
+            {isEdit && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Address</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Phone No</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Fax No</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Mobile No</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Email ID</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">City</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Country</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Contact Person</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Person Designation</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
                     </tr>
-                  ) : form.addresses.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">
-                        No addresses added yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    form.addresses.map((addr) => (
-                      <tr key={addr.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2">{addr.addressType || "—"}</td>
-                        <td className="px-3 py-2 max-w-[150px] truncate">{addr.address || "—"}</td>
-                        <td className="px-3 py-2">{addr.phoneNo || "—"}</td>
-                        <td className="px-3 py-2">{addr.faxNo || "—"}</td>
-                        <td className="px-3 py-2">{addr.mobileNo || "—"}</td>
-                        <td className="px-3 py-2">{addr.emailId || "—"}</td>
-                        <td className="px-3 py-2">{addr.city || "—"}</td>
-                        <td className="px-3 py-2">{addr.country || "—"}</td>
-                        <td className="px-3 py-2">{addr.contactPerson || "—"}</td>
-                        <td className="px-3 py-2">{addr.personDesignation || "—"}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => openViewAddressModal(addr)}
-                              className="text-blue-500 hover:text-blue-700 transition-colors"
-                              title="View Address"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => openEditAddressModal(addr)}
-                              className="text-green-500 hover:text-green-700 transition-colors"
-                              title="Edit Address"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(addr.id)}
-                              className="text-red-500 hover:text-red-700 transition-colors"
-                              title="Delete Address"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
+                  </thead>
+                  <tbody>
+                    {addressLoading ? (
+                      <tr>
+                        <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading addresses...</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : form.addresses.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">No addresses added yet.</td>
+                      </tr>
+                    ) : (
+                      form.addresses.map((addr) => (
+                        <tr key={addr.id} className="border-b hover:bg-gray-50">
+                          <td className="px-3 py-2">{addr.addressType || "—"}</td>
+                          <td className="px-3 py-2 max-w-[150px] truncate">{addr.address || "—"}</td>
+                          <td className="px-3 py-2">{addr.phoneNo || "—"}</td>
+                          <td className="px-3 py-2">{addr.faxNo || "—"}</td>
+                          <td className="px-3 py-2">{addr.mobileNo || "—"}</td>
+                          <td className="px-3 py-2">{addr.emailId || "—"}</td>
+                          <td className="px-3 py-2">{addr.city || "—"}</td>
+                          <td className="px-3 py-2">{addr.country || "—"}</td>
+                          <td className="px-3 py-2">{addr.contactPerson || "—"}</td>
+                          <td className="px-3 py-2">{addr.personDesignation || "—"}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center justify-center gap-2">
+                              <button onClick={() => openViewAddressModal(addr)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View Address">
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => openEditAddressModal(addr)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit Address">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => setDeleteConfirmId(addr.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete Address">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
         {/* COA Tab */}
         {activeTab === "coa" && (
           <div className="p-0">
-            {/* Blue header bar */}
             <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-2">
               <span className="text-white font-medium text-sm">COA</span>
               <div className="flex items-center gap-2">
-                {!companyId && (
-                  <span className="text-white/80 text-xs italic">Save company first to add COA</span>
-                )}
                 <Button
                   onClick={openCOAModal}
                   size="sm"
-                  disabled={!companyId}
-                  className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3"
                 >
                   <Plus className="w-3 h-3 mr-1" /> Add COA
                 </Button>
               </div>
             </div>
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="px-3 py-2 text-left font-medium text-gray-600 w-10">#</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Company COA</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Payment Mode</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Credit Approver</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">O/S Collector</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Currency</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Approved Credit Period</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Approved Credit Amount</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Alert Credit Days</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Alert Credit Amount</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Alert To Email</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Alert CC Email</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Alert BCC Email</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Notes</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {coaLoading ? (
-                    <tr><td colSpan={15} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading COA records...</td></tr>
-                  ) : form.coas.length === 0 ? (
-                    <tr>
-                      <td colSpan={15} className="px-3 py-6 text-center text-muted-foreground text-sm">
-                        No COA records added yet.
-                      </td>
+            {isEdit && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="px-3 py-2 text-left font-medium text-gray-600 w-10">#</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Company COA</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Payment Mode</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Credit Approver</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">O/S Collector</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Currency</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Approved Credit Amount</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Alert Credit Amount</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
                     </tr>
-                  ) : (
-                    form.coas.map((coa, idx) => (
-                      <tr key={coa.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
-                        <td className="px-3 py-2">{coa.customerCOA || "—"}</td>
-                        <td className="px-3 py-2">{coa.paymentMode || "—"}</td>
-                        <td className="px-3 py-2">{coa.creditApprover || "—"}</td>
-                        <td className="px-3 py-2">{coa.osCollector || "—"}</td>
-                        <td className="px-3 py-2">{coa.currency || "—"}</td>
-                        <td className="px-3 py-2">{coa.approvedCreditPeriod || "—"}</td>
-                        <td className="px-3 py-2">{coa.approvedCreditAmount || "—"}</td>
-                        <td className="px-3 py-2">{coa.alertCreditDays || "—"}</td>
-                        <td className="px-3 py-2">{coa.alertCreditAmount || "—"}</td>
-                        <td className="px-3 py-2">{coa.alertToEmail || "—"}</td>
-                        <td className="px-3 py-2">{coa.alertCCEmail || "—"}</td>
-                        <td className="px-3 py-2">{coa.alertBCCEmail || "—"}</td>
-                        <td className="px-3 py-2 max-w-[120px] truncate">{coa.notes || "—"}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => setViewingCOA(coa)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View COA">
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => openEditCOAModal(coa)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit COA">
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setDeleteCOAConfirmId(coa.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete COA">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {coaLoading ? (
+                      <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading COA records...</td></tr>
+                    ) : form.coas.length === 0 ? (
+                      <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">No COA records added yet.</td></tr>
+                    ) : (
+                      form.coas.map((coa, idx) => (
+                        <tr key={coa.id} className="border-b hover:bg-gray-50">
+                          <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
+                          <td className="px-3 py-2">{coa.customerCOA || "—"}</td>
+                          <td className="px-3 py-2">{coa.paymentMode || "—"}</td>
+                          <td className="px-3 py-2">{coa.creditApprover || "—"}</td>
+                          <td className="px-3 py-2">{coa.osCollector || "—"}</td>
+                          <td className="px-3 py-2">{coa.currency || "—"}</td>
+                          <td className="px-3 py-2">{coa.approvedCreditAmount || "—"}</td>
+                          <td className="px-3 py-2">{coa.alertCreditAmount || "—"}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center justify-center gap-2">
+                              <button onClick={() => setViewingCOA(coa)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View COA"><Eye className="w-4 h-4" /></button>
+                              <button onClick={() => openEditCOAModal(coa)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit COA"><Edit2 className="w-4 h-4" /></button>
+                              <button onClick={() => setDeleteCOAConfirmId(coa.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete COA"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -1160,71 +1149,61 @@ const NewCustomer = () => {
             <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-2">
               <span className="text-white font-medium text-sm">Documents</span>
               <div className="flex items-center gap-2">
-                {!companyId && (
-                  <span className="text-white/80 text-xs italic">Save company first to add documents</span>
-                )}
                 <Button
                   onClick={openDocModal}
                   size="sm"
-                  disabled={!companyId}
-                  className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-white text-[#1a9fd4] hover:bg-gray-100 text-xs font-medium h-7 px-3"
                 >
                   <Plus className="w-3 h-3 mr-1" /> Add Document
                 </Button>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Line No</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Document Type</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Document no</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Place</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Issued By</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Date</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Expiry Date</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Note</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {docLoading ? (
-                    <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading documents...</td></tr>
-                  ) : form.documents.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">No documents added yet.</td>
+            {isEdit && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Line No</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Document Type</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Document No</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Place</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Issued By</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Date</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Expiry Date</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Note</th>
+                      <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
                     </tr>
-                  ) : (
-                    form.documents.map((doc) => (
-                      <tr key={doc.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2">{doc.lineNo || "—"}</td>
-                        <td className="px-3 py-2">{doc.documentType || "—"}</td>
-                        <td className="px-3 py-2">{doc.documentNo || "—"}</td>
-                        <td className="px-3 py-2">{doc.issuedPlace || "—"}</td>
-                        <td className="px-3 py-2">{doc.issuedBy || "—"}</td>
-                        <td className="px-3 py-2">{doc.issuedDate || "—"}</td>
-                        <td className="px-3 py-2">{doc.expiryDate || "—"}</td>
-                        <td className="px-3 py-2">{doc.note || "—"}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => setViewingDoc(doc)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View Document">
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => openEditDocModal(doc)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit Document">
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setDeleteDocConfirmId(doc.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete Document">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {docLoading ? (
+                      <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading documents...</td></tr>
+                    ) : form.documents.length === 0 ? (
+                      <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">No documents added yet.</td></tr>
+                    ) : (
+                      form.documents.map((doc) => (
+                        <tr key={doc.id} className="border-b hover:bg-gray-50">
+                          <td className="px-3 py-2">{doc.lineNo || "—"}</td>
+                          <td className="px-3 py-2">{doc.documentType || "—"}</td>
+                          <td className="px-3 py-2">{doc.documentNo || "—"}</td>
+                          <td className="px-3 py-2">{doc.issuedPlace || "—"}</td>
+                          <td className="px-3 py-2">{doc.issuedBy || "—"}</td>
+                          <td className="px-3 py-2">{doc.issuedDate || "—"}</td>
+                          <td className="px-3 py-2">{doc.expiryDate || "—"}</td>
+                          <td className="px-3 py-2">{doc.note || "—"}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center justify-center gap-2">
+                              <button onClick={() => setViewingDoc(doc)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View Document"><Eye className="w-4 h-4" /></button>
+                              <button onClick={() => openEditDocModal(doc)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit Document"><Edit2 className="w-4 h-4" /></button>
+                              <button onClick={() => setDeleteDocConfirmId(doc.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete Document"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1487,13 +1466,16 @@ const NewCustomer = () => {
                 </div>
               </div>
 
-              {/* Row: WhatsApp */}
+              {/* Row: WhatsApp | Bank Name */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">WhatsApp</label>
                   <input value={addressDraft.whatsApp} onChange={(e) => handleAddressDraftChange("whatsApp", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
                 </div>
-                <div />
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Branch Name</label>
+                  <input value={addressDraft.branchName} onChange={(e) => handleAddressDraftChange("branchName", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
               </div>
 
 {/* Notes */}

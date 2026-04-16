@@ -221,6 +221,13 @@ export const updateIncotermApi  = (id: number, data: Record<string, unknown>) =>
 export const deleteIncotermApi  = (id: number)                     => api.delete(`/incoterms/${id}`);
 export const updateIncotermStatusApi = (id: number, status: number) => api.patch(`/incoterms/status/${id}`, { status });
 
+// Master Port APIs
+export const getMasterPortsApi   = (page = 1, perPage = 10, search = '', status = '') => api.get('/master-port', { params: { page, per_page: perPage, ...(search && { search }), ...(status && { status }) } });
+export const getMasterPortApi    = (id: number) => api.get(`/master-port/${id}`);
+export const createMasterPortApi = (data: Record<string, unknown>) => api.post('/master-port', data);
+export const updateMasterPortApi = (id: number, data: Record<string, unknown>) => api.put(`/master-port/${id}`, data);
+export const deleteMasterPortApi = (id: number) => api.delete(`/master-port/${id}`);
+
 // Customer Visit APIs
 export const getCustomerVisitsApi   = (page = 1, perPage = 10, search = '') => api.get('/customer-visits', { params: { page, per_page: perPage, ...(search && { search }) } });
 export const getCustomerVisitApi    = (id: number)                            => api.get(`/customer-visits/${id}`);

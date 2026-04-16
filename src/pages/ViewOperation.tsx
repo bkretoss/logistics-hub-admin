@@ -38,7 +38,10 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { useOperations } from "./OperationsContext";
-import { getOperationApi, createOperationApi, getOperationsApi, getRiderContainersApi, createRiderContainerApi, updateRiderContainerApi, deleteRiderContainerApi, getSubledgersApi, createSubledgerApi, updateSubledgerApi, deleteSubledgerApi, getDimensionsApi, createDimensionApi, updateDimensionApi, deleteDimensionApi, getCargoDetailsApi, createCargoDetailApi, updateCargoDetailApi, deleteCargoDetailApi, getCostingsApi, createCostingApi, updateCostingApi, deleteCostingApi, getShippingBillsApi, createShippingBillApi, updateShippingBillApi, deleteShippingBillApi, getHouseJobsApi, createHouseJobApi, updateHouseJobApi, deleteHouseJobApi, getRoutingsApi, createRoutingApi, updateRoutingApi, deleteRoutingApi, getMasterCompaniesApi, getMasterCompanyAddressesApi } from "@/services/api";
+import WorkingTeamModal from "@/components/operations/WorkingTeamModal";
+import ProfitShareModal from "@/components/operations/ProfitShareModal";
+import StatusUpdateModal from "@/components/operations/StatusUpdateModal";
+import { getOperationApi, createOperationApi, getOperationsApi, getRiderContainersApi, createRiderContainerApi, updateRiderContainerApi, deleteRiderContainerApi, getSubledgersApi, createSubledgerApi, updateSubledgerApi, deleteSubledgerApi, getDimensionsApi, createDimensionApi, updateDimensionApi, deleteDimensionApi, getCargoDetailsApi, createCargoDetailApi, updateCargoDetailApi, deleteCargoDetailApi, getCostingsApi, createCostingApi, updateCostingApi, deleteCostingApi, getShippingBillsApi, createShippingBillApi, updateShippingBillApi, deleteShippingBillApi, getHouseJobsApi, createHouseJobApi, updateHouseJobApi, deleteHouseJobApi, getRoutingsApi, createRoutingApi, updateRoutingApi, deleteRoutingApi, getMasterCompaniesApi, getMasterCompanyAddressesApi, getMasterPortsApi, getMasterPortApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 const CARRIER_OPTIONS = ["TEAMGLOBAL LOGISTICS PVT LTD", "Maersk Line", "Emirates SkyCargo", "ONE Line"];
@@ -275,6 +278,7 @@ const ViewOperation = () => {
 
   // Status Update modal
   const [statusOpen, setStatusOpen] = useState(false);
+  const [isStatusUpdateOpen, setIsStatusUpdateOpen] = useState(false);
   const UPDATE_TO_OPTIONS = ["Email", "SMS", "WhatsApp", "Phone Call", "Letter", "Fax"];
   const POSITION_OPTIONS = ["Opened", "In Transit", "Arrived", "Delivered", "Closed"];
   const initStatus = {
@@ -1012,7 +1016,15 @@ const ViewOperation = () => {
   const [routingSaving, setRoutingSaving] = useState(false);
   const [routingEditId, setRoutingEditId] = useState<number | null>(null);
   const [routingDeleteId, setRoutingDeleteId] = useState<number | null>(null);
-  const PORT_OPTIONS = ["CHENNAI", "MUMBAI", "DELHI", "KOLKATA", "NHAVA SHEVA", "COCHIN", "JSD", "JNPT"];
+  const [portOptions, setPortOptions] = useState<{ code: string; name: string }[]>([]);
+  useEffect(() => {
+    getMasterPortsApi(1, 9999)
+      .then(res => {
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setPortOptions(raw.map((p: any) => ({ code: p.code, name: p.name })));
+      })
+      .catch(() => {});
+  }, []);
   const POSITION_OPTIONS_ROUTING = ["Opened", "In Transit", "Arrived", "Delivered", "Closed"];
   const STATUS_OPTIONS_ROUTING = ["Planned", "Confirmed", "Departed", "Arrived", "Cancelled"];
   const initRouting = {
@@ -1145,6 +1157,7 @@ const ViewOperation = () => {
 
   // Profit Share modal
   const [profitOpen, setProfitOpen] = useState(false);
+  const [isProfitShareOpen, setIsProfitShareOpen] = useState(false);
   const PS_TYPE_OPTIONS = ["Employee", "Agent", "Partner", "Branch", "Other"];
   const PS_TO_NAME_OPTIONS = ["MANAGEMENT", "SALES TEAM", "OPERATIONS", "ACCOUNTS"];
   const initProfit = {
@@ -1182,6 +1195,7 @@ const ViewOperation = () => {
   };
 
   // Working Team modal
+  const [isWorkingTeamOpen, setIsWorkingTeamOpen] = useState(false);
   const [teamOpen, setTeamOpen] = useState(false);
   const EMPLOYEE_OPTIONS = ["MANAGEMENT", "SALES TEAM", "OPERATIONS", "ACCOUNTS", "ADMIN"];
   const DEPT_OPTIONS = ["SALES", "OPERATIONS", "ACCOUNTS", "ADMIN", "HR", "IT"];
@@ -3250,7 +3264,7 @@ const ViewOperation = () => {
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs px-3 bg-white font-semibold"
-                  onClick={() => setTeamOpen(true)}
+                  onClick={() => setIsWorkingTeamOpen(true)}
                 >
                   Add Working Team
                 </Button>
@@ -3301,7 +3315,7 @@ const ViewOperation = () => {
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs px-3 bg-white font-semibold"
-                  onClick={() => setProfitOpen(true)}
+                  onClick={() => setIsProfitShareOpen(true)}
                 >
                   Add +
                 </Button>
@@ -3366,8 +3380,7 @@ const ViewOperation = () => {
                 className="h-7 text-xs px-3 bg-white font-semibold"
                 onClick={() => {
                   setStatusEditIndex(null);
-                  setStatusForm(initStatus);
-                  setStatusOpen(true);
+                  setIsStatusUpdateOpen(true);
                 }}
               >
                 Add +
@@ -3701,7 +3714,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <select name="fromPortCode" value={routingForm.fromPortCode} onChange={routingChange} className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${routingErrors.fromPortCode ? 'border-destructive' : 'border-input'}`}>
                       <option value="">--Select--</option>
-                      {PORT_OPTIONS.map(p => <option key={p}>{p}</option>)}
+                      {portOptions.map(p => <option key={p.code} value={p.code}>{p.code} - {p.name}</option>)}
                     </select>
                     {routingErrors.fromPortCode && <p className="text-xs text-destructive mt-0.5">? {routingErrors.fromPortCode}</p>}
                   </div>
@@ -3717,7 +3730,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <select name="toPortCode" value={routingForm.toPortCode} onChange={routingChange} className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${routingErrors.toPortCode ? 'border-destructive' : 'border-input'}`}>
                       <option value="">--Select--</option>
-                      {PORT_OPTIONS.map(p => <option key={p}>{p}</option>)}
+                      {portOptions.map(p => <option key={p.code} value={p.code}>{p.code} - {p.name}</option>)}
                     </select>
                     {routingErrors.toPortCode && <p className="text-xs text-destructive mt-0.5">? {routingErrors.toPortCode}</p>}
                   </div>
@@ -4242,6 +4255,52 @@ const ViewOperation = () => {
           </div>
         </div>
       )}
+
+      {/* Working Team Modal */}
+      <WorkingTeamModal
+        open={isWorkingTeamOpen}
+        form={teamForm}
+        error={teamError}
+        employeeOptions={EMPLOYEE_OPTIONS}
+        deptOptions={DEPT_OPTIONS}
+        onChange={teamChange}
+        onSave={() => { saveTeam(); setIsWorkingTeamOpen(false); }}
+        onClose={() => { setIsWorkingTeamOpen(false); setTeamError(""); }}
+      />
+
+      {/* Profit Share Modal */}
+      <ProfitShareModal
+        open={isProfitShareOpen}
+        form={profitForm}
+        errors={profitErrors}
+        jobNo={op?.document ?? ""}
+        jobDate={op?.job_date ?? ""}
+        typeOptions={PS_TYPE_OPTIONS}
+        toNameOptions={PS_TO_NAME_OPTIONS}
+        onChange={profitChange}
+        onSave={() => {
+          const errsBefore = Object.keys(profitErrors).length;
+          saveProfit();
+          // saveProfit sets errors internally; only close if form was valid
+          // We check by re-reading form state after save attempt via a flag approach
+          // Instead, duplicate the validation check here
+          if (profitForm.type && profitForm.toName && profitForm.percentage && profitForm.profitAmount && profitForm.jobProfit) {
+            setIsProfitShareOpen(false);
+          }
+        }}
+        onClose={() => { setIsProfitShareOpen(false); setProfitErrors({}); setProfitForm(initProfit); }}
+      />
+
+      {/* Status Update Modal */}
+      <StatusUpdateModal
+        open={isStatusUpdateOpen}
+        form={statusForm}
+        updateToOptions={UPDATE_TO_OPTIONS}
+        positionOptions={POSITION_OPTIONS}
+        onChange={statusChange}
+        onSave={() => { saveStatus(); setIsStatusUpdateOpen(false); }}
+        onClose={() => { setIsStatusUpdateOpen(false); setStatusForm(initStatus); setStatusEditIndex(null); }}
+      />
 
       {/* Shipping Bill Delete Confirmation */}
       {sbDeleteId !== null && (

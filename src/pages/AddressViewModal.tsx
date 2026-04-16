@@ -24,6 +24,7 @@ export interface AddressRow {
   department: string;
   taxRegistrationType: string;
   whatsApp: string;
+  branchName: string;
   notes: string;
   einNo: string;
   businessNo: string;
@@ -109,6 +110,7 @@ const AddressViewModal: React.FC<Props> = ({ address: a, onClose }) => (
         <Section title="Contact Details" color="bg-[#90A4AE]">
           <Row2 fields={[['Contact Person', val(a.contactPerson)], ['Person Designation', val(a.personDesignation)]]} />
           <Row2 fields={[['Department', val(a.department)], ['WhatsApp', val(a.whatsApp)]]} />
+          <Row  label="Bank Name" value={val(a.bankName)} />
           <Row  label="TAX Registration Type" value={val(a.taxRegistrationType)} />
           <Row  label="Notes" value={val(a.notes)} />
         </Section>

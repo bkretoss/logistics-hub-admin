@@ -58,6 +58,8 @@ import SalesAgentList from '@/pages/SalesAgentList';
 import CustomerVisitList from '@/pages/CustomerVisitList';
 import NewCustomerVisit from '@/pages/NewCustomerVisit';
 import CostingList from '@/pages/CostingList';
+import PortList from '@/pages/PortList';
+import NewPort from '@/pages/NewPort';
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -152,6 +154,9 @@ const App = () => (
             <Route path="/master/commodity" element={<ProtectedRoute><AppLayout><CommodityList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/service-mode" element={<ProtectedRoute><AppLayout><ServiceModeList /></AppLayout></ProtectedRoute>} />
             <Route path="/master/sales-agent" element={<ProtectedRoute><AppLayout><SalesAgentList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/port" element={<ProtectedRoute><AppLayout><PortList /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/port/new" element={<ProtectedRoute><AppLayout><NewPort /></AppLayout></ProtectedRoute>} />
+            <Route path="/master/port/edit/:id" element={<ProtectedRoute><AppLayout><NewPort /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/company-master" element={<ProtectedRoute><AppLayout><CustomerMasterList /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/company-master/new" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />
             <Route path="/setting/company-master/edit/:id" element={<ProtectedRoute><AppLayout><NewCustomer /></AppLayout></ProtectedRoute>} />

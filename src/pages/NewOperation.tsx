@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useOperations } from "./OperationsContext";
-import { getCitiesApi, getServiceModesApi, getOperationApi, createOperationApi, updateOperationApi, createMasterCompanyApi, getMasterCompaniesApi, getBranchesApi, getMasterCompanyAddressesApi } from "@/services/api";
+import { getCitiesApi, getServiceModesApi, getOperationApi, createOperationApi, updateOperationApi, createMasterCompanyApi, getMasterCompaniesApi, getBranchesApi, getMasterCompanyAddressesApi, getCountriesApi, getStatesApi, createMasterCompanyAddressApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 const FREIGHT_OPTIONS = ["Prepaid", "Collect"];
@@ -350,6 +350,11 @@ interface SubledgerForm {
   expireBondDate: string;
   status: string;
   address: string;
+  country: string;
+  state: string;
+  city: string;
+  pinNo: string;
+  branchName: string;
 }
 
 const initialSubledger: SubledgerForm = {
@@ -370,6 +375,11 @@ const initialSubledger: SubledgerForm = {
   expireBondDate: "",
   status: "Active",
   address: "",
+  country: "",
+  state: "",
+  city: "",
+  pinNo: "",
+  branchName: "",
 };
 
 // ── Searchable City Select ───────────────────────────────────────────────────
@@ -545,6 +555,9 @@ const NewOperation = () => {
   const [subledgerSaving, setSubledgerSaving] = useState(false);
   const [subledgerCompanies, setSubledgerCompanies] = useState<{ id: number; name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
+  const [subCountries, setSubCountries] = useState<{ id: number; country_name: string }[]>([]);
+  const [subAllStates, setSubAllStates] = useState<{ id: number; country_id: number; name: string }[]>([]);
+  const [subAllCities, setSubAllCities] = useState<{ id: number; state_id: number; name: string }[]>([]);
   const [customerAddresses, setCustomerAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
   const [customerAddressesLoading, setCustomerAddressesLoading] = useState(false);
   const [allAddresses, setAllAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
@@ -595,6 +608,18 @@ const NewOperation = () => {
     }).catch(() => {});
     getMasterCompanyAddressesApi().then(res => {
       setAllAddresses(mapAddresses(res.data?.data ?? res.data ?? []));
+    }).catch(() => {});
+    getCountriesApi().then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setSubCountries(raw.map(r => ({ id: r.id, country_name: r.country_name })));
+    }).catch(() => {});
+    getStatesApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setSubAllStates(raw.map(r => ({ id: r.id, country_id: Number(r.country_id), name: r.name })));
+    }).catch(() => {});
+    getCitiesApi().then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setSubAllCities(raw.map(r => ({ id: r.id, state_id: Number(r.state_id), name: r.name })));
     }).catch(() => {});
   }, []);
 
@@ -765,6 +790,21 @@ const NewOperation = () => {
       const createRes = await createMasterCompanyApi(fd);
       const newCompanyId: number = createRes.data?.data?.id ?? createRes.data?.id;
       const newCompanyName = subledger.name.trim();
+      // Submit address to API if address fields are filled
+      if (subledger.address.trim() || subledger.pinNo.trim()) {
+        try {
+          await createMasterCompanyAddressApi({
+            company_id: newCompanyId,
+            branch_name: subledger.branchName.trim(),
+            address: subledger.address.trim(),
+            country: subledger.country,
+            state: subledger.state,
+            city: subledger.city,
+            pin_no: subledger.pinNo.trim(),
+            status: 1,
+          });
+        } catch {}
+      }
       // Store address in localStorage only (not sent to API)
       if (subledger.address.trim()) {
         const stored = JSON.parse(localStorage.getItem("subledger_addresses") ?? "{}");
@@ -1320,7 +1360,7 @@ const NewOperation = () => {
           <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">Add New Party ob Creation</h3>
+              <h3 className="text-lg font-bold text-primary">Add New Party</h3>
               <button onClick={closeSubledger} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             {/* Body */}
@@ -1344,7 +1384,7 @@ const NewOperation = () => {
                   </select>
                 </div>
               </div>
-              {/* Row 2: Actual Name | Website | Branch */}
+              {/* Row 2: Actual Name | Website */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Actual Name <span className="text-destructive">*</span></Label>
@@ -1355,10 +1395,7 @@ const NewOperation = () => {
                   <Label className="text-sm font-medium">Website</Label>
                   <Input name="website" value={subledger.website} onChange={handleSubledgerChange} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Branch</Label>
-                  <Input name="branchId" value={subledger.branchId} onChange={handleSubledgerChange} />
-                </div>
+                <div />
               </div>
               {/* Row 3: Customer Logo | User Name | Password */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1422,23 +1459,56 @@ const NewOperation = () => {
                 <textarea name="address" value={subledger.address} onChange={handleSubledgerChange} rows={3}
                   className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-y" />
               </div>
-              {/* Row 6: Bond | Expire Bond Date | Status */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Country | State */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">Bond</Label>
-                  <Input name="bond" value={subledger.bond} onChange={handleSubledgerChange} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Expire Bond Date</Label>
-                  <Input type="date" name="expireBondDate" value={subledger.expireBondDate} onChange={handleSubledgerChange} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Status</Label>
-                  <select name="status" value={subledger.status} onChange={handleSubledgerChange} className={sel()}>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
+                  <Label className="text-sm font-medium">Country</Label>
+                  <select name="country" value={subledger.country} onChange={e => {
+                    setSubledger(prev => ({ ...prev, country: e.target.value, state: "", city: "" }));
+                  }} className={sel()}>
+                    <option value="">--Select--</option>
+                    {subCountries.map(c => <option key={c.id} value={c.country_name}>{c.country_name}</option>)}
                   </select>
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">State</Label>
+                  <select name="state" value={subledger.state} onChange={e => {
+                    setSubledger(prev => ({ ...prev, state: e.target.value, city: "" }));
+                  }} disabled={!subledger.country} className={`${sel()} disabled:opacity-60`}>
+                    <option value="">{subledger.country ? "--Select--" : "Select country first"}</option>
+                    {subAllStates
+                      .filter(s => {
+                        const matched = subCountries.find(c => c.country_name === subledger.country);
+                        return matched ? s.country_id === matched.id : false;
+                      })
+                      .map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              {/* City | PIN No */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">City</Label>
+                  <select name="city" value={subledger.city} onChange={handleSubledgerChange}
+                    disabled={!subledger.state} className={`${sel()} disabled:opacity-60`}>
+                    <option value="">{subledger.state ? "--Select--" : "Select state first"}</option>
+                    {subAllCities
+                      .filter(c => {
+                        const matchedState = subAllStates.find(s => s.name === subledger.state);
+                        return matchedState ? c.state_id === matchedState.id : false;
+                      })
+                      .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">PIN No</Label>
+                  <Input name="pinNo" value={subledger.pinNo} onChange={handleSubledgerChange} />
+                </div>
+              </div>
+              {/* Branch Name */}
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">Branch Name</Label>
+                <Input name="branchName" value={subledger.branchName} onChange={handleSubledgerChange} />
               </div>
             </div>
             {/* Footer */}
