@@ -19,6 +19,9 @@ import {
   createMasterCompanyDocumentApi,
   updateMasterCompanyDocumentApi,
   deleteMasterCompanyDocumentApi,
+  getCountriesApi,
+  getStatesApi,
+  getCitiesApi,
 } from "@/services/api";
 import type { Customer } from "./CustomerMasterList";
 import AddressViewModal from "./AddressViewModal";
@@ -38,7 +41,6 @@ const emptyAddress = (): AddressRow => ({
   pinNo: "",
   gstinNo: "",
   phoneNo: "",
-  gstStateCode: "",
   sezZone: "No",
   faxNo: "",
   state: "",
@@ -237,6 +239,24 @@ const NewCustomer = () => {
 
   const [companyId, setCompanyId] = useState<number | null>(id ? Number(id) : null);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [countries, setCountries] = useState<{ id: number; country_name: string }[]>([]);
+  const [allStates, setAllStates] = useState<{ id: number; country_id: number; name: string }[]>([]);
+  const [allCities, setAllCities] = useState<{ id: number; state_id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    getCountriesApi().then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setCountries(raw.map(r => ({ id: r.id, country_name: r.country_name })));
+    }).catch(() => {});
+    getStatesApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setAllStates(raw.map(r => ({ id: r.id, country_id: Number(r.country_id), name: r.name })));
+    }).catch(() => {});
+    getCitiesApi().then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setAllCities(raw.map(r => ({ id: r.id, state_id: Number(r.state_id), name: r.name })));
+    }).catch(() => {});
+  }, []);
 
   const loadAddresses = (companyId?: number) => {
     setAddressLoading(true);
@@ -253,7 +273,6 @@ const NewCustomer = () => {
         pinNo: r.pin_no ?? "",
         gstinNo: r.gstin_no ?? "",
         phoneNo: r.phone_no ?? "",
-        gstStateCode: r.gst_state_code ?? "",
         sezZone: r.sez_zone === "Yes" ? "Yes" : "No",
         faxNo: r.fax_no ?? "",
         state: r.state ?? "",
@@ -386,7 +405,6 @@ const NewCustomer = () => {
     pin_no: addr.pinNo,
     gstin_no: addr.gstinNo,
     phone_no: addr.phoneNo,
-    gst_state_code: addr.gstStateCode,
     sez_zone: addr.sezZone,
     fax_no: addr.faxNo,
     state: addr.state,
@@ -450,15 +468,6 @@ const NewCustomer = () => {
     if (!addressDraft.address.trim()) e.address = "Address is required";
     if (!addressDraft.city.trim()) e.city = "City is required";
     if (!addressDraft.pinNo.trim()) e.pinNo = "PIN No is required";
-
-    // Conditional validation
-    if (addressDraft.country === "USA") {
-      if (!addressDraft.einNo.trim()) e.einNo = "EIN No is required for USA";
-    }
-    if (addressDraft.country === "Canada") {
-      if (!addressDraft.businessNo.trim()) e.businessNo = "Business No is required for Canada";
-    }
-
     setAddressErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -1262,6 +1271,101 @@ const NewCustomer = () => {
                 </div>
               </div>
 
+              {/* Row 2: Country | State */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Country</label>
+                  <select
+                    value={addressDraft.country}
+                    onChange={(e) => {
+                      handleAddressDraftChange("country", e.target.value);
+                      handleAddressDraftChange("state", "");
+                      handleAddressDraftChange("city", "");
+                    }}
+                    className="w-full px-3 py-2 border rounded text-sm"
+                  >
+                    <option value="">--Select--</option>
+                    {countries.map(c => <option key={c.id} value={c.country_name}>{c.country_name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">State</label>
+                  <select
+                    value={addressDraft.state}
+                    onChange={(e) => {
+                      handleAddressDraftChange("state", e.target.value);
+                      handleAddressDraftChange("city", "");
+                    }}
+                    disabled={!addressDraft.country}
+                    className="w-full px-3 py-2 border rounded text-sm disabled:opacity-60"
+                  >
+                    <option value="">{addressDraft.country ? "--Select--" : "Select country first"}</option>
+                    {allStates
+                      .filter(s => {
+                        const matched = countries.find(c => c.country_name === addressDraft.country);
+                        return matched ? s.country_id === matched.id : false;
+                      })
+                      .map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: City | GSTIN/EIN/Tax field */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">City <span className="text-red-500">*</span></label>
+                  <select
+                    value={addressDraft.city}
+                    onChange={(e) => handleAddressDraftChange("city", e.target.value)}
+                    disabled={!addressDraft.state}
+                    className={`w-full px-3 py-2 border rounded text-sm disabled:opacity-60 ${addressErrors.city ? "border-red-400" : "border-input"}`}
+                  >
+                    <option value="">{addressDraft.state ? "--Select--" : "Select state first"}</option>
+                    {allCities
+                      .filter(c => {
+                        const matchedState = allStates.find(s => s.name === addressDraft.state);
+                        return matchedState ? c.state_id === matchedState.id : false;
+                      })
+                      .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                  {addressErrors.city && <p className="text-xs text-red-500">{addressErrors.city}</p>}
+                </div>
+                {(addressDraft.country === "India" || addressDraft.country === "United States" || !addressDraft.country) && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">
+                      {addressDraft.country === "India"
+                        ? "GSTIN No"
+                        : addressDraft.country === "United States"
+                          ? "EIN Number"
+                          : "GSTIN No"}
+                    </label>
+                    <input
+                      value={addressDraft.gstinNo}
+                      onChange={(e) => handleAddressDraftChange("gstinNo", e.target.value)}
+                      placeholder={
+                        addressDraft.country === "India"
+                          ? "Enter GSTIN No"
+                          : addressDraft.country === "United States"
+                            ? "Enter EIN Number"
+                            : "Enter GSTIN No"
+                      }
+                      className="w-full px-3 py-2 border rounded text-sm"
+                    />
+                  </div>
+                )}
+                {addressDraft.country && addressDraft.country !== "India" && addressDraft.country !== "United States" && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Tax Identification Number</label>
+                    <input
+                      value={addressDraft.gstinNo}
+                      onChange={(e) => handleAddressDraftChange("gstinNo", e.target.value)}
+                      placeholder="Enter Tax Identification Number"
+                      className="w-full px-3 py-2 border rounded text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Address textarea */}
               <div className="space-y-1">
                 <label className="text-sm font-medium">Address <span className="text-red-500">*</span></label>
@@ -1274,17 +1378,8 @@ const NewCustomer = () => {
                 {addressErrors.address && <p className="text-xs text-red-500">{addressErrors.address}</p>}
               </div>
 
-              {/* Row: City | PAN No */}
+              {/* Row: PAN No | PIN No */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">City <span className="text-red-500">*</span></label>
-                  <input
-                    value={addressDraft.city}
-                    onChange={(e) => handleAddressDraftChange("city", e.target.value)}
-                    className={`w-full px-3 py-2 border rounded text-sm ${addressErrors.city ? "border-red-400" : "border-input"}`}
-                  />
-                  {addressErrors.city && <p className="text-xs text-red-500">{addressErrors.city}</p>}
-                </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">PAN No</label>
                   <input
@@ -1293,10 +1388,6 @@ const NewCustomer = () => {
                     className="w-full px-3 py-2 border rounded text-sm"
                   />
                 </div>
-              </div>
-
-              {/* Row: PIN No | GSTIN No */}
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">PIN No <span className="text-red-500">*</span></label>
                   <input
@@ -1306,20 +1397,9 @@ const NewCustomer = () => {
                   />
                   {addressErrors.pinNo && <p className="text-xs text-red-500">{addressErrors.pinNo}</p>}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">GSTIN NO# <span className="text-red-500">*</span></label>
-                  <input
-                    value={addressDraft.gstinNo}
-                    onChange={(e) => handleAddressDraftChange("gstinNo", e.target.value)}
-                    className="w-full px-3 py-2 border rounded text-sm"
-                  />
-                </div>
               </div>
 
-              {/* GST notice */}
-              <p className="text-xs text-red-500">Please Select Corresponding GST State. For Foreign Countries Select Other Country (96).</p>
-
-              {/* Row: Phone No | GST State Code */}
+{/* Row: Phone No | Fax No */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Phone No</label>
@@ -1330,14 +1410,20 @@ const NewCustomer = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-medium">GST State Code <span className="text-red-500">*</span></label>
-                  <select
-                    value={addressDraft.gstStateCode}
-                    onChange={(e) => handleAddressDraftChange("gstStateCode", e.target.value)}
-                    className="w-full px-3 py-2 border rounded text-sm"
-                  >
-                    {GST_STATE_CODES.map((g) => <option key={g} value={g === "--Select--" ? "" : g}>{g}</option>)}
-                  </select>
+                  <label className="text-sm font-medium">Fax No</label>
+                  <input value={addressDraft.faxNo} onChange={(e) => handleAddressDraftChange("faxNo", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
+              </div>
+
+              {/* Row: Mobile No | Email ID */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Mobile No</label>
+                  <input value={addressDraft.mobileNo} onChange={(e) => handleAddressDraftChange("mobileNo", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Email ID</label>
+                  <input value={addressDraft.emailId} onChange={(e) => handleAddressDraftChange("emailId", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
                 </div>
               </div>
 
@@ -1366,97 +1452,40 @@ const NewCustomer = () => {
                 </div>
               </div>
 
-              {/* Row: Fax No | State */}
+              {/* Row: Contact Person | Person Designation */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Fax No</label>
-                  <input value={addressDraft.faxNo} onChange={(e) => handleAddressDraftChange("faxNo", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">State</label>
-                  <input value={addressDraft.state} onChange={(e) => handleAddressDraftChange("state", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
-                </div>
-              </div>
-
-              {/* Row: Mobile No | Email ID */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Mobile No</label>
-                  <input value={addressDraft.mobileNo} onChange={(e) => handleAddressDraftChange("mobileNo", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Email ID</label>
-                  <input value={addressDraft.emailId} onChange={(e) => handleAddressDraftChange("emailId", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
-                </div>
-              </div>
-
-              {/* Row: Country | Contact Person */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Country</label>
-                  <select value={addressDraft.country} onChange={(e) => handleAddressDraftChange("country", e.target.value)} className="w-full px-3 py-2 border rounded text-sm">
-                    {COUNTRIES.map((c) => <option key={c} value={c === "--Select--" ? "" : c}>{c}</option>)}
-                  </select>
-                </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Contact Person</label>
                   <input value={addressDraft.contactPerson} onChange={(e) => handleAddressDraftChange("contactPerson", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
                 </div>
-              </div>
-
-              {/* Conditional: USA - EIN No */}
-              {addressDraft.country === "USA" && (
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">EIN No <span className="text-red-500">*</span></label>
-                  <input
-                    value={addressDraft.einNo}
-                    onChange={(e) => handleAddressDraftChange("einNo", e.target.value)}
-                    placeholder="Enter EIN No"
-                    className={`w-full px-3 py-2 border rounded text-sm ${addressErrors.einNo ? "border-red-400" : "border-input"}`}
-                  />
-                  {addressErrors.einNo && <p className="text-xs text-red-500">{addressErrors.einNo}</p>}
-                </div>
-              )}
-
-              {/* Conditional: Canada - Business No */}
-              {addressDraft.country === "Canada" && (
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Business No <span className="text-red-500">*</span></label>
-                  <input
-                    value={addressDraft.businessNo}
-                    onChange={(e) => handleAddressDraftChange("businessNo", e.target.value)}
-                    placeholder="Enter Business No"
-                    className={`w-full px-3 py-2 border rounded text-sm ${addressErrors.businessNo ? "border-red-400" : "border-input"}`}
-                  />
-                  {addressErrors.businessNo && <p className="text-xs text-red-500">{addressErrors.businessNo}</p>}
-                </div>
-              )}
-
-              {/* Row: Person Designation | Department */}
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Person Designation</label>
                   <input value={addressDraft.personDesignation} onChange={(e) => handleAddressDraftChange("personDesignation", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
                 </div>
+              </div>
+
+              {/* Row: Department | TAX Registration Type */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Department</label>
                   <input value={addressDraft.department} onChange={(e) => handleAddressDraftChange("department", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
                 </div>
-              </div>
-
-              {/* Row: TAX Registration Type | WhatsApp */}
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">TAX Registration Type</label>
                   <input value={addressDraft.taxRegistrationType} onChange={(e) => handleAddressDraftChange("taxRegistrationType", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
                 </div>
+              </div>
+
+              {/* Row: WhatsApp */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">WhatsApp</label>
                   <input value={addressDraft.whatsApp} onChange={(e) => handleAddressDraftChange("whatsApp", e.target.value)} className="w-full px-3 py-2 border rounded text-sm" />
                 </div>
+                <div />
               </div>
 
-              {/* Notes */}
+{/* Notes */}
               <div className="space-y-1">
                 <label className="text-sm font-medium">Notes</label>
                 <textarea

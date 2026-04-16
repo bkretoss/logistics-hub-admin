@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useOperations } from "./OperationsContext";
-import { getBranchesApi, getCitiesApi, getServiceModesApi, getOperationApi, createOperationApi, updateOperationApi } from "@/services/api";
+import { getCitiesApi, getServiceModesApi, getOperationApi, createOperationApi, updateOperationApi, createMasterCompanyApi, getMasterCompaniesApi, getBranchesApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 const FREIGHT_OPTIONS = ["Prepaid", "Collect"];
@@ -240,7 +240,6 @@ export interface SubledgerEntry {
 export interface OperationFormData {
   jobNo: string;
   document: string;
-  branch: string;
   jobDate: string;
   freightPpCc: string;
   placeOfReceipt: string;
@@ -289,7 +288,6 @@ export interface OperationFormData {
 const initialForm: OperationFormData = {
   jobNo: "",
   document: "Air Export",
-  branch: "",
   jobDate: new Date().toISOString().split("T")[0],
   freightPpCc: "Collect",
   placeOfReceipt: "",
@@ -335,39 +333,39 @@ const initialForm: OperationFormData = {
 };
 
 interface SubledgerForm {
-  customerName: string;
+  name: string;
+  actualName: string;
   categories: string;
+  position: string;
+  website: string;
+  userName: string;
+  password: string;
   scacCode: string;
-  address: string;
-  pinCode: string;
-  phone: string;
-  mobile: string;
-  emailId: string;
-  gstState: string;
-  gstNo: string;
-  panNo: string;
-  country: string;
-  coa: string;
-  paymentMode: string;
-  currency: string;
+  interestCalculation: string;
+  notes: string;
+  iecCode: string;
+  iataCode: string;
+  bond: string;
+  expireBondDate: string;
+  status: string;
 }
 
 const initialSubledger: SubledgerForm = {
-  customerName: "",
+  name: "",
+  actualName: "",
   categories: "",
+  position: "Opened",
+  website: "",
+  userName: "",
+  password: "",
   scacCode: "",
-  address: "",
-  pinCode: "",
-  phone: "",
-  mobile: "",
-  emailId: "",
-  gstState: "",
-  gstNo: "",
-  panNo: "",
-  country: "",
-  coa: "",
-  paymentMode: "Cash",
-  currency: "",
+  interestCalculation: "No",
+  notes: "",
+  iecCode: "",
+  iataCode: "",
+  bond: "",
+  expireBondDate: "",
+  status: "Active",
 };
 
 // ── Searchable City Select ───────────────────────────────────────────────────
@@ -443,12 +441,10 @@ const NewOperation = () => {
   const [formData, setFormData]         = useState<OperationFormData>(initialForm);
   const [loadingEdit, setLoadingEdit]   = useState(isEdit);
   const [saving, setSaving]             = useState(false);
-  const [apiBranches, setApiBranches]   = useState<{ id: number; name: string }[]>([]);
   const [cities, setCities]             = useState<{ id: number; name: string }[]>([]);
   const [serviceModes, setServiceModes] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
-    getBranchesApi(1, 100).then(res => setApiBranches(res.data.data ?? [])).catch(() => {});
     getCitiesApi().then(res => {
       const raw: any[] = res.data?.data ?? res.data ?? [];
       setCities(raw.map(r => ({ id: r.id, name: r.name })));
@@ -469,7 +465,6 @@ const NewOperation = () => {
         setFormData({
           jobNo:            d.job_no            ?? '',
           document:         d.document          ?? 'Air Export',
-          branch:           d.branch            ?? '',
           jobDate:          apiDateToInput(d.job_date),
           freightPpCc:      d.freight_pp_cc     ?? 'Collect',
           placeOfReceipt:   d.place_of_receipt  ?? '',
@@ -535,6 +530,26 @@ const NewOperation = () => {
   const [subledgerOpen, setSubledgerOpen] = useState(false);
   const [subledger, setSubledger] = useState<SubledgerForm>(initialSubledger);
   const [subledgerErrors, setSubledgerErrors] = useState<Partial<Record<keyof SubledgerForm, string>>>({});
+  const [subledgerLogoFile, setSubledgerLogoFile] = useState<File | null>(null);
+  const [subledgerLogoFileName, setSubledgerLogoFileName] = useState("");
+  const [subledgerSaving, setSubledgerSaving] = useState(false);
+  const [subledgerCompanies, setSubledgerCompanies] = useState<{ id: number; name: string }[]>([]);
+  const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
+
+  const loadSubledgerCompanies = () => {
+    getMasterCompaniesApi().then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setSubledgerCompanies(raw.map(r => ({ id: r.id, name: r.name })));
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    loadSubledgerCompanies();
+    getBranchesApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setBranches(raw.filter((r: any) => r.status === 1 || r.status === '1' || r.status === 'active').map((r: any) => ({ id: r.id, name: r.name })));
+    }).catch(() => {});
+  }, []);
 
   // Generic API call to fetch branches for any party type
   const fetchBranchesForParty = async (
@@ -605,7 +620,6 @@ const NewOperation = () => {
     try {
       const payload: Record<string, unknown> = {
         document:          formData.document,
-        branch:            formData.branch,
         job_date:          formData.jobDate,
         freight_pp_cc:     formData.freightPpCc,
         place_of_receipt:  formData.placeOfReceipt,
@@ -652,43 +666,61 @@ const NewOperation = () => {
   const closeSubledger = () => {
     setSubledger(initialSubledger);
     setSubledgerErrors({});
+    setSubledgerLogoFile(null);
+    setSubledgerLogoFileName("");
     setSubledgerOpen(false);
   };
 
-  const handleSubledgerChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleSubledgerChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setSubledger((prev) => ({ ...prev, [name]: value }));
-    if (subledgerErrors[name as keyof SubledgerForm]) {
+    if (subledgerErrors[name as keyof SubledgerForm])
       setSubledgerErrors((prev) => ({ ...prev, [name]: "" }));
-    }
   };
 
   const validateSubledger = () => {
     const e: Partial<Record<keyof SubledgerForm, string>> = {};
-    if (!subledger.customerName.trim()) e.customerName = "Customer Name is required";
-    if (!subledger.categories) e.categories = "Categories is required";
-    if (!subledger.address.trim()) e.address = "Address is required";
+    if (!subledger.name.trim()) e.name = "Name is required";
+    if (!subledger.actualName.trim()) e.actualName = "Actual Name is required";
+    if (!subledger.categories.trim()) e.categories = "Categories is required";
     setSubledgerErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubledgerCreate = () => {
+  const handleSubledgerCreate = async () => {
     if (!validateSubledger()) return;
-    const newEntry: SubledgerEntry = {
-      id: Date.now(),
-      subledgerType: subledger.categories.toUpperCase(),
-      subledgerName: subledger.customerName,
-      address: subledger.address,
-      phone: subledger.phone,
-      fax: "",
-      mobile: subledger.mobile,
-      email: subledger.emailId,
-      city: "",
-    };
-    setFormData((prev) => ({ ...prev, subledgers: [...(prev.subledgers ?? []), newEntry] }));
-    setSubledger(initialSubledger);
-    setSubledgerErrors({});
-    setSubledgerOpen(false);
+    setSubledgerSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append("name", subledger.name.trim());
+      fd.append("actual_name", subledger.actualName.trim());
+      fd.append("categories", subledger.categories.trim());
+      fd.append("position", subledger.position);
+      fd.append("website", subledger.website.trim());
+      fd.append("username", subledger.userName.trim());
+      fd.append("password", subledger.password);
+      fd.append("scac_code", subledger.scacCode.trim());
+      fd.append("interest_calculation", subledger.interestCalculation);
+      fd.append("notes", subledger.notes);
+      fd.append("iec_code", subledger.iecCode.trim());
+      fd.append("iata_code", subledger.iataCode.trim());
+      fd.append("bond", subledger.bond.trim());
+      const expireDateForApi = subledger.expireBondDate
+        ? subledger.expireBondDate.split("-").reverse().join("-")
+        : "";
+      fd.append("expire_bond_date", expireDateForApi);
+      fd.append("status", subledger.status === "Active" ? "1" : "0");
+      if (subledgerLogoFile) fd.append("logo", subledgerLogoFile);
+      await createMasterCompanyApi(fd);
+      toast({ title: "Success", description: "Company created successfully.", variant: "success" });
+      loadSubledgerCompanies();
+      closeSubledger();
+    } catch (err: any) {
+      const msg: string = err?.response?.data?.message ?? "";
+      toast({ title: "Error", description: msg || "Failed to create company.", variant: "destructive" });
+    } finally {
+      setSubledgerSaving(false);
+    }
   };
 
   const sel = (err?: string) =>
@@ -757,23 +789,6 @@ const NewOperation = () => {
                   ].map((d) => (
                     <option key={d} value={d}>
                       {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Branch */}
-            <div className="flex items-center gap-4">
-              <Label htmlFor="branch" className="text-sm font-semibold w-40 shrink-0">
-                Branch
-              </Label>
-              <div className="flex-1">
-                <select id="branch" name="branch" value={formData.branch} onChange={handleChange} className={sel()}>
-                  <option value="">Select</option>
-                  {apiBranches.map((b) => (
-                    <option key={b.id} value={b.name}>
-                      {b.name}
                     </option>
                   ))}
                 </select>
@@ -950,6 +965,25 @@ const NewOperation = () => {
               </div>
             </div>
 
+            {/* Status */}
+            <div className="flex items-center gap-4">
+              <Label htmlFor="status" className="text-sm font-semibold w-40 shrink-0">
+                Status
+              </Label>
+              <div className="flex-1">
+                <select
+                  id="status"
+                  name="status"
+                  value={formData.status}
+                  onChange={e => setFormData(prev => ({ ...prev, status: Number(e.target.value) }))}
+                  className={sel()}
+                >
+                  <option value={1}>Active</option>
+                  <option value={0}>Inactive</option>
+                </select>
+              </div>
+            </div>
+
             {/* Note */}
             <div className="flex items-start gap-4 md:col-span-2">
               <Label htmlFor="note" className="text-sm font-semibold w-40 shrink-0 pt-2">
@@ -988,24 +1022,6 @@ const NewOperation = () => {
               </div>
             </div>
 
-            {/* Status */}
-            <div className="flex items-center gap-4">
-              <Label htmlFor="status" className="text-sm font-semibold w-40 shrink-0">
-                Status
-              </Label>
-              <div className="flex-1">
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={e => setFormData(prev => ({ ...prev, status: Number(e.target.value) }))}
-                  className={sel()}
-                >
-                  <option value={1}>Active</option>
-                  <option value={0}>Inactive</option>
-                </select>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -1028,54 +1044,36 @@ const NewOperation = () => {
               </div>
               <div className="p-5 space-y-4">
                 {/* Customer and Branch in same row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-4">
-                    <Label htmlFor="customer" className="text-sm font-semibold w-24 shrink-0">
-                      Customer<span className="text-destructive mr-1"> *</span>
-                    </Label>
-                    <div className="flex-1">
-                      <select
-                        id="customer"
-                        name="customer"
-                        value={formData.customer}
-                        onChange={async (e) => {
-                          // Reset branch and address when customer changes
-                          const customerName = e.target.value;
-                          setFormData((prev) => ({
-                            ...prev,
-                            customer: customerName,
-                            customerBranch: "",
-                            customerAddress: "",
-                          }));
-                          if (errors.customer) setErrors((prev) => ({ ...prev, customer: "" }));
-
-                          // Fetch branches from API when customer is selected
-                          if (customerName) {
-                            await fetchBranchesForParty("customer", customerName);
-                          }
-                        }}
-                        className={sel(errors.customer)}
-                      >
-                        <option value="">Select</option>
-                        {CUSTOMER_OPTIONS.map((c) => (
-                          <option key={c.name} value={c.name}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.customer && <p className="text-xs text-destructive mt-1">{errors.customer}</p>}
-                      {formData.customer &&
-                        (() => {
-                          const bondDate = CUSTOMER_OPTIONS.find((c) => c.name === formData.customer)?.bondExpiryDate;
-                          return bondDate ? (
-                            <p className="text-xs text-amber-600 mt-1 font-medium">
-                              Bond for this customer will expire on {bondDate}.
-                            </p>
-                          ) : null;
-                        })()}
-                    </div>
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="customer" className="text-sm font-semibold w-24 shrink-0">
+                    Customer<span className="text-destructive mr-1"> *</span>
+                  </Label>
+                  <div className="flex-1">
+                    <select
+                      id="customer"
+                      name="customer"
+                      value={formData.customer}
+                      onChange={async (e) => {
+                        const customerName = e.target.value;
+                        setFormData((prev) => ({
+                          ...prev,
+                          customer: customerName,
+                          customerBranch: "",
+                          customerAddress: "",
+                        }));
+                        if (errors.customer) setErrors((prev) => ({ ...prev, customer: "" }));
+                      }}
+                      className={sel(errors.customer)}
+                    >
+                      <option value="">Select</option>
+                      {subledgerCompanies.map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.customer && <p className="text-xs text-destructive mt-1">{errors.customer}</p>}
                   </div>
-
                   {/* Branch - Always Visible */}
                   <div className="flex items-center gap-4">
                     <Label htmlFor="customerBranch" className="text-sm font-semibold w-24 shrink-0">
@@ -1296,303 +1294,132 @@ const NewOperation = () => {
       {/* ── Add New Subledger Modal ── */}
       {subledgerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/50" onClick={closeSubledger} />
-
-          {/* Dialog */}
-          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
               <h3 className="text-lg font-bold text-primary">Add New Subledger From Job Creation</h3>
-              <button onClick={closeSubledger} className="p-2 hover:bg-muted rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={closeSubledger} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
             </div>
-
             {/* Body */}
-            <div className="overflow-y-auto flex-1 px-6 py-5">
-              <div className="space-y-4">
-                {/* Customer Name */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-customerName" className="text-sm font-semibold text-right w-32 shrink-0">
-                    <span className="text-destructive mr-1">*</span>Customer Name
-                  </Label>
-                  <div className="flex-1">
-                    <Input
-                      id="sl-customerName"
-                      name="customerName"
-                      value={subledger.customerName}
-                      onChange={handleSubledgerChange}
-                      className={subledgerErrors.customerName ? "border-destructive" : ""}
-                    />
-                    {subledgerErrors.customerName && (
-                      <p className="text-xs text-destructive mt-1">{subledgerErrors.customerName}</p>
-                    )}
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+              {/* Row 1: Name | Categories | Position */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Name <span className="text-destructive">*</span></Label>
+                  <Input name="name" value={subledger.name} onChange={handleSubledgerChange} className={subledgerErrors.name ? "border-destructive" : ""} />
+                  {subledgerErrors.name && <p className="text-xs text-destructive mt-1">{subledgerErrors.name}</p>}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Categories <span className="text-destructive">*</span></Label>
+                  <Input name="categories" value={subledger.categories} onChange={handleSubledgerChange} className={subledgerErrors.categories ? "border-destructive" : ""} />
+                  {subledgerErrors.categories && <p className="text-xs text-destructive mt-1">{subledgerErrors.categories}</p>}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Position</Label>
+                  <select name="position" value={subledger.position} onChange={handleSubledgerChange} className={sel()}>
+                    {["Opened","Closed","Pending","Suspended"].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              {/* Row 2: Actual Name | Website */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Actual Name <span className="text-destructive">*</span></Label>
+                  <Input name="actualName" value={subledger.actualName} onChange={handleSubledgerChange} className={subledgerErrors.actualName ? "border-destructive" : ""} />
+                  {subledgerErrors.actualName && <p className="text-xs text-destructive mt-1">{subledgerErrors.actualName}</p>}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Website</Label>
+                  <Input name="website" value={subledger.website} onChange={handleSubledgerChange} />
+                </div>
+                <div />
+              </div>
+              {/* Row 3: Customer Logo | User Name | Password */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Customer Logo</Label>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer px-3 py-2 border border-input rounded-lg text-sm bg-background hover:bg-muted whitespace-nowrap">
+                      Choose File
+                      <input type="file" accept="image/*" className="hidden" onChange={e => {
+                        const file = e.target.files?.[0];
+                        setSubledgerLogoFile(file ?? null);
+                        setSubledgerLogoFileName(file ? file.name : "");
+                      }} />
+                    </label>
+                    <span className="text-sm text-muted-foreground truncate">{subledgerLogoFileName || "No file chosen"}</span>
                   </div>
                 </div>
-
-                {/* Categories */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-categories" className="text-sm font-semibold text-right w-32 shrink-0">
-                    <span className="text-destructive mr-1">*</span>Categories
-                  </Label>
-                  <div className="flex-1">
-                    <select
-                      id="sl-categories"
-                      name="categories"
-                      value={subledger.categories}
-                      onChange={handleSubledgerChange}
-                      className={sel(subledgerErrors.categories)}
-                    >
-                      <option value="">--Select--</option>
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    {subledgerErrors.categories && (
-                      <p className="text-xs text-destructive mt-1">{subledgerErrors.categories}</p>
-                    )}
-                  </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">User Name</Label>
+                  <Input name="userName" value={subledger.userName} onChange={handleSubledgerChange} />
                 </div>
-
-                {/* SCAC Code */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-scacCode" className="text-sm font-semibold text-right w-32 shrink-0">
-                    SCAC Code
-                  </Label>
-                  <Input
-                    id="sl-scacCode"
-                    name="scacCode"
-                    value={subledger.scacCode}
-                    onChange={handleSubledgerChange}
-                    className="flex-1"
-                  />
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Password</Label>
+                  <Input type="password" name="password" value={subledger.password} onChange={handleSubledgerChange} />
                 </div>
-
-                {/* Address */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-address" className="text-sm font-semibold text-right w-32 shrink-0">
-                    <span className="text-destructive mr-1">*</span>Address
-                  </Label>
-                  <div className="flex-1">
-                    <Input
-                      id="sl-address"
-                      name="address"
-                      value={subledger.address}
-                      onChange={handleSubledgerChange}
-                      className={subledgerErrors.address ? "border-destructive" : ""}
-                    />
-                    {subledgerErrors.address && (
-                      <p className="text-xs text-destructive mt-1">{subledgerErrors.address}</p>
-                    )}
-                  </div>
+              </div>
+              {/* Row 4: SCAC Code | Interest Calculation | Notes */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">SCAC Code</Label>
+                  <Input name="scacCode" value={subledger.scacCode} onChange={handleSubledgerChange} />
                 </div>
-
-                {/* Pin Code */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-pinCode" className="text-sm font-semibold text-right w-32 shrink-0">
-                    Pin Code
-                  </Label>
-                  <Input
-                    id="sl-pinCode"
-                    name="pinCode"
-                    value={subledger.pinCode}
-                    onChange={handleSubledgerChange}
-                    className="flex-1"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-phone" className="text-sm font-semibold text-right w-32 shrink-0">
-                    Phone
-                  </Label>
-                  <Input
-                    id="sl-phone"
-                    name="phone"
-                    type="tel"
-                    value={subledger.phone}
-                    onChange={handleSubledgerChange}
-                    className="flex-1"
-                  />
-                </div>
-
-                {/* Mobile */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-mobile" className="text-sm font-semibold text-right w-32 shrink-0">
-                    Mobile
-                  </Label>
-                  <Input
-                    id="sl-mobile"
-                    name="mobile"
-                    type="tel"
-                    value={subledger.mobile}
-                    onChange={handleSubledgerChange}
-                    className="flex-1"
-                  />
-                </div>
-
-                {/* Email Id */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-emailId" className="text-sm font-semibold text-right w-32 shrink-0">
-                    Email Id
-                  </Label>
-                  <Input
-                    id="sl-emailId"
-                    name="emailId"
-                    type="email"
-                    value={subledger.emailId}
-                    onChange={handleSubledgerChange}
-                    className="flex-1"
-                  />
-                </div>
-
-                {/* GST State */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-gstState" className="text-sm font-semibold text-right w-32 shrink-0">
-                    GST State
-                  </Label>
-                  <select
-                    id="sl-gstState"
-                    name="gstState"
-                    value={subledger.gstState}
-                    onChange={handleSubledgerChange}
-                    className={`flex-1 ${sel()}`}
-                  >
-                    <option value="">--Select--</option>
-                    {GST_STATES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Interest Calculation</Label>
+                  <select name="interestCalculation" value={subledger.interestCalculation} onChange={handleSubledgerChange} className={sel()}>
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
                   </select>
                 </div>
-
-                {/* GST No */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-gstNo" className="text-sm font-semibold text-right w-32 shrink-0">
-                    GST No
-                  </Label>
-                  <Input
-                    id="sl-gstNo"
-                    name="gstNo"
-                    value={subledger.gstNo}
-                    onChange={handleSubledgerChange}
-                    className="flex-1"
-                  />
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Notes</Label>
+                  <textarea name="notes" value={subledger.notes} onChange={handleSubledgerChange} rows={4}
+                    className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-y" />
                 </div>
-
-                {/* PAN No */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-panNo" className="text-sm font-semibold text-right w-32 shrink-0">
-                    PAN No
-                  </Label>
-                  <Input
-                    id="sl-panNo"
-                    name="panNo"
-                    value={subledger.panNo}
-                    onChange={handleSubledgerChange}
-                    className="flex-1"
-                  />
+              </div>
+              {/* Row 5: IEC Code | IATA Code */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">IEC Code</Label>
+                  <Input name="iecCode" value={subledger.iecCode} onChange={handleSubledgerChange} />
                 </div>
-
-                {/* Country */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-country" className="text-sm font-semibold text-right w-32 shrink-0">
-                    Country
-                  </Label>
-                  <select
-                    id="sl-country"
-                    name="country"
-                    value={subledger.country}
-                    onChange={handleSubledgerChange}
-                    className={`flex-1 ${sel()}`}
-                  >
-                    <option value="">--Select--</option>
-                    {COUNTRIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">IATA Code</Label>
+                  <Input name="iataCode" value={subledger.iataCode} onChange={handleSubledgerChange} />
                 </div>
-
-                {/* COA */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-coa" className="text-sm font-semibold text-right w-32 shrink-0">
-                    COA
-                  </Label>
-                  <select
-                    id="sl-coa"
-                    name="coa"
-                    value={subledger.coa}
-                    onChange={handleSubledgerChange}
-                    className={`flex-1 ${sel()}`}
-                  >
-                    <option value="">--Select--</option>
-                    {COA_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                <div />
+              </div>
+              {/* Row 6: Bond | Expire Bond Date | Status */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Bond</Label>
+                  <Input name="bond" value={subledger.bond} onChange={handleSubledgerChange} />
                 </div>
-
-                {/* Payment Mode */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-paymentMode" className="text-sm font-semibold text-right w-32 shrink-0">
-                    Payment Mode
-                  </Label>
-                  <select
-                    id="sl-paymentMode"
-                    name="paymentMode"
-                    value={subledger.paymentMode}
-                    onChange={handleSubledgerChange}
-                    className={`flex-1 ${sel()}`}
-                  >
-                    {PAYMENT_MODES.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Expire Bond Date</Label>
+                  <Input type="date" name="expireBondDate" value={subledger.expireBondDate} onChange={handleSubledgerChange} />
                 </div>
-
-                {/* Currency */}
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="sl-currency" className="text-sm font-semibold text-right w-32 shrink-0">
-                    Currency
-                  </Label>
-                  <select
-                    id="sl-currency"
-                    name="currency"
-                    value={subledger.currency}
-                    onChange={handleSubledgerChange}
-                    className={`flex-1 ${sel()}`}
-                  >
-                    <option value="">--Select--</option>
-                    {CURRENCIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Status</Label>
+                  <select name="status" value={subledger.status} onChange={handleSubledgerChange} className={sel()}>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
                   </select>
                 </div>
               </div>
             </div>
-
             {/* Footer */}
-            <div className="flex justify-end px-6 py-4 border-t border-border shrink-0">
-              <Button type="button" className="material-button text-black px-8" onClick={handleSubledgerCreate}>
-                Create
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
+              <Button variant="outline" onClick={closeSubledger}>Cancel</Button>
+              <Button type="button" className="material-button text-black px-8" onClick={handleSubledgerCreate} disabled={subledgerSaving}>
+                {subledgerSaving ? "Saving..." : "Create"}
               </Button>
             </div>
           </div>
         </div>
       )}
-
       {/* Action buttons */}
       <div className="flex items-center justify-end gap-3 pb-4">
         <Button

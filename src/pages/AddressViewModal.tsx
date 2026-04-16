@@ -13,7 +13,6 @@ export interface AddressRow {
   pinNo: string;
   gstinNo: string;
   phoneNo: string;
-  gstStateCode: string;
   sezZone: 'No' | 'Yes';
   faxNo: string;
   state: string;
@@ -100,8 +99,7 @@ const AddressViewModal: React.FC<Props> = ({ address: a, onClose }) => (
           <Row  label="Address" value={val(a.address)} />
           <Row2 fields={[['City', val(a.city)], ['PAN No', val(a.panNo)]]} />
           <Row2 fields={[['PIN No', val(a.pinNo)], ['GSTIN No#', val(a.gstinNo)]]} />
-          <Row2 fields={[['Phone No', val(a.phoneNo)], ['GST State Code', val(a.gstStateCode)]]} />
-          <Row2 fields={[['SEZ Zone', val(a.sezZone)], ['State', val(a.state)]]} />
+          <Row2 fields={[['Phone No', val(a.phoneNo)], ['State', val(a.state)]]} />
           <Row2 fields={[['Fax No', val(a.faxNo)], ['Mobile No', val(a.mobileNo)]]} />
           <Row2 fields={[['Email ID', val(a.emailId)], ['Country', val(a.country)]]} />
           {a.country === 'USA' && <Row  label="EIN No" value={val(a.einNo)} />}
