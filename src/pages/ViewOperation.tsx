@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Pencil,
@@ -68,7 +68,7 @@ const NoData = () => (
 const TABS = [
   "Show All",
   "Job Details",
-  "Subledgers",
+  "Party",
   "Dimension's",
   "Cargo details",
   "Costing",
@@ -954,7 +954,7 @@ const ViewOperation = () => {
     if (!houseForm.placeOfReceipt.trim()) errs.placeOfReceipt = 'Place of Receipt is required.';
     if (!houseForm.placeOfDelivery.trim()) errs.placeOfDelivery = 'Place of Delivery is required.';
     if (!houseForm.incoTerm) errs.incoTerm = 'INCO Term is required.';
-    if (!houseForm.customer_id) errs.customer = 'Customer is required.';
+
     if (Object.keys(errs).length) { setHouseErrors(errs); return; }
     setHouseSaving(true);
     try {
@@ -1230,7 +1230,7 @@ const ViewOperation = () => {
       const res = await getSubledgersApi(Number(id));
       setSlList(res.data?.data ?? res.data ?? []);
     } catch {
-      toast({ title: 'Error', description: 'Failed to load subledgers.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to load parties.', variant: 'destructive' });
     } finally {
       setSlLoading(false);
     }
@@ -1296,10 +1296,10 @@ const ViewOperation = () => {
       };
       if (slEditId) {
         await updateSubledgerApi(slEditId, payload);
-        toast({ title: 'Success', description: 'Subledger updated successfully.', variant: 'success' });
+        toast({ title: 'Success', description: 'Party updated successfully.', variant: 'success' });
       } else {
         await createSubledgerApi(payload);
-        toast({ title: 'Success', description: 'Subledger created successfully.', variant: 'success' });
+        toast({ title: 'Success', description: 'Party created successfully.', variant: 'success' });
       }
       setSlOpen(false);
       setSlForm(SL_EMPTY);
@@ -1307,7 +1307,7 @@ const ViewOperation = () => {
       setSlEditId(null);
       loadSubledgers();
     } catch {
-      toast({ title: 'Error', description: 'Failed to save subledger.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to save party.', variant: 'destructive' });
     } finally {
       setSlSaving(false);
     }
@@ -1317,11 +1317,11 @@ const ViewOperation = () => {
     if (slDeleteId === null) return;
     try {
       await deleteSubledgerApi(slDeleteId);
-      toast({ title: 'Success', description: 'Subledger deleted successfully.', variant: 'success' });
+      toast({ title: 'Success', description: 'Party deleted successfully.', variant: 'success' });
       setSlDeleteId(null);
       loadSubledgers();
     } catch {
-      toast({ title: 'Error', description: 'Failed to delete subledger.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to Delete Party.', variant: 'destructive' });
     }
   };
 
@@ -1372,7 +1372,7 @@ const ViewOperation = () => {
         className={`w-full px-2 py-1 border rounded text-xs bg-background ${
           costErrors[name] ? 'border-red-500' : 'border-input'
         } ${cls}`} />
-      {costErrors[name] && <p className="text-xs text-red-500 mt-0.5">⚠ {costErrors[name]}</p>}
+      {costErrors[name] && <p className="text-xs text-red-500 mt-0.5">? {costErrors[name]}</p>}
     </div>
   );
   const cs = (name: keyof typeof initCost, opts: string[], placeholder = "--Select--") => (
@@ -1384,7 +1384,7 @@ const ViewOperation = () => {
         {placeholder && <option value="">{placeholder}</option>}
         {opts.map((o) => (<option key={o}>{o}</option>))}
       </select>
-      {costErrors[name] && <p className="text-xs text-red-500 mt-0.5">⚠ {costErrors[name]}</p>}
+      {costErrors[name] && <p className="text-xs text-red-500 mt-0.5">? {costErrors[name]}</p>}
     </div>
   );
   const loadCostings = async () => {
@@ -1513,7 +1513,7 @@ const ViewOperation = () => {
   const riderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setRiderForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  // Convert DD-MM-YYYY (API response) → YYYY-MM-DD (API request)
+  // Convert DD-MM-YYYY (API response) ? YYYY-MM-DD (API request)
   // (toApiDate is defined in the Shipping Bill section above)
 
   const handleDuplicate = async () => {
@@ -1620,9 +1620,9 @@ const ViewOperation = () => {
             <button className="hover:underline text-primary" onClick={() => navigate("/operations")}>
               Jobs List
             </button>
-            {" › "}
+            {" � "}
             <span>
-              Job No# - ( {op.document || "—"} ~ {op.job_date} )
+              Job No# - ( {op.document || "�"} ~ {op.job_date} )
             </span>
           </p>
         </div>
@@ -1738,7 +1738,7 @@ const ViewOperation = () => {
                 <Field label="Vessel Status" value="" />
               </div>
 
-              {/* Column 3 — Source From and To */}
+              {/* Column 3 � Source From and To */}
               <div className="col-span-1">
                 <div className="border border-border rounded overflow-hidden">
                   <div className="bg-[#00BCD4] px-4 py-2">
@@ -1774,13 +1774,13 @@ const ViewOperation = () => {
             </div>
             {/* Body */}
             <div className="px-6 py-5 space-y-5">
-              {/* Row 1: From Job No + New Job Date — same line */}
+              {/* Row 1: From Job No + New Job Date � same line */}
               <div className="grid grid-cols-2 gap-4 items-center">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-semibold text-foreground whitespace-nowrap shrink-0">
                     From Job No
                   </label>
-                  <Input value={op?.document || '—'} readOnly className="bg-muted text-sm min-w-0" />
+                  <Input value={op?.document || '�'} readOnly className="bg-muted text-sm min-w-0" />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-semibold text-foreground whitespace-nowrap shrink-0">
@@ -1831,7 +1831,7 @@ const ViewOperation = () => {
         </div>
       )}
 
-      {/* Rider Container Modal — full CRUD */}
+      {/* Rider Container Modal � full CRUD */}
       {riderOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setRiderOpen(false)} />
@@ -1930,7 +1930,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <input name="container_no" value={riderForm.container_no} onChange={(e) => { riderChange(e); setRiderContainerNoError(''); }}
                       className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${riderContainerNoError ? 'border-destructive' : 'border-input'}`} />
-                    {riderContainerNoError && <p className="text-xs text-destructive mt-0.5">⚠ {riderContainerNoError}</p>}
+                    {riderContainerNoError && <p className="text-xs text-destructive mt-0.5">? {riderContainerNoError}</p>}
                   </div>
                 </div>
 
@@ -2031,7 +2031,7 @@ const ViewOperation = () => {
                     className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
 
-                {/* Commodity Desc — full width */}
+                {/* Commodity Desc � full width */}
                 <div className="col-span-2 flex items-start gap-2">
                   <label className="w-32 shrink-0 text-right text-xs font-semibold pt-1">Commodity Desc</label>
                   <textarea name="commodity_desc" value={riderForm.commodity_desc} onChange={riderChange} rows={3}
@@ -2089,10 +2089,10 @@ const ViewOperation = () => {
       )}
 
       {/* Subledgers card */}
-      {(activeTab === "Subledgers" || activeTab === "Show All") && (
+      {(activeTab === "Party" || activeTab === "Show All") && (
         <div className="material-card material-elevation-1 overflow-hidden">
           <div className="bg-white px-6 py-3 border-b border-border flex items-center justify-between">
-            <h2 className="text-lg font-bold text-primary">Subledgers</h2>
+            <h2 className="text-lg font-bold text-primary">Party</h2>
             <Button
               size="sm"
               className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold"
@@ -2106,8 +2106,8 @@ const ViewOperation = () => {
               <thead>
                 <tr className="border-b border-border">
                   {[
-                    "Subledger Type",
-                    "Subledger Name",
+                    "Party Type",
+                    "Party Name",
                     "Address",
                     "Phone",
                     "Mobile",
@@ -2124,7 +2124,7 @@ const ViewOperation = () => {
                 {slLoading ? (
                   <tr><td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</td></tr>
                 ) : slList.length === 0 ? (
-                  <tr><td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">No subledgers found.</td></tr>
+                  <tr><td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">No parties found.</td></tr>
                 ) : slList.map((sl: any) => (
                   <tr key={sl.id} className="border-b border-border hover:bg-muted/30">
                     <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{sl.categories?.toUpperCase() ?? ''}</td>
@@ -2171,7 +2171,7 @@ const ViewOperation = () => {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {['S.No#','L×W×H','Measurement','No of Pcs','Package Type','G.Weight','V.Weight','Net Weight','Volume','COO','Commodity Type','Commodity Code','Notes','Action'].map(h => (
+                    {['S.No#','L�W�H','Measurement','No of Pcs','Package Type','G.Weight','V.Weight','Net Weight','Volume','COO','Commodity Type','Commodity Code','Notes','Action'].map(h => (
                       <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -2180,7 +2180,7 @@ const ViewOperation = () => {
                   {dimList.map((row) => (
                     <tr key={row.id} className="border-b border-border hover:bg-muted/30">
                       <td className="px-3 py-2 text-xs text-foreground">{row.s_no}</td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{[row.length, row.width, row.height].filter(Boolean).join(' × ')}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{[row.length, row.width, row.height].filter(Boolean).join(' � ')}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.lxwxh_measurement}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.no_of_pcs}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.package_type}</td>
@@ -2245,7 +2245,7 @@ const ViewOperation = () => {
 
               <div className="grid grid-cols-4 gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className="font-semibold">L×W×H Measurement</label>
+                  <label className="font-semibold">L�W�H Measurement</label>
                   <input name="lxwxhMeasurement" value={dimForm.lxwxhMeasurement} onChange={dimChange} placeholder="e.g. CM" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -2951,7 +2951,7 @@ const ViewOperation = () => {
             <div className="overflow-y-auto flex-1 p-5 space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className="font-semibold"><span className="text-destructive mr-1">*</span>Subledger Type</label>
+                  <label className="font-semibold"><span className="text-destructive mr-1">*</span>Party Type</label>
                   <select name="categories" value={slForm.categories} onChange={slChange} className={`w-full px-2 py-1 border rounded text-xs ${slErrors.categories ? 'border-red-500' : 'border-input'} bg-background`}>
                     <option value="">--Select Type--</option>
                     <option value="Customer">Customer</option>
@@ -2962,7 +2962,7 @@ const ViewOperation = () => {
                   {slErrors.categories && <span className="text-red-500 text-xs">{slErrors.categories}</span>}
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="font-semibold"><span className="text-destructive mr-1">*</span>Subledger Name</label>
+                  <label className="font-semibold"><span className="text-destructive mr-1">*</span>Party Name</label>
                   <input name="customerName" value={slForm.customerName} onChange={slChange} placeholder="Enter name" className={`w-full px-2 py-1 border rounded text-xs ${slErrors.customerName ? 'border-red-500' : 'border-input'} bg-background`} />
                   {slErrors.customerName && <span className="text-red-500 text-xs">{slErrors.customerName}</span>}
                 </div>
@@ -3034,7 +3034,7 @@ const ViewOperation = () => {
           <div className="absolute inset-0 bg-black/50" onClick={() => setSlDeleteId(null)} />
           <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-border">
-              <h3 className="text-lg font-bold text-primary">Delete Subledger</h3>
+              <h3 className="text-lg font-bold text-primary">Delete Party</h3>
               <button onClick={() => setSlDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-5 py-4">
@@ -3703,7 +3703,7 @@ const ViewOperation = () => {
                       <option value="">--Select--</option>
                       {PORT_OPTIONS.map(p => <option key={p}>{p}</option>)}
                     </select>
-                    {routingErrors.fromPortCode && <p className="text-xs text-destructive mt-0.5">⚠ {routingErrors.fromPortCode}</p>}
+                    {routingErrors.fromPortCode && <p className="text-xs text-destructive mt-0.5">? {routingErrors.fromPortCode}</p>}
                   </div>
                 </div>
               </div>
@@ -3719,7 +3719,7 @@ const ViewOperation = () => {
                       <option value="">--Select--</option>
                       {PORT_OPTIONS.map(p => <option key={p}>{p}</option>)}
                     </select>
-                    {routingErrors.toPortCode && <p className="text-xs text-destructive mt-0.5">⚠ {routingErrors.toPortCode}</p>}
+                    {routingErrors.toPortCode && <p className="text-xs text-destructive mt-0.5">? {routingErrors.toPortCode}</p>}
                   </div>
                 </div>
               </div>
@@ -3872,7 +3872,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <input name="placeOfReceipt" value={houseForm.placeOfReceipt} onChange={houseChange}
                       className={`w-full px-2 py-1 border rounded text-xs bg-background ${houseErrors.placeOfReceipt ? 'border-destructive' : 'border-input'}`} />
-                    {houseErrors.placeOfReceipt && <p className="text-xs text-destructive mt-0.5">⚠ {houseErrors.placeOfReceipt}</p>}
+                    {houseErrors.placeOfReceipt && <p className="text-xs text-destructive mt-0.5">? {houseErrors.placeOfReceipt}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3882,7 +3882,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <input name="placeOfDelivery" value={houseForm.placeOfDelivery} onChange={houseChange}
                       className={`w-full px-2 py-1 border rounded text-xs bg-background ${houseErrors.placeOfDelivery ? 'border-destructive' : 'border-input'}`} />
-                    {houseErrors.placeOfDelivery && <p className="text-xs text-destructive mt-0.5">⚠ {houseErrors.placeOfDelivery}</p>}
+                    {houseErrors.placeOfDelivery && <p className="text-xs text-destructive mt-0.5">? {houseErrors.placeOfDelivery}</p>}
                   </div>
                 </div>
               </div>
@@ -3899,7 +3899,7 @@ const ViewOperation = () => {
                       <option value="">--Select--</option>
                       {HOUSE_INCO_TERMS.map((t) => <option key={t}>{t}</option>)}
                     </select>
-                    {houseErrors.incoTerm && <p className="text-xs text-destructive mt-0.5">⚠ {houseErrors.incoTerm}</p>}
+                    {houseErrors.incoTerm && <p className="text-xs text-destructive mt-0.5">? {houseErrors.incoTerm}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3971,7 +3971,7 @@ const ViewOperation = () => {
                             <option key={`api-${s.id}`} value={s.customer_name ?? ''}>{s.customer_name ?? ''}</option>
                           ))}
                         </select>
-                        {houseErrors.customer && <p className="text-xs text-destructive mt-0.5">⚠ {houseErrors.customer}</p>}
+                        {houseErrors.customer && <p className="text-xs text-destructive mt-0.5">? {houseErrors.customer}</p>}
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
@@ -4115,7 +4115,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <input name="shippingBillNo" value={sbForm.shippingBillNo} onChange={sbChange}
                       className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.shippingBillNo ? 'border-destructive' : 'border-input'}`} />
-                    {sbErrors.shippingBillNo && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.shippingBillNo}</p>}
+                    {sbErrors.shippingBillNo && <p className="text-xs text-destructive mt-0.5">? {sbErrors.shippingBillNo}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -4123,7 +4123,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <input type="date" name="shippingBillDate" value={sbForm.shippingBillDate} onChange={sbChange}
                       className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.shippingBillDate ? 'border-destructive' : 'border-input'}`} />
-                    {sbErrors.shippingBillDate && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.shippingBillDate}</p>}
+                    {sbErrors.shippingBillDate && <p className="text-xs text-destructive mt-0.5">? {sbErrors.shippingBillDate}</p>}
                   </div>
                 </div>
               </div>
@@ -4147,7 +4147,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <input name="noOfPcs" value={sbForm.noOfPcs} onChange={sbChange}
                       className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.noOfPcs ? 'border-destructive' : 'border-input'}`} />
-                    {sbErrors.noOfPcs && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.noOfPcs}</p>}
+                    {sbErrors.noOfPcs && <p className="text-xs text-destructive mt-0.5">? {sbErrors.noOfPcs}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -4166,7 +4166,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <input name="grossWeight" value={sbForm.grossWeight} onChange={sbChange}
                       className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.grossWeight ? 'border-destructive' : 'border-input'}`} />
-                    {sbErrors.grossWeight && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.grossWeight}</p>}
+                    {sbErrors.grossWeight && <p className="text-xs text-destructive mt-0.5">? {sbErrors.grossWeight}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -4182,7 +4182,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <input name="volume" value={sbForm.volume} onChange={sbChange}
                       className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.volume ? 'border-destructive' : 'border-input'}`} />
-                    {sbErrors.volume && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.volume}</p>}
+                    {sbErrors.volume && <p className="text-xs text-destructive mt-0.5">? {sbErrors.volume}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -4198,7 +4198,7 @@ const ViewOperation = () => {
                   <div className="flex-1">
                     <input name="commodityType" value={sbForm.commodityType} onChange={sbChange}
                       className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${sbErrors.commodityType ? 'border-destructive' : 'border-input'}`} />
-                    {sbErrors.commodityType && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.commodityType}</p>}
+                    {sbErrors.commodityType && <p className="text-xs text-destructive mt-0.5">? {sbErrors.commodityType}</p>}
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
@@ -4222,7 +4222,7 @@ const ViewOperation = () => {
                       <option value="">--Select--</option>
                       {['20GP','40GP','40HC','45HC','20RF','40RF','20OT','40OT','20FR','40FR','40 FLAT COLLAPSIBLE','20 FLAT COLLAPSIBLE','20 FT','40 FT','LCL'].map(o => <option key={o}>{o}</option>)}
                     </select>
-                    {sbErrors.containerType && <p className="text-xs text-destructive mt-0.5">⚠ {sbErrors.containerType}</p>}
+                    {sbErrors.containerType && <p className="text-xs text-destructive mt-0.5">? {sbErrors.containerType}</p>}
                   </div>
                 </div>
               </div>
