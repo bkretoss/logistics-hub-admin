@@ -22,6 +22,7 @@ import {
   getCountriesApi,
   getStatesApi,
   getCitiesApi,
+  getBranchesApi,
 } from "@/services/api";
 import type { Customer } from "./CustomerMasterList";
 import AddressViewModal from "./AddressViewModal";
@@ -91,6 +92,7 @@ interface CustomerFormData {
   expireBondDate: string;
   position: string;
   website: string;
+  branchId: string;
   password: string;
   notes: string;
   status: "Active" | "Inactive";
@@ -114,6 +116,7 @@ const initialForm: CustomerFormData = {
   expireBondDate: "",
   position: "Opened",
   website: "",
+  branchId: "",
   password: "",
   notes: "",
   status: "Active",
@@ -225,6 +228,7 @@ const NewCustomer = () => {
         })(),
         position: r.position ?? "Opened",
         website: r.website ?? "",
+        branchId: r.branch_id ? String(r.branch_id) : "",
         password: r.password ?? "",
         notes: r.notes ?? "",
         status: r.status === 1 || r.status === "1" ? "Active" : "Inactive",
@@ -242,6 +246,7 @@ const NewCustomer = () => {
   const [countries, setCountries] = useState<{ id: number; country_name: string }[]>([]);
   const [allStates, setAllStates] = useState<{ id: number; country_id: number; name: string }[]>([]);
   const [allCities, setAllCities] = useState<{ id: number; state_id: number; name: string }[]>([]);
+  const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
     getCountriesApi().then(res => {
@@ -255,6 +260,10 @@ const NewCustomer = () => {
     getCitiesApi().then(res => {
       const raw: any[] = res.data?.data ?? res.data ?? [];
       setAllCities(raw.map(r => ({ id: r.id, state_id: Number(r.state_id), name: r.name })));
+    }).catch(() => {});
+    getBranchesApi(1, 9999).then(res => {
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setBranches(raw.map(r => ({ id: r.id, name: r.name })));
     }).catch(() => {});
   }, []);
 
@@ -486,6 +495,7 @@ const NewCustomer = () => {
       fd.append("categories", form.categories.trim());
       fd.append("position", form.position);
       fd.append("website", form.website.trim());
+      if (form.branchId) fd.append("branch_id", form.branchId);
       fd.append("username", form.userName.trim());
       fd.append("password", form.password);
       fd.append("scac_code", form.scacCode.trim());
@@ -761,6 +771,7 @@ const NewCustomer = () => {
       fd.append("categories", form.categories.trim());
       fd.append("position", form.position);
       fd.append("website", form.website.trim());
+      if (form.branchId) fd.append("branch_id", form.branchId);
       fd.append("username", form.userName.trim());
       fd.append("password", form.password);
       fd.append("scac_code", form.scacCode.trim());
@@ -861,11 +872,11 @@ const NewCustomer = () => {
           {selectField("Position", "position", POSITIONS)}
         </div>
 
-        {/* Row 2: Actual Name | Sales Person | Website */}
+        {/* Row 2: Actual Name | Website | Branch */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {textField("Actual Name", "actualName", true)}
-          {/* {selectField("Sales Person", "salesPerson", SALES_PERSONS)} */}
           {textField("Website", "website")}
+          {textField("Branch", "branchId")}
         </div>
 
         {/* Row 3: Customer Logo | User Name | Password */}

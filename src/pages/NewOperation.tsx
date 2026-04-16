@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useOperations } from "./OperationsContext";
-import { getCitiesApi, getServiceModesApi, getOperationApi, createOperationApi, updateOperationApi, createMasterCompanyApi, getMasterCompaniesApi, getBranchesApi } from "@/services/api";
+import { getCitiesApi, getServiceModesApi, getOperationApi, createOperationApi, updateOperationApi, createMasterCompanyApi, getMasterCompaniesApi, getBranchesApi, getMasterCompanyAddressesApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 const FREIGHT_OPTIONS = ["Prepaid", "Collect"];
@@ -338,6 +338,7 @@ interface SubledgerForm {
   categories: string;
   position: string;
   website: string;
+  branchId: string;
   userName: string;
   password: string;
   scacCode: string;
@@ -348,6 +349,7 @@ interface SubledgerForm {
   bond: string;
   expireBondDate: string;
   status: string;
+  address: string;
 }
 
 const initialSubledger: SubledgerForm = {
@@ -356,6 +358,7 @@ const initialSubledger: SubledgerForm = {
   categories: "",
   position: "Opened",
   website: "",
+  branchId: "",
   userName: "",
   password: "",
   scacCode: "",
@@ -366,6 +369,7 @@ const initialSubledger: SubledgerForm = {
   bond: "",
   expireBondDate: "",
   status: "Active",
+  address: "",
 };
 
 // ── Searchable City Select ───────────────────────────────────────────────────
@@ -455,13 +459,19 @@ const NewOperation = () => {
     }).catch(() => {});
   }, []);
 
-  // Load edit data from API
+  // Load edit data from API — also pre-fetch customer addresses
   useEffect(() => {
     if (!id) return;
     setLoadingEdit(true);
     getOperationApi(Number(id))
       .then(res => {
         const d = res.data?.data ?? res.data;
+        // Pre-fetch customer addresses for edit page
+        getMasterCompaniesApi().then(companiesRes => {
+          const companies: any[] = companiesRes.data?.data ?? companiesRes.data ?? [];
+          const matched = companies.find((c: any) => c.name === (d.customer ?? ''));
+          if (matched) fetchCustomerAddresses(matched.id, d.customer ?? '');
+        }).catch(() => {});
         setFormData({
           jobNo:            d.job_no            ?? '',
           document:         d.document          ?? 'Air Export',
@@ -485,13 +495,13 @@ const NewOperation = () => {
           customerBranch:   d.customer_branch   ?? '',
           customerAddress:  d.customer_address  ?? '',
           shipper:          d.shipper           ?? '',
-          shipperBranch:    '',
+          shipperBranch:    d.shipper_branch    ?? '',
           shipperAddress:   d.shipper_address   ?? '',
           carrier:          d.carrier           ?? '',
-          carrierBranch:    '',
+          carrierBranch:    d.carrier_branch    ?? '',
           carrierAddress:   d.carrier_address   ?? '',
           consignee:        d.consignee         ?? '',
-          consigneeBranch:  '',
+          consigneeBranch:  d.consignee_branch  ?? '',
           consigneeAddress: d.consignee_address ?? '',
           notify1:          d.notify1           ?? '',
           deliveryAgentName:d.delivery_agent_name ?? '',
@@ -535,6 +545,40 @@ const NewOperation = () => {
   const [subledgerSaving, setSubledgerSaving] = useState(false);
   const [subledgerCompanies, setSubledgerCompanies] = useState<{ id: number; name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
+  const [customerAddresses, setCustomerAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
+  const [customerAddressesLoading, setCustomerAddressesLoading] = useState(false);
+  const [allAddresses, setAllAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
+
+  const mapAddresses = (raw: any[]) => raw.map(r => ({
+    id: r.id,
+    label: [r.address_type, r.city, r.address].filter(Boolean).join(' - '),
+    address: [r.address, r.city, r.state, r.country].filter(Boolean).join(', '),
+  }));
+
+  const fetchCustomerAddresses = (companyId: number, companyName?: string) => {
+    setCustomerAddressesLoading(true);
+    getMasterCompanyAddressesApi(companyId)
+      .then(res => {
+        const mapped = mapAddresses(res.data?.data ?? res.data ?? []);
+        if (mapped.length === 0 && companyName) {
+          const storedAddresses = JSON.parse(localStorage.getItem("subledger_addresses") ?? "{}");
+          const storedBranches = JSON.parse(localStorage.getItem("subledger_branches") ?? "{}");
+          const addr = storedAddresses[companyName];
+          const branch = storedBranches[companyName];
+          if (branch) {
+            setCustomerAddresses([{ id: Number(branch.id), label: branch.name, address: addr ?? "" }]);
+          } else if (addr) {
+            setCustomerAddresses([{ id: -1, label: "Default Address", address: addr }]);
+          } else {
+            setCustomerAddresses([]);
+          }
+          return;
+        }
+        setCustomerAddresses(mapped);
+      })
+      .catch(() => setCustomerAddresses([]))
+      .finally(() => setCustomerAddressesLoading(false));
+  };
 
   const loadSubledgerCompanies = () => {
     getMasterCompaniesApi().then(res => {
@@ -548,6 +592,9 @@ const NewOperation = () => {
     getBranchesApi(1, 9999).then(res => {
       const raw: any[] = res.data?.data ?? res.data ?? [];
       setBranches(raw.filter((r: any) => r.status === 1 || r.status === '1' || r.status === 'active').map((r: any) => ({ id: r.id, name: r.name })));
+    }).catch(() => {});
+    getMasterCompanyAddressesApi().then(res => {
+      setAllAddresses(mapAddresses(res.data?.data ?? res.data ?? []));
     }).catch(() => {});
   }, []);
 
@@ -609,7 +656,6 @@ const NewOperation = () => {
     if (!formData.polEtd) e.polEtd = "POL ETD is required";
     if (!formData.podEta) e.podEta = "POD ETA is required";
     if (!formData.customer) e.customer = "Customer is required";
-    if (!formData.carrier) e.carrier = "Carrier is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -633,13 +679,16 @@ const NewOperation = () => {
         service_type:      formData.serviceType,
         note:              formData.note,
         customer:          formData.customer,
-        customer_branch:   formData.customerBranch,
+        customer_branch:   Number(formData.customerBranch) > 0 ? formData.customerBranch : "",
         customer_address:  formData.customerAddress,
         shipper:           formData.shipper,
+        shipper_branch:    formData.shipperBranch,
         shipper_address:   formData.shipperAddress,
-        carrier:           formData.carrier,
-        carrier_address:   formData.carrierAddress,
+        carrier:           formData.carrier || undefined,
+        carrier_branch:    formData.carrierBranch || undefined,
+        carrier_address:   formData.carrierAddress || undefined,
         consignee:         formData.consignee,
+        consignee_branch:  formData.consigneeBranch,
         consignee_address: formData.consigneeAddress,
         status:            formData.status,
       };
@@ -655,8 +704,9 @@ const NewOperation = () => {
         refresh();
         navigate(`/operations/view/${newId}`);
       }
-    } catch {
-      toast({ title: 'Error', description: `Failed to ${isEdit ? 'update' : 'create'} operation.`, variant: 'destructive' });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err?.response?.data?.error ?? '';
+      toast({ title: 'Error', description: msg || `Failed to ${isEdit ? 'update' : 'create'} operation.`, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -697,6 +747,7 @@ const NewOperation = () => {
       fd.append("categories", subledger.categories.trim());
       fd.append("position", subledger.position);
       fd.append("website", subledger.website.trim());
+      if (subledger.branchId) fd.append("branch_id", subledger.branchId);
       fd.append("username", subledger.userName.trim());
       fd.append("password", subledger.password);
       fd.append("scac_code", subledger.scacCode.trim());
@@ -711,9 +762,57 @@ const NewOperation = () => {
       fd.append("expire_bond_date", expireDateForApi);
       fd.append("status", subledger.status === "Active" ? "1" : "0");
       if (subledgerLogoFile) fd.append("logo", subledgerLogoFile);
-      await createMasterCompanyApi(fd);
+      const createRes = await createMasterCompanyApi(fd);
+      const newCompanyId: number = createRes.data?.data?.id ?? createRes.data?.id;
+      const newCompanyName = subledger.name.trim();
+      // Store address in localStorage only (not sent to API)
+      if (subledger.address.trim()) {
+        const stored = JSON.parse(localStorage.getItem("subledger_addresses") ?? "{}");
+        stored[newCompanyName] = subledger.address.trim();
+        localStorage.setItem("subledger_addresses", JSON.stringify(stored));
+      }
+      // Store selected branch in localStorage
+      if (subledger.branchId.trim()) {
+        const storedBranches = JSON.parse(localStorage.getItem("subledger_branches") ?? "{}");
+        storedBranches[newCompanyName] = { id: subledger.branchId.trim(), name: subledger.branchId.trim() };
+        localStorage.setItem("subledger_branches", JSON.stringify(storedBranches));
+      }
       toast({ title: "Success", description: "Company created successfully.", variant: "success" });
-      loadSubledgerCompanies();
+      // Reload companies then auto-select the new one in Customer
+      getMasterCompaniesApi().then(async res => {
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        setSubledgerCompanies(raw.map(r => ({ id: r.id, name: r.name })));
+        const matched = raw.find((r: any) => r.id === newCompanyId || r.name === newCompanyName);
+        const resolvedId = matched?.id ?? newCompanyId;
+        const resolvedName = matched?.name ?? newCompanyName;
+        // Fetch addresses for the new company
+        let branches: { id: number; label: string; address: string }[] = [];
+        try {
+          const addrRes = await getMasterCompanyAddressesApi(resolvedId);
+          branches = mapAddresses(addrRes.data?.data ?? addrRes.data ?? []);
+        } catch {}
+        // Fall back to localStorage if no API addresses
+        if (branches.length === 0) {
+          const storedAddresses = JSON.parse(localStorage.getItem("subledger_addresses") ?? "{}");
+          const storedBranches = JSON.parse(localStorage.getItem("subledger_branches") ?? "{}");
+          const addr = storedAddresses[resolvedName];
+          const branch = storedBranches[resolvedName];
+          if (branch) {
+            branches = [{ id: Number(branch.id), label: branch.name, address: addr ?? "" }];
+          } else if (addr) {
+            branches = [{ id: -1, label: "Default Address", address: addr }];
+          }
+        }
+        const firstBranch = branches[0];
+        // Set everything in one batch
+        setCustomerAddresses(branches);
+        setFormData(prev => ({
+          ...prev,
+          customer: resolvedName,
+          customerBranch: firstBranch ? String(firstBranch.id) : "",
+          customerAddress: firstBranch ? firstBranch.address : "",
+        }));
+      }).catch(() => {});
       closeSubledger();
     } catch (err: any) {
       const msg: string = err?.response?.data?.message ?? "";
@@ -1032,7 +1131,7 @@ const NewOperation = () => {
           <h2 className="text-lg font-bold text-primary">Parties</h2>
           <Button type="button" className="material-button text-black gap-2" onClick={() => setSubledgerOpen(true)}>
             <Plus className="w-4 h-4" />
-            Add New Subledger
+            Add New Party
           </Button>
         </div>
         <div className="p-6">
@@ -1053,7 +1152,7 @@ const NewOperation = () => {
                       id="customer"
                       name="customer"
                       value={formData.customer}
-                      onChange={async (e) => {
+                      onChange={(e) => {
                         const customerName = e.target.value;
                         setFormData((prev) => ({
                           ...prev,
@@ -1062,6 +1161,9 @@ const NewOperation = () => {
                           customerAddress: "",
                         }));
                         if (errors.customer) setErrors((prev) => ({ ...prev, customer: "" }));
+                        setCustomerAddresses([]);
+                        const matched = subledgerCompanies.find(c => c.name === customerName);
+                        if (matched) fetchCustomerAddresses(matched.id, customerName);
                       }}
                       className={sel(errors.customer)}
                     >
@@ -1085,22 +1187,20 @@ const NewOperation = () => {
                         name="customerBranch"
                         value={formData.customerBranch}
                         onChange={(e) => {
-                          const customerData = CUSTOMER_OPTIONS.find((c) => c.name === formData.customer);
-                          const selectedBranch = customerData?.branches.find((b) => b.id === e.target.value);
-                          // ONLY populate address when branch is selected
+                          const selectedAddr = customerAddresses.find(a => String(a.id) === e.target.value);
                           setFormData((prev) => ({
                             ...prev,
                             customerBranch: e.target.value,
-                            customerAddress: selectedBranch?.address ?? "",
+                            customerAddress: selectedAddr?.address ?? "",
                           }));
                         }}
                         className={sel()}
-                        disabled={branchesLoading.customer || !formData.customer}
+                        disabled={!formData.customer}
                       >
-                        <option value="">{branchesLoading.customer ? "Loading branches..." : "Select Branch"}</option>
-                        {CUSTOMER_OPTIONS.find((c) => c.name === formData.customer)?.branches.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.name}
+                        <option value="">{customerAddressesLoading ? "Loading branches..." : "Select Branch"}</option>
+                        {customerAddresses.map(a => (
+                          <option key={a.id} value={String(a.id)}>
+                            {a.label}
                           </option>
                         ))}
                       </select>
@@ -1134,48 +1234,22 @@ const NewOperation = () => {
               </div>
               <div className="p-5 space-y-4">
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="shipper" className="text-sm font-semibold w-24 shrink-0">
-                    Shipper
-                  </Label>
+                  <Label htmlFor="shipper" className="text-sm font-semibold w-24 shrink-0">Shipper</Label>
                   <div className="flex-1">
-                    <select
-                      id="shipper"
-                      name="shipper"
-                      value={formData.shipper}
+                    <select id="shipper" name="shipper" value={formData.shipperBranch}
                       onChange={(e) => {
-                        const shipperName = e.target.value;
-                        const shipperData = SHIPPER_OPTIONS.find((s) => s.name === shipperName);
-                        setFormData((prev) => ({
-                          ...prev,
-                          shipper: shipperName,
-                          shipperBranch: "",
-                          shipperAddress: shipperData?.address ?? "",
-                        }));
+                        const a = allAddresses.find(x => String(x.id) === e.target.value);
+                        setFormData(prev => ({ ...prev, shipperBranch: e.target.value, shipperAddress: a?.address ?? "" }));
                       }}
-                      className={sel()}
-                    >
+                      className={sel()}>
                       <option value="">Select</option>
-                      {SHIPPER_OPTIONS.map((s) => (
-                        <option key={s.name} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
+                      {allAddresses.map(a => <option key={a.id} value={String(a.id)}>{a.label}</option>)}
                     </select>
                   </div>
                 </div>
-
                 <div className="flex items-start gap-4">
-                  <Label htmlFor="shipperAddress" className="text-sm font-semibold w-24 shrink-0 pt-2">
-                    Address
-                  </Label>
-                  <Textarea
-                    id="shipperAddress"
-                    name="shipperAddress"
-                    value={formData.shipperAddress}
-                    onChange={handleChange}
-                    rows={4}
-                    className="flex-1 resize-y"
-                  />
+                  <Label htmlFor="shipperAddress" className="text-sm font-semibold w-24 shrink-0 pt-2">Address</Label>
+                  <Textarea id="shipperAddress" name="shipperAddress" value={formData.shipperAddress} onChange={handleChange} rows={4} className="flex-1 resize-y" />
                 </div>
               </div>
             </div>
@@ -1187,50 +1261,24 @@ const NewOperation = () => {
               </div>
               <div className="p-5 space-y-4">
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="carrier" className="text-sm font-semibold w-24 shrink-0">
-                    Carrier<span className="text-destructive mr-1"> *</span>
-                  </Label>
+                  <Label htmlFor="carrier" className="text-sm font-semibold w-24 shrink-0">Carrier<span className="text-destructive mr-1"> *</span></Label>
                   <div className="flex-1">
-                    <select
-                      id="carrier"
-                      name="carrier"
-                      value={formData.carrier}
+                    <select id="carrier" name="carrier" value={formData.carrierBranch}
                       onChange={(e) => {
-                        const carrierName = e.target.value;
-                        const carrierData = CARRIER_OPTIONS.find((c) => c.name === carrierName);
-                        setFormData((prev) => ({
-                          ...prev,
-                          carrier: carrierName,
-                          carrierBranch: "",
-                          carrierAddress: carrierData?.address ?? "",
-                        }));
-                        if (errors.carrier) setErrors((prev) => ({ ...prev, carrier: "" }));
+                        const a = allAddresses.find(x => String(x.id) === e.target.value);
+                        setFormData(prev => ({ ...prev, carrierBranch: e.target.value, carrierAddress: a?.address ?? "" }));
+                        if (errors.carrier) setErrors(prev => ({ ...prev, carrier: "" }));
                       }}
-                      className={sel(errors.carrier)}
-                    >
+                      className={sel(errors.carrier)}>
                       <option value="">Select</option>
-                      {CARRIER_OPTIONS.map((c) => (
-                        <option key={c.name} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
+                      {allAddresses.map(a => <option key={a.id} value={String(a.id)}>{a.label}</option>)}
                     </select>
                     {errors.carrier && <p className="text-xs text-destructive mt-1">{errors.carrier}</p>}
                   </div>
                 </div>
-
                 <div className="flex items-start gap-4">
-                  <Label htmlFor="carrierAddress" className="text-sm font-semibold w-24 shrink-0 pt-2">
-                    Address
-                  </Label>
-                  <Textarea
-                    id="carrierAddress"
-                    name="carrierAddress"
-                    value={formData.carrierAddress}
-                    onChange={handleChange}
-                    rows={4}
-                    className="flex-1 resize-y"
-                  />
+                  <Label htmlFor="carrierAddress" className="text-sm font-semibold w-24 shrink-0 pt-2">Address</Label>
+                  <Textarea id="carrierAddress" name="carrierAddress" value={formData.carrierAddress} onChange={handleChange} rows={4} className="flex-1 resize-y" />
                 </div>
               </div>
             </div>
@@ -1242,48 +1290,22 @@ const NewOperation = () => {
               </div>
               <div className="p-5 space-y-4">
                 <div className="flex items-center gap-4">
-                  <Label htmlFor="consignee" className="text-sm font-semibold w-24 shrink-0">
-                    Consignee
-                  </Label>
+                  <Label htmlFor="consignee" className="text-sm font-semibold w-24 shrink-0">Consignee</Label>
                   <div className="flex-1">
-                    <select
-                      id="consignee"
-                      name="consignee"
-                      value={formData.consignee}
+                    <select id="consignee" name="consignee" value={formData.consigneeBranch}
                       onChange={(e) => {
-                        const consigneeName = e.target.value;
-                        const consigneeData = CONSIGNEE_OPTIONS.find((c) => c.name === consigneeName);
-                        setFormData((prev) => ({
-                          ...prev,
-                          consignee: consigneeName,
-                          consigneeBranch: "",
-                          consigneeAddress: consigneeData?.address ?? "",
-                        }));
+                        const a = allAddresses.find(x => String(x.id) === e.target.value);
+                        setFormData(prev => ({ ...prev, consigneeBranch: e.target.value, consigneeAddress: a?.address ?? "" }));
                       }}
-                      className={sel()}
-                    >
+                      className={sel()}>
                       <option value="">Select</option>
-                      {CONSIGNEE_OPTIONS.map((c) => (
-                        <option key={c.name} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
+                      {allAddresses.map(a => <option key={a.id} value={String(a.id)}>{a.label}</option>)}
                     </select>
                   </div>
                 </div>
-
                 <div className="flex items-start gap-4">
-                  <Label htmlFor="consigneeAddress" className="text-sm font-semibold w-24 shrink-0 pt-2">
-                    Address
-                  </Label>
-                  <Textarea
-                    id="consigneeAddress"
-                    name="consigneeAddress"
-                    value={formData.consigneeAddress}
-                    onChange={handleChange}
-                    rows={4}
-                    className="flex-1 resize-y"
-                  />
+                  <Label htmlFor="consigneeAddress" className="text-sm font-semibold w-24 shrink-0 pt-2">Address</Label>
+                  <Textarea id="consigneeAddress" name="consigneeAddress" value={formData.consigneeAddress} onChange={handleChange} rows={4} className="flex-1 resize-y" />
                 </div>
               </div>
             </div>
@@ -1298,7 +1320,7 @@ const NewOperation = () => {
           <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">Add New Subledger From Job Creation</h3>
+              <h3 className="text-lg font-bold text-primary">Add New Party ob Creation</h3>
               <button onClick={closeSubledger} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             {/* Body */}
@@ -1322,7 +1344,7 @@ const NewOperation = () => {
                   </select>
                 </div>
               </div>
-              {/* Row 2: Actual Name | Website */}
+              {/* Row 2: Actual Name | Website | Branch */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Actual Name <span className="text-destructive">*</span></Label>
@@ -1333,7 +1355,10 @@ const NewOperation = () => {
                   <Label className="text-sm font-medium">Website</Label>
                   <Input name="website" value={subledger.website} onChange={handleSubledgerChange} />
                 </div>
-                <div />
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Branch</Label>
+                  <Input name="branchId" value={subledger.branchId} onChange={handleSubledgerChange} />
+                </div>
               </div>
               {/* Row 3: Customer Logo | User Name | Password */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1390,6 +1415,12 @@ const NewOperation = () => {
                   <Input name="iataCode" value={subledger.iataCode} onChange={handleSubledgerChange} />
                 </div>
                 <div />
+              </div>
+              {/* Address */}
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">Address</Label>
+                <textarea name="address" value={subledger.address} onChange={handleSubledgerChange} rows={3}
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-y" />
               </div>
               {/* Row 6: Bond | Expire Bond Date | Status */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

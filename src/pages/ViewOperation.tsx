@@ -38,7 +38,7 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { useOperations } from "./OperationsContext";
-import { getOperationApi, createOperationApi, getOperationsApi, getRiderContainersApi, createRiderContainerApi, updateRiderContainerApi, deleteRiderContainerApi, getSubledgersApi, createSubledgerApi, updateSubledgerApi, deleteSubledgerApi, getDimensionsApi, createDimensionApi, updateDimensionApi, deleteDimensionApi, getCargoDetailsApi, createCargoDetailApi, updateCargoDetailApi, deleteCargoDetailApi, getCostingsApi, createCostingApi, updateCostingApi, deleteCostingApi, getShippingBillsApi, createShippingBillApi, updateShippingBillApi, deleteShippingBillApi, getHouseJobsApi, createHouseJobApi, updateHouseJobApi, deleteHouseJobApi, getRoutingsApi, createRoutingApi, updateRoutingApi, deleteRoutingApi } from "@/services/api";
+import { getOperationApi, createOperationApi, getOperationsApi, getRiderContainersApi, createRiderContainerApi, updateRiderContainerApi, deleteRiderContainerApi, getSubledgersApi, createSubledgerApi, updateSubledgerApi, deleteSubledgerApi, getDimensionsApi, createDimensionApi, updateDimensionApi, deleteDimensionApi, getCargoDetailsApi, createCargoDetailApi, updateCargoDetailApi, deleteCargoDetailApi, getCostingsApi, createCostingApi, updateCostingApi, deleteCostingApi, getShippingBillsApi, createShippingBillApi, updateShippingBillApi, deleteShippingBillApi, getHouseJobsApi, createHouseJobApi, updateHouseJobApi, deleteHouseJobApi, getRoutingsApi, createRoutingApi, updateRoutingApi, deleteRoutingApi, getMasterCompaniesApi, getMasterCompanyAddressesApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 const CARRIER_OPTIONS = ["TEAMGLOBAL LOGISTICS PVT LTD", "Maersk Line", "Emirates SkyCargo", "ONE Line"];
@@ -845,11 +845,47 @@ const ViewOperation = () => {
   const initHouse = {
     placeOfReceipt: "", placeOfDelivery: "", incoTerm: "",
     hawbNo: "", hawbDate: "", hawbMarkNo: "", freightTerm: "Collect", notes: "",
-    customer: "", customerAddress: "", shipper: "", shipperAddress: "",
+    customer: "", customer_id: "", customerAddress: "", shipper: "", shipperAddress: "",
     consignee: "", consigneeAddress: "", notify1: "", notify1Address: "",
   };
   const [houseForm, setHouseForm] = useState(initHouse);
   const [houseErrors, setHouseErrors] = useState<Partial<Record<keyof typeof initHouse, string>>>({});
+  const [houseCompanies, setHouseCompanies] = useState<{ id: number; name: string }[]>([]);
+  const [houseCompaniesLoading, setHouseCompaniesLoading] = useState(false);
+  const [houseAddresses, setHouseAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
+  const [houseAddressesLoading, setHouseAddressesLoading] = useState(false);
+
+  const loadHouseCompanies = async () => {
+    if (houseCompanies.length > 0) return;
+    setHouseCompaniesLoading(true);
+    try {
+      const res = await getMasterCompaniesApi();
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setHouseCompanies(raw.filter((c: any) => c.status === 1 || c.status === '1' || c.status === 'active').map((c: any) => ({ id: c.id, name: c.name })));
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load companies.', variant: 'destructive' });
+    } finally {
+      setHouseCompaniesLoading(false);
+    }
+  };
+
+  const loadHouseAddresses = async (companyId: number) => {
+    setHouseAddressesLoading(true);
+    setHouseAddresses([]);
+    try {
+      const res = await getMasterCompanyAddressesApi(companyId);
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setHouseAddresses(raw.map((r: any) => ({
+        id: r.id,
+        label: [r.address_type, r.city, r.address].filter(Boolean).join(' - '),
+        address: [r.address, r.city, r.state, r.country].filter(Boolean).join(', '),
+      })));
+    } catch {
+      setHouseAddresses([]);
+    } finally {
+      setHouseAddressesLoading(false);
+    }
+  };
 
   const loadHouseJobs = async () => {
     if (!id) return;
@@ -868,67 +904,21 @@ const ViewOperation = () => {
     if (houseErrors[name as keyof typeof initHouse]) setHouseErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
-  const HOUSE_STATIC_CUSTOMERS = [
-    { name: 'ARCHEAN INDUSTRIES PRIVATE LIMITED', address: 'NO.2, NORTH CRESCENT ROAD, T.NAGAR, CHENNAI 600017 INDIA' },
-    { name: 'TEXELQ ENGINEERING INDIA PVT LTD', address: 'NO.77/2, KUTHAMPAKKAM ROAD, MEVVALURKKUPPAM, SRIPERUMBUDUR, KANCHIPURAM 602105' },
-    { name: 'TEXGRAM INC DBA INOTEX', address: '123, BUSINESS PARK, NEW YORK, USA' },
-    { name: 'ABC Logistics', address: '123, Nariman Point, Mumbai' },
-    { name: 'TEAMGLOBAL LOGISTICS PVT LTD', address: 'REFLECTIONS BUILDING.2, LEITH CASTLE CENTER STREET, SANTHOME HIGH RD, CHENNAI' },
-  ];
-
-  const HOUSE_STATIC_SHIPPERS = [
-    { name: 'TEAMGLOBAL LOGISTICS PVT LTD', address: 'REFLECTIONS BUILDING.2, LEITH CASTLE CENTER STREET, SANTHOME HIGH RD, CHENNAI' },
-    { name: 'XYZ Exporters', address: '456, Ring Road, Surat' },
-    { name: 'Maersk Line', address: 'Maersk House, 100 Harbour Road, Mumbai' },
-    { name: 'Emirates SkyCargo', address: 'Emirates Group HQ, Dubai, UAE' },
-    { name: 'ONE Line', address: 'Ocean Network Express, Singapore' },
-  ];
-
-  const HOUSE_STATIC_CONSIGNEES = [
-    { name: 'ARCHEAN INDUSTRIES PRIVATE LIMITED', address: 'NO.2, NORTH CRESCENT ROAD, T.NAGAR, CHENNAI 600017 INDIA' },
-    { name: 'TEXELQ ENGINEERING INDIA PVT LTD', address: 'NO.77/2, KUTHAMPAKKAM ROAD, MEVVALURKKUPPAM, SRIPERUMBUDUR, KANCHIPURAM 602105' },
-    { name: 'DEF Imports', address: '789, 5th Avenue, New York' },
-    { name: 'ABC Logistics', address: '123, Nariman Point, Mumbai' },
-  ];
-
-  const HOUSE_STATIC_NOTIFY = [
-    { name: 'ARCHEAN INDUSTRIES PRIVATE LIMITED', address: 'NO.2, NORTH CRESCENT ROAD, T.NAGAR, CHENNAI 600017 INDIA' },
-    { name: 'TEXELQ ENGINEERING INDIA PVT LTD', address: 'NO.77/2, KUTHAMPAKKAM ROAD, MEVVALURKKUPPAM, SRIPERUMBUDUR, KANCHIPURAM 602105' },
-    { name: 'GHI Notify', address: '321, Park Street, Delhi' },
-    { name: 'TEAMGLOBAL LOGISTICS PVT LTD', address: 'REFLECTIONS BUILDING.2, LEITH CASTLE CENTER STREET, SANTHOME HIGH RD, CHENNAI' },
-  ];
-
-  const houseSelectChange = (field: string, addrField: string, staticList: {name: string; address: string}[]) =>
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const val = e.target.value;
-      const found = staticList.find(s => s.name === val) ?? slList.find((s: any) => (s.customer_name ?? '') === val);
-      setHouseForm(prev => ({ ...prev, [field]: val, [addrField]: found?.address ?? prev[addrField as keyof typeof prev] as string }));
-    };
-
-  // Deduplicated API list: unique customer_name, case-insensitive dedup against a static list
-  const houseApiOptions = (staticList: {name: string}[]) => {
-    const seen = new Set<string>();
-    return slList.filter((s: any) => {
-      const name = (s.customer_name ?? '').trim();
-      if (!name) return false;
-      const key = name.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return !staticList.some(st => st.name.toLowerCase() === key);
-    });
-  };
-
   const openHouseCreate = () => {
     setHouseEditId(null);
     setHouseForm(initHouse);
     setHouseErrors({});
-    if (slList.length === 0) loadSubledgers();
+    setHouseAddresses([]);
+    loadHouseCompanies();
     setHouseOpen(true);
   };
 
   const openHouseEdit = (row: any) => {
     setHouseEditId(row.id);
-    if (slList.length === 0) loadSubledgers();
+    loadHouseCompanies();
+    const customerId = row.customer_id ? String(row.customer_id) : '';
+    if (customerId) loadHouseAddresses(Number(customerId));
+    else setHouseAddresses([]);
     setHouseForm({
       placeOfReceipt:  row.place_of_receipt ?? '',
       placeOfDelivery: row.place_of_delivery ?? '',
@@ -939,6 +929,7 @@ const ViewOperation = () => {
       freightTerm:     row.freight_term ?? 'Collect',
       notes:           row.notes ?? '',
       customer:        row.customer ?? '',
+      customer_id:     customerId,
       customerAddress: row.customer_address ?? '',
       shipper:         row.shipper ?? '',
       shipperAddress:  row.shipper_address ?? '',
@@ -963,7 +954,7 @@ const ViewOperation = () => {
     if (!houseForm.placeOfReceipt.trim()) errs.placeOfReceipt = 'Place of Receipt is required.';
     if (!houseForm.placeOfDelivery.trim()) errs.placeOfDelivery = 'Place of Delivery is required.';
     if (!houseForm.incoTerm) errs.incoTerm = 'INCO Term is required.';
-    if (!houseForm.customer.trim()) errs.customer = 'Customer is required.';
+    if (!houseForm.customer_id) errs.customer = 'Customer is required.';
     if (Object.keys(errs).length) { setHouseErrors(errs); return; }
     setHouseSaving(true);
     try {
@@ -977,6 +968,7 @@ const ViewOperation = () => {
         hawb_mark_no:     houseForm.hawbMarkNo || null,
         freight_term:     houseForm.freightTerm || null,
         notes:            houseForm.notes || null,
+        customer_id:      Number(houseForm.customer_id),
         customer:         houseForm.customer,
         customer_address: houseForm.customerAddress || null,
         shipper:          houseForm.shipper || null,
@@ -1598,6 +1590,27 @@ const ViewOperation = () => {
   const flightLabel = isVessel ? "Vessel Name" : "Flight Name";
   const numberLabel = ["Land Import", "Land Export"].includes(op.document ?? '') ? "Vessel Number" : isVessel ? "Voyage Number" : "Flight Number";
 
+  const HOUSE_STATIC_CUSTOMERS: { name: string; address: string }[] = [];
+  const HOUSE_STATIC_SHIPPERS: { name: string; address: string }[] = [];
+  const HOUSE_STATIC_CONSIGNEES: { name: string; address: string }[] = [];
+  const HOUSE_STATIC_NOTIFY: { name: string; address: string }[] = [];
+
+  const houseApiOptions = (statics: { name: string }[]) =>
+    slList.filter((s: any) => !statics.some(st => st.name === (s.customer_name ?? '')));
+
+  const houseSelectChange =
+    (field: keyof typeof initHouse, addressField: keyof typeof initHouse, statics: { name: string; address: string }[]) =>
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const val = e.target.value;
+      const fromStatic = statics.find(s => s.name === val);
+      const fromApi = slList.find((s: any) => (s.customer_name ?? '') === val);
+      setHouseForm(prev => ({
+        ...prev,
+        [field]: val,
+        [addressField]: fromApi?.address ?? fromStatic?.address ?? prev[addressField],
+      }));
+    };
+
   return (
     <div className="space-y-4">
       {/* Breadcrumb + header */}
@@ -2085,7 +2098,7 @@ const ViewOperation = () => {
               className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold"
               onClick={openSlCreate}
             >
-              Add New Subledgers
+              Add New Party
             </Button>
           </div>
           <div className="p-4">
@@ -2932,7 +2945,7 @@ const ViewOperation = () => {
           <div className="absolute inset-0 bg-black/50" onClick={closeSlModal} />
           <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
-              <h3 className="text-lg font-bold text-primary">{slEditId ? 'Edit Subledger' : 'Add New Subledger'}</h3>
+              <h3 className="text-lg font-bold text-primary">{slEditId ? 'Edit Party' : 'Add New Party'}</h3>
               <button onClick={closeSlModal} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-5 space-y-4 text-xs">
