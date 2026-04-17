@@ -858,6 +858,25 @@ const ViewOperation = () => {
   const [houseCompaniesLoading, setHouseCompaniesLoading] = useState(false);
   const [houseAddresses, setHouseAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
   const [houseAddressesLoading, setHouseAddressesLoading] = useState(false);
+  const [shipperAddresses, setShipperAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
+  const [consigneeAddresses, setConsigneeAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
+  const [notify1Addresses, setNotify1Addresses] = useState<{ id: number; label: string; address: string }[]>([]);
+
+  const fetchEntityAddresses = async (companyId: number, setAddresses: React.Dispatch<React.SetStateAction<any[]>>) => {
+    setAddresses([]);
+    if (!companyId) return;
+    try {
+      const res = await getMasterCompanyAddressesApi(companyId);
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setAddresses(raw.map((r: any) => ({
+        id: r.id,
+        label: [r.address_type, r.city, r.address].filter(Boolean).join(' - '),
+        address: [r.address, r.city, r.state, r.country].filter(Boolean).join(', '),
+      })));
+    } catch {
+      setAddresses([]);
+    }
+  };
 
   const loadHouseCompanies = async () => {
     if (houseCompanies.length > 0) return;
@@ -913,6 +932,9 @@ const ViewOperation = () => {
     setHouseForm(initHouse);
     setHouseErrors({});
     setHouseAddresses([]);
+    setShipperAddresses([]);
+    setConsigneeAddresses([]);
+    setNotify1Addresses([]);
     loadHouseCompanies();
     setHouseOpen(true);
   };
@@ -923,6 +945,9 @@ const ViewOperation = () => {
     const customerId = row.customer_id ? String(row.customer_id) : '';
     if (customerId) loadHouseAddresses(Number(customerId));
     else setHouseAddresses([]);
+    setShipperAddresses([]);
+    setConsigneeAddresses([]);
+    setNotify1Addresses([]);
     setHouseForm({
       placeOfReceipt:  row.place_of_receipt ?? '',
       placeOfDelivery: row.place_of_delivery ?? '',
@@ -1372,7 +1397,7 @@ const ViewOperation = () => {
   const TAX_PCTS = ["0", "5", "12", "18", "28"];
   const DR_CR_SALE = ["Cr (+)", "Dr (-)"];
   const DR_CR_COST = ["Dr (+)", "Cr (-)"];
-  const CUSTOMERS = ["ABC Logistics", "ARCHEAN INDUSTRIES PRIVATE LIMITED", "TEXELQ ENGINEERING INDIA PVT LTD", "TEXGRAM INC DBA INOTEX"];
+  const [costCustomers, setCostCustomers] = useState<{ id: number; name: string }[]>([]);
   const VENDORS = ["Maersk Line", "TEAMGLOBAL LOGISTICS PVT LTD", "Emirates SkyCargo", "ONE Line"];
   const [costErrors, setCostErrors] = useState<Partial<Record<keyof typeof initCost, string>>>({});
   const costChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -1417,9 +1442,23 @@ const ViewOperation = () => {
     if (activeTab === 'Costing' || activeTab === 'Show All') loadCostings();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+  const loadCostCustomers = async () => {
+    if (costCustomers.length > 0) return;
+    try {
+      const res = await getMasterCompaniesApi();
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      setCostCustomers(
+        raw
+          .filter((c: any) => c.status === 1 || c.status === '1' || c.status === 'active')
+          .map((c: any) => ({ id: c.id, name: c.name }))
+      );
+    } catch { /* silent */ }
+  };
+
   const openCostCreate = () => {
     setCostDeleteId(null);
     setCostEditId(null);
+    loadCostCustomers();
     const nextSno = costList.length > 0
       ? Math.max(...costList.map((c: any) => Number(c.id) || 0)) + 1
       : 1;
@@ -1427,6 +1466,7 @@ const ViewOperation = () => {
     setCostOpen(true);
   };
   const openCostEdit = (item: any) => {
+    loadCostCustomers();
     setCostEditId(item.id);
     setCostForm({
       sNo: String(item.id ?? '10'), charge: item.charge ?? '', freightPpCc: item.freight_pp_cc ?? '',
@@ -2878,7 +2918,14 @@ const ViewOperation = () => {
                       {['No','Yes'].map(o => <option key={o}>{o}</option>)}
                     </select>
                   </div>
-                  <div className="flex flex-col gap-1"><label className="font-semibold">Customer</label>{cs('saleCustomer', CUSTOMERS)}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Customer</label>
+                    <select name="saleCustomer" value={costForm.saleCustomer} onChange={costChange}
+                      className={`w-full px-2 py-1 border rounded text-xs bg-background ${costErrors.saleCustomer ? 'border-red-500' : 'border-input'}`}>
+                      <option value="">--Select--</option>
+                      {costCustomers.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
+                    {costErrors.saleCustomer && <p className="text-xs text-red-500 mt-0.5">? {costErrors.saleCustomer}</p>}
+                  </div>
                   <div className="flex flex-col gap-1"><label className="font-semibold">Dr/Cr</label>{cs('saleDrCr', DR_CR_SALE, '')}</div>
                   <div className="flex flex-col gap-1"><label className="font-semibold">Currency</label>{cs('saleCurrency', CURRENCIES, '')}</div>
                   <div className="flex flex-col gap-1"><label className="font-semibold">Ex Rate</label>{ci('saleExRate')}</div>
@@ -3963,34 +4010,50 @@ const ViewOperation = () => {
                           value={houseForm.customer}
                           onChange={(e) => {
                             const val = e.target.value;
-                            const fromApi = slList.find((s: any) => (s.customer_name ?? '') === val);
-                            const fromStatic = HOUSE_STATIC_CUSTOMERS.find(s => s.name === val);
+                            const comp = houseCompanies.find(c => c.name === val);
                             setHouseForm(prev => ({
                               ...prev,
                               customer: val,
-                              customerAddress: fromApi?.address ?? fromStatic?.address ?? prev.customerAddress,
+                              customer_id: comp ? String(comp.id) : '',
                             }));
+                            if (comp) loadHouseAddresses(comp.id);
+                            else setHouseAddresses([]);
                             if (houseErrors.customer) setHouseErrors(prev => ({ ...prev, customer: '' }));
                           }}
                           className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${houseErrors.customer ? 'border-destructive' : 'border-input'}`}
                         >
                           <option value="">--Select Customer--</option>
-                          {/* Static options */}
-                          {HOUSE_STATIC_CUSTOMERS.map(s => (
-                            <option key={`static-${s.name}`} value={s.name}>{s.name}</option>
-                          ))}
-                          {/* API options (exclude duplicates) */}
-                          {houseApiOptions(HOUSE_STATIC_CUSTOMERS).map((s: any) => (
-                            <option key={`api-${s.id}`} value={s.customer_name ?? ''}>{s.customer_name ?? ''}</option>
-                          ))}
+                          {houseCompaniesLoading ? (
+                            <option value="" disabled>Loading...</option>
+                          ) : (
+                            houseCompanies.map(c => (
+                              <option key={c.id} value={c.name}>{c.name}</option>
+                            ))
+                          )}
                         </select>
                         {houseErrors.customer && <p className="text-xs text-destructive mt-0.5">? {houseErrors.customer}</p>}
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
-                      <textarea name="customerAddress" value={houseForm.customerAddress} onChange={houseChange} rows={3}
-                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                      <div className="flex flex-col gap-2 flex-1">
+                        {houseAddresses.length > 0 && (
+                          <select
+                            className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
+                            onChange={(e) => {
+                              const addr = houseAddresses.find(a => a.id === Number(e.target.value));
+                              if (addr) setHouseForm(prev => ({ ...prev, customerAddress: addr.address }));
+                            }}
+                          >
+                            <option value="">--Select Preset Address--</option>
+                            {houseAddresses.map((a) => (
+                              <option key={a.id} value={a.id}>{a.label}</option>
+                            ))}
+                          </select>
+                        )}
+                        <textarea name="customerAddress" value={houseForm.customerAddress} onChange={houseChange} rows={3}
+                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4002,22 +4065,45 @@ const ViewOperation = () => {
                       <select
                         name="shipper"
                         value={houseForm.shipper}
-                        onChange={houseSelectChange('shipper', 'shipperAddress', HOUSE_STATIC_SHIPPERS)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const comp = houseCompanies.find(c => c.name === val);
+                          setHouseForm(prev => ({ ...prev, shipper: val }));
+                          if (comp) fetchEntityAddresses(comp.id, setShipperAddresses);
+                          else setShipperAddresses([]);
+                        }}
                         className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
                       >
                         <option value="">--Select Shipper--</option>
-                        {HOUSE_STATIC_SHIPPERS.map(s => (
-                          <option key={s.name} value={s.name}>{s.name}</option>
-                        ))}
-                        {houseApiOptions(HOUSE_STATIC_SHIPPERS).map((s: any) => (
-                            <option key={`api-s-${s.id}`} value={s.customer_name ?? ''}>{s.customer_name ?? ''}</option>
-                          ))}
+                        {houseCompaniesLoading ? (
+                          <option value="" disabled>Loading...</option>
+                        ) : (
+                          houseCompanies.map(c => (
+                            <option key={c.id} value={c.name}>{c.name}</option>
+                          ))
+                        )}
                       </select>
                     </div>
                     <div className="flex items-start gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
-                      <textarea name="shipperAddress" value={houseForm.shipperAddress} onChange={houseChange} rows={3}
-                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                      <div className="flex flex-col gap-2 flex-1">
+                        {shipperAddresses.length > 0 && (
+                          <select
+                            className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
+                            onChange={(e) => {
+                              const addr = shipperAddresses.find(a => a.id === Number(e.target.value));
+                              if (addr) setHouseForm(prev => ({ ...prev, shipperAddress: addr.address }));
+                            }}
+                          >
+                            <option value="">--Select Preset Address--</option>
+                            {shipperAddresses.map((a) => (
+                              <option key={a.id} value={a.id}>{a.label}</option>
+                            ))}
+                          </select>
+                        )}
+                        <textarea name="shipperAddress" value={houseForm.shipperAddress} onChange={houseChange} rows={3}
+                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4033,22 +4119,45 @@ const ViewOperation = () => {
                       <select
                         name="consignee"
                         value={houseForm.consignee}
-                        onChange={houseSelectChange('consignee', 'consigneeAddress', HOUSE_STATIC_CONSIGNEES)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const comp = houseCompanies.find(c => c.name === val);
+                          setHouseForm(prev => ({ ...prev, consignee: val }));
+                          if (comp) fetchEntityAddresses(comp.id, setConsigneeAddresses);
+                          else setConsigneeAddresses([]);
+                        }}
                         className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
                       >
                         <option value="">--Select Consignee--</option>
-                        {HOUSE_STATIC_CONSIGNEES.map(s => (
-                          <option key={s.name} value={s.name}>{s.name}</option>
-                        ))}
-                        {houseApiOptions(HOUSE_STATIC_CONSIGNEES).map((s: any) => (
-                            <option key={`api-c-${s.id}`} value={s.customer_name ?? ''}>{s.customer_name ?? ''}</option>
-                          ))}
+                        {houseCompaniesLoading ? (
+                          <option value="" disabled>Loading...</option>
+                        ) : (
+                          houseCompanies.map(c => (
+                            <option key={c.id} value={c.name}>{c.name}</option>
+                          ))
+                        )}
                       </select>
                     </div>
                     <div className="flex items-start gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
-                      <textarea name="consigneeAddress" value={houseForm.consigneeAddress} onChange={houseChange} rows={3}
-                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                      <div className="flex flex-col gap-2 flex-1">
+                        {consigneeAddresses.length > 0 && (
+                          <select
+                            className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
+                            onChange={(e) => {
+                              const addr = consigneeAddresses.find(a => a.id === Number(e.target.value));
+                              if (addr) setHouseForm(prev => ({ ...prev, consigneeAddress: addr.address }));
+                            }}
+                          >
+                            <option value="">--Select Preset Address--</option>
+                            {consigneeAddresses.map((a) => (
+                              <option key={a.id} value={a.id}>{a.label}</option>
+                            ))}
+                          </select>
+                        )}
+                        <textarea name="consigneeAddress" value={houseForm.consigneeAddress} onChange={houseChange} rows={3}
+                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4060,22 +4169,45 @@ const ViewOperation = () => {
                       <select
                         name="notify1"
                         value={houseForm.notify1}
-                        onChange={houseSelectChange('notify1', 'notify1Address', HOUSE_STATIC_NOTIFY)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const comp = houseCompanies.find(c => c.name === val);
+                          setHouseForm(prev => ({ ...prev, notify1: val }));
+                          if (comp) fetchEntityAddresses(comp.id, setNotify1Addresses);
+                          else setNotify1Addresses([]);
+                        }}
                         className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
                       >
                         <option value="">--Select Notify1--</option>
-                        {HOUSE_STATIC_NOTIFY.map(s => (
-                          <option key={s.name} value={s.name}>{s.name}</option>
-                        ))}
-                        {houseApiOptions(HOUSE_STATIC_NOTIFY).map((s: any) => (
-                            <option key={`api-n-${s.id}`} value={s.customer_name ?? ''}>{s.customer_name ?? ''}</option>
-                          ))}
+                        {houseCompaniesLoading ? (
+                          <option value="" disabled>Loading...</option>
+                        ) : (
+                          houseCompanies.map(c => (
+                            <option key={c.id} value={c.name}>{c.name}</option>
+                          ))
+                        )}
                       </select>
                     </div>
                     <div className="flex items-start gap-2">
                       <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
-                      <textarea name="notify1Address" value={houseForm.notify1Address} onChange={houseChange} rows={3}
-                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                      <div className="flex flex-col gap-2 flex-1">
+                        {notify1Addresses.length > 0 && (
+                          <select
+                            className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
+                            onChange={(e) => {
+                              const addr = notify1Addresses.find(a => a.id === Number(e.target.value));
+                              if (addr) setHouseForm(prev => ({ ...prev, notify1Address: addr.address }));
+                            }}
+                          >
+                            <option value="">--Select Preset Address--</option>
+                            {notify1Addresses.map((a) => (
+                              <option key={a.id} value={a.id}>{a.label}</option>
+                            ))}
+                          </select>
+                        )}
+                        <textarea name="notify1Address" value={houseForm.notify1Address} onChange={houseChange} rows={3}
+                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                      </div>
                     </div>
                   </div>
                 </div>
