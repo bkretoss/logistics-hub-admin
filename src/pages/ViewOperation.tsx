@@ -4030,7 +4030,7 @@ const ViewOperation = () => {
                         "Shipper Address",
                         "Consignee Name",
                         "Consignee Address",
-                        "Notify Name",
+                        // "Notify Name",
                         "Notify Address",
                         "BL No",
                         "Carrier SCAC Code",
@@ -4071,9 +4071,9 @@ const ViewOperation = () => {
                       <td className="px-3 py-2 text-xs text-foreground">{op.shipper_address || "-"}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.consignee || "-"}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{op.consignee_address || "-"}</td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
+                      {/* <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
                         {Array.isArray(op.notify_list) ? (op.notify_list[0]?.name || op.notify_list.map((n: any) => n?.name || n).filter(Boolean).join(", ") || "-") : (op.notify_list || "-")}
-                      </td>
+                      </td> */}
                       <td className="px-3 py-2 text-xs text-foreground">
                         {Array.isArray(op.notify_list) ? (op.notify_list[0]?.branch || op.notify_list[0]?.address || "-") : "-"}
                       </td>
