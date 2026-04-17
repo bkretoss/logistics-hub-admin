@@ -41,7 +41,7 @@ import { useOperations } from "./OperationsContext";
 import WorkingTeamModal from "@/components/operations/WorkingTeamModal";
 import ProfitShareModal from "@/components/operations/ProfitShareModal";
 import StatusUpdateModal from "@/components/operations/StatusUpdateModal";
-import { getOperationApi, createOperationApi, getOperationsApi, getRiderContainersApi, createRiderContainerApi, updateRiderContainerApi, deleteRiderContainerApi, getSubledgersApi, createSubledgerApi, updateSubledgerApi, deleteSubledgerApi, getDimensionsApi, createDimensionApi, updateDimensionApi, deleteDimensionApi, getCargoDetailsApi, createCargoDetailApi, updateCargoDetailApi, deleteCargoDetailApi, getCostingsApi, createCostingApi, updateCostingApi, deleteCostingApi, getShippingBillsApi, createShippingBillApi, updateShippingBillApi, deleteShippingBillApi, getHouseJobsApi, createHouseJobApi, updateHouseJobApi, deleteHouseJobApi, getRoutingsApi, createRoutingApi, updateRoutingApi, deleteRoutingApi, getMasterCompaniesApi, getMasterCompanyAddressesApi, getMasterPortsApi, getMasterPortApi } from "@/services/api";
+import { getOperationApi, createOperationApi, getOperationsApi, getRiderContainersApi, createRiderContainerApi, updateRiderContainerApi, deleteRiderContainerApi, getSubledgersApi, createSubledgerApi, updateSubledgerApi, deleteSubledgerApi, getDimensionsApi, createDimensionApi, updateDimensionApi, deleteDimensionApi, getCargoDetailsApi, createCargoDetailApi, updateCargoDetailApi, deleteCargoDetailApi, getCostingsApi, createCostingApi, updateCostingApi, deleteCostingApi, getShippingBillsApi, createShippingBillApi, updateShippingBillApi, deleteShippingBillApi, getHouseJobsApi, createHouseJobApi, updateHouseJobApi, deleteHouseJobApi, getRoutingsApi, createRoutingApi, updateRoutingApi, deleteRoutingApi, getMasterCompaniesApi, getMasterCompanyAddressesApi, getMasterPortsApi, getMasterPortApi, getMasterPortTerminalsApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 const CARRIER_OPTIONS = ["TEAMGLOBAL LOGISTICS PVT LTD", "Maersk Line", "Emirates SkyCargo", "ONE Line"];
@@ -1050,16 +1050,18 @@ const ViewOperation = () => {
       })
       .catch(() => {});
   }, []);
-  const POSITION_OPTIONS_ROUTING = ["Opened", "In Transit", "Arrived", "Delivered", "Closed"];
+  const POSITION_OPTIONS_ROUTING = ["Opened", "Closed", "Pending"];
   const STATUS_OPTIONS_ROUTING = ["Planned", "Confirmed", "Departed", "Arrived", "Cancelled"];
   const initRouting = {
     sNo: "10",
     fromPortCode: "",
     fromPortName: "",
+    fromTerminalId: "",
     fromEtd: "",
     fromAtd: "",
     toPortCode: "",
     toPortName: "",
+    toTerminalId: "",
     position: "Opened",
     toEta: "",
     toAta: "",
@@ -1071,6 +1073,10 @@ const ViewOperation = () => {
   };
   const [routingForm, setRoutingForm] = useState(initRouting);
   const [routingErrors, setRoutingErrors] = useState<{ fromPortCode?: string; toPortCode?: string }>({});
+  const [fromTerminals, setFromTerminals] = useState<{ id: number; name: string }[]>([]);
+  const [toTerminals, setToTerminals] = useState<{ id: number; name: string }[]>([]);
+  const [fromTerminalsLoading, setFromTerminalsLoading] = useState(false);
+  const [toTerminalsLoading, setToTerminalsLoading] = useState(false);
 
   const loadRoutings = async () => {
     if (!id) return;
@@ -1083,6 +1089,44 @@ const ViewOperation = () => {
     } finally { setRoutingLoading(false); }
   };
 
+  const loadFromTerminals = async (portId: number, matchName?: string) => {
+    setFromTerminalsLoading(true);
+    setFromTerminals([]);
+    try {
+      const res = await getMasterPortTerminalsApi(portId);
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const mapped = raw.map((t: any) => ({ id: t.id, name: t.name }));
+      setFromTerminals(mapped);
+      if (matchName) {
+        const match = mapped.find(t => t.name === matchName);
+        if (match) setRoutingForm(prev => ({ ...prev, fromTerminalId: String(match.id) }));
+      }
+    } catch {
+      setFromTerminals([]);
+    } finally {
+      setFromTerminalsLoading(false);
+    }
+  };
+
+  const loadToTerminals = async (portId: number, matchName?: string) => {
+    setToTerminalsLoading(true);
+    setToTerminals([]);
+    try {
+      const res = await getMasterPortTerminalsApi(portId);
+      const raw: any[] = res.data?.data ?? res.data ?? [];
+      const mapped = raw.map((t: any) => ({ id: t.id, name: t.name }));
+      setToTerminals(mapped);
+      if (matchName) {
+        const match = mapped.find(t => t.name === matchName);
+        if (match) setRoutingForm(prev => ({ ...prev, toTerminalId: String(match.id) }));
+      }
+    } catch {
+      setToTerminals([]);
+    } finally {
+      setToTerminalsLoading(false);
+    }
+  };
+
   const openRoutingCreate = () => {
     setRoutingEditId(null);
     const nextSno = routingList.length > 0
@@ -1090,6 +1134,8 @@ const ViewOperation = () => {
       : 10;
     setRoutingForm({ ...initRouting, sNo: String(nextSno) });
     setRoutingErrors({});
+    setFromTerminals([]);
+    setToTerminals([]);
     setRoutingOpen(true);
   };
 
@@ -1099,10 +1145,12 @@ const ViewOperation = () => {
       sNo:             String(row.s_no ?? '10'),
       fromPortCode:    row.from_port_code ?? '',
       fromPortName:    row.from_port_name ?? '',
+      fromTerminalId:  row.from_terminal_id ? String(row.from_terminal_id) : '',
       fromEtd:         row.from_etd ? toApiDate(row.from_etd) : '',
       fromAtd:         row.from_atd ? toApiDate(row.from_atd) : '',
       toPortCode:      row.to_port_code ?? '',
       toPortName:      row.to_port_name ?? '',
+      toTerminalId:    row.to_terminal_id ? String(row.to_terminal_id) : '',
       position:        row.position ?? 'Opened',
       toEta:           row.to_eta ? toApiDate(row.to_eta) : '',
       toAta:           row.to_ata ? toApiDate(row.to_ata) : '',
@@ -1112,6 +1160,27 @@ const ViewOperation = () => {
       fromEtdFollowup: row.from_etd_followup ? 'Yes' : 'No',
       notes:           row.notes ?? '',
     });
+    // Pre-load terminals for existing port selections
+    const fromPort = portOptions.find(p => p.code === (row.from_port_code ?? ''));
+    const toPort = portOptions.find(p => p.code === (row.to_port_code ?? ''));
+    if (fromPort) {
+      getMasterPortsApi(1, 9999).then(res => {
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        const port = raw.find((p: any) => p.code === row.from_port_code);
+        if (port) loadFromTerminals(port.id, row.from_terminal);
+      }).catch(() => {});
+    } else {
+      setFromTerminals([]);
+    }
+    if (toPort) {
+      getMasterPortsApi(1, 9999).then(res => {
+        const raw: any[] = res.data?.data ?? res.data ?? [];
+        const port = raw.find((p: any) => p.code === row.to_port_code);
+        if (port) loadToTerminals(port.id, row.to_terminal);
+      }).catch(() => {});
+    } else {
+      setToTerminals([]);
+    }
     setRoutingErrors({});
     setRoutingOpen(true);
   };
@@ -1127,6 +1196,30 @@ const ViewOperation = () => {
     const { name, value } = e.target;
     setRoutingForm((prev) => ({ ...prev, [name]: value }));
     if (routingErrors[name as keyof typeof routingErrors]) setRoutingErrors(prev => ({ ...prev, [name]: '' }));
+    
+    // Handle port changes to load terminals
+    if (name === 'fromPortCode') {
+      setRoutingForm(prev => ({ ...prev, fromTerminalId: '' }));
+      setFromTerminals([]);
+      if (value) {
+        getMasterPortsApi(1, 9999).then(res => {
+          const raw: any[] = res.data?.data ?? res.data ?? [];
+          const port = raw.find((p: any) => p.code === value);
+          if (port) loadFromTerminals(port.id);
+        }).catch(() => {});
+      }
+    }
+    if (name === 'toPortCode') {
+      setRoutingForm(prev => ({ ...prev, toTerminalId: '' }));
+      setToTerminals([]);
+      if (value) {
+        getMasterPortsApi(1, 9999).then(res => {
+          const raw: any[] = res.data?.data ?? res.data ?? [];
+          const port = raw.find((p: any) => p.code === value);
+          if (port) loadToTerminals(port.id);
+        }).catch(() => {});
+      }
+    }
   };
 
   const saveRouting = async () => {
@@ -1141,10 +1234,14 @@ const ViewOperation = () => {
         s_no:             routingForm.sNo !== '' ? Number(routingForm.sNo) : null,
         from_port_code:   routingForm.fromPortCode,
         from_port_name:   routingForm.fromPortName || null,
+        from_terminal:    fromTerminals.find(t => String(t.id) === String(routingForm.fromTerminalId))?.name || null,
+        from_terminal_id: routingForm.fromTerminalId ? Number(routingForm.fromTerminalId) : null,
         from_etd:         routingForm.fromEtd || null,
         from_atd:         routingForm.fromAtd || null,
         to_port_code:     routingForm.toPortCode,
         to_port_name:     routingForm.toPortName || null,
+        to_terminal:      toTerminals.find(t => String(t.id) === String(routingForm.toTerminalId))?.name || null,
+        to_terminal_id:   routingForm.toTerminalId ? Number(routingForm.toTerminalId) : null,
         position:         routingForm.position || null,
         to_eta:           routingForm.toEta || null,
         to_ata:           routingForm.toAta || null,
@@ -3260,7 +3357,7 @@ const ViewOperation = () => {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {["#","Line No","From Port Code","From Port Name","From ETD","From ATD","To Port Code","To Port Name","Position","To ETA","To ATA","Airline Code","Flight Name","Status","Followup","Notes","Action"].map(h => (
+                    {["#","Line No","From Port Code","From ETD","From ATD","To Port Code","Position","To ETA","To ATA","Airline Code","Flight Name","Status","Followup","Notes","Action"].map(h => (
                       <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -3273,11 +3370,11 @@ const ViewOperation = () => {
                       <td className="px-3 py-2 text-xs text-muted-foreground">{i + 1}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.s_no}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.from_port_code}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.from_port_name}</td>
+                      {/* <td className="px-3 py-2 text-xs text-foreground">{row.from_port_name}</td> */}
                       <td className="px-3 py-2 text-xs text-foreground">{row.from_etd}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.from_atd}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.to_port_code}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{row.to_port_name}</td>
+                      {/* <td className="px-3 py-2 text-xs text-foreground">{row.to_port_name}</td> */}
                       <td className="px-3 py-2 text-xs text-foreground">{row.position}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.to_eta}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.to_ata}</td>
@@ -3768,10 +3865,10 @@ const ViewOperation = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
+                {/* <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-28 shrink-0">From Port Name</label>
                   <input name="fromPortName" value={routingForm.fromPortName} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
-                </div>
+                </div> */}
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-28 shrink-0"><span className="text-destructive mr-1">*</span>To Port Code</label>
                   <div className="flex-1">
@@ -3782,16 +3879,38 @@ const ViewOperation = () => {
                     {routingErrors.toPortCode && <p className="text-xs text-destructive mt-0.5">? {routingErrors.toPortCode}</p>}
                   </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">To Port Name</label>
-                  <input name="toPortName" value={routingForm.toPortName} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
-                </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-28 shrink-0">Position</label>
                   <select name="position" value={routingForm.position} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
                     {POSITION_OPTIONS_ROUTING.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {/* <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">To Port Name</label>
+                  <input name="toPortName" value={routingForm.toPortName} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
+                </div> */}
+                {/* <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Position</label>
+                  <select name="position" value={routingForm.position} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {POSITION_OPTIONS_ROUTING.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div> */}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">From Terminal</label>
+                  <select name="fromTerminalId" value={routingForm.fromTerminalId} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" disabled={fromTerminalsLoading || !routingForm.fromPortCode}>
+                    <option value="">{fromTerminalsLoading ? 'Loading...' : '--Select--'}</option>
+                    {fromTerminals.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">To Terminal</label>
+                  <select name="toTerminalId" value={routingForm.toTerminalId} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" disabled={toTerminalsLoading || !routingForm.toPortCode}>
+                    <option value="">{toTerminalsLoading ? 'Loading...' : '--Select--'}</option>
+                    {toTerminals.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
                   </select>
                 </div>
               </div>

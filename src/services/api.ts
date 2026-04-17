@@ -228,6 +228,9 @@ export const createMasterPortApi = (data: Record<string, unknown>) => api.post('
 export const updateMasterPortApi = (id: number, data: Record<string, unknown>) => api.put(`/master-port/${id}`, data);
 export const deleteMasterPortApi = (id: number) => api.delete(`/master-port/${id}`);
 
+// Master Port Terminal APIs
+export const getMasterPortTerminalsApi = (portId?: number) => api.get('/master-port-terminal', { params: { per_page: 100, ...(portId ? { port_id: portId } : {}) } });
+
 // Customer Visit APIs
 export const getCustomerVisitsApi   = (page = 1, perPage = 10, search = '') => api.get('/customer-visits', { params: { page, per_page: perPage, ...(search && { search }) } });
 export const getCustomerVisitApi    = (id: number)                            => api.get(`/customer-visits/${id}`);

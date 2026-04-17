@@ -357,6 +357,22 @@ interface SubledgerForm {
   branchName: string;
 }
 
+export interface PartyRow {
+  customer: string;
+  customerBranch: string;
+  customerAddress: string;
+  shipper: string;
+  shipperBranch: string;
+  shipperAddress: string;
+  carrier: string;
+  carrierBranch: string;
+  carrierAddress: string;
+  consignee: string;
+  consigneeBranch: string;
+  consigneeAddress: string;
+  customerAddresses?: { id: number; label: string; address: string }[];
+}
+
 const initialSubledger: SubledgerForm = {
   name: "",
   actualName: "",
@@ -528,6 +544,42 @@ const NewOperation = () => {
           subledgers:       d.subledgers        ?? [],
           status:           d.status            ?? 1,
         });
+        if (d.parties && Array.isArray(d.parties)) {
+           setParties(d.parties.map((p: any) => ({
+             customer: p.customer || "",
+             customerBranch: p.customer_branch || "",
+             customerAddress: p.customer_address || "",
+             shipper: p.shipper || "",
+             shipperBranch: p.shipper_branch || "",
+             shipperAddress: p.shipper_address || "",
+             carrier: p.carrier || "",
+             carrierBranch: p.carrier_branch || "",
+             carrierAddress: p.carrier_address || "",
+             consignee: p.consignee || "",
+             consigneeBranch: p.consignee_branch || "",
+             consigneeAddress: p.consignee_address || "",
+             customerAddresses: [],
+           })));
+
+           d.parties.forEach((pt: any, idx: number) => {
+             if (pt.customer) {
+               getMasterCompaniesApi().then(res => {
+                 const comps = res.data?.data ?? res.data ?? [];
+                 const match = comps.find((c: any) => c.name === pt.customer);
+                 if (match) {
+                   getMasterCompanyAddressesApi(match.id).then(ares => {
+                      const addrs = mapAddresses(ares.data?.data ?? ares.data ?? []);
+                      setParties(curr => {
+                        const next = [...curr];
+                        if (next[idx]) next[idx].customerAddresses = addrs;
+                        return next;
+                      });
+                   });
+                 }
+               });
+             }
+           });
+        }
       })
       .catch(() => toast({ title: 'Error', description: 'Failed to load operation.', variant: 'destructive' }))
       .finally(() => setLoadingEdit(false));
@@ -561,6 +613,44 @@ const NewOperation = () => {
   const [customerAddresses, setCustomerAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
   const [customerAddressesLoading, setCustomerAddressesLoading] = useState(false);
   const [allAddresses, setAllAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
+
+  const [parties, setParties] = useState<PartyRow[]>([]);
+
+  const addPartyRow = () => {
+    setParties([...parties, {
+      customer: "", customerBranch: "", customerAddress: "",
+      shipper: "", shipperBranch: "", shipperAddress: "",
+      carrier: "", carrierBranch: "", carrierAddress: "",
+      consignee: "", consigneeBranch: "", consigneeAddress: "",
+      customerAddresses: []
+    }]);
+  };
+
+  const removePartyRow = (index: number) => {
+    setParties(parties.filter((_, i) => i !== index));
+  };
+
+  const updatePartyRow = (index: number, key: keyof PartyRow, value: any) => {
+    setParties(curr => {
+      const next = [...curr];
+      next[index] = { ...next[index], [key]: value };
+      return next;
+    });
+  };
+
+  const updatePartyCustomer = (index: number, customerName: string) => {
+    updatePartyRow(index, "customer", customerName);
+    updatePartyRow(index, "customerBranch", "");
+    updatePartyRow(index, "customerAddress", "");
+    updatePartyRow(index, "customerAddresses", []);
+    const matched = subledgerCompanies.find(c => c.name === customerName);
+    if (matched) {
+      getMasterCompanyAddressesApi(matched.id).then(res => {
+         const addrs = mapAddresses(res.data?.data ?? res.data ?? []);
+         updatePartyRow(index, "customerAddresses", addrs);
+      });
+    }
+  };
 
   const mapAddresses = (raw: any[]) => raw.map(r => ({
     id: r.id,
@@ -716,6 +806,20 @@ const NewOperation = () => {
         consignee_branch:  formData.consigneeBranch,
         consignee_address: formData.consigneeAddress,
         status:            formData.status,
+        parties: parties.map(p => ({
+          customer: p.customer,
+          customer_branch: Number(p.customerBranch) > 0 ? p.customerBranch : "",
+          customer_address: p.customerAddress,
+          shipper: p.shipper,
+          shipper_branch: p.shipperBranch,
+          shipper_address: p.shipperAddress,
+          carrier: p.carrier || undefined,
+          carrier_branch: p.carrierBranch || undefined,
+          carrier_address: p.carrierAddress || undefined,
+          consignee: p.consignee,
+          consignee_branch: p.consigneeBranch,
+          consignee_address: p.consigneeAddress,
+        })),
       };
       if (isEdit) {
         await updateOperationApi(Number(id), payload);
@@ -846,6 +950,13 @@ const NewOperation = () => {
         const firstBranch = branches[0];
         // Set everything in one batch
         setCustomerAddresses(branches);
+        setAllAddresses((curr) => {
+          const next = [...curr];
+          branches.forEach((b) => {
+            if (!next.some((x) => x.id === b.id)) next.push(b);
+          });
+          return next;
+        });
         setFormData(prev => ({
           ...prev,
           customer: resolvedName,
@@ -1169,10 +1280,16 @@ const NewOperation = () => {
       <div className="material-card material-elevation-1 overflow-hidden">
         <div className="bg-white px-6 py-3 border-b border-border flex items-center justify-between">
           <h2 className="text-lg font-bold text-primary">Parties</h2>
-          <Button type="button" className="material-button text-black gap-2" onClick={() => setSubledgerOpen(true)}>
-            <Plus className="w-4 h-4" />
-            Add New Party
-          </Button>
+          <div className="flex gap-2">
+            <Button type="button" className="material-button text-black gap-2" variant="outline" onClick={addPartyRow}>
+              <Plus className="w-4 h-4" />
+              Add More
+            </Button>
+            <Button type="button" className="material-button text-black gap-2" onClick={() => setSubledgerOpen(true)}>
+              <Plus className="w-4 h-4" />
+              Add New Party
+            </Button>
+          </div>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1350,6 +1467,147 @@ const NewOperation = () => {
               </div>
             </div>
           </div>
+          {parties.map((party, index) => (
+            <div key={index} className="border-t border-border mt-6 pt-6 grid grid-cols-1 md:grid-cols-2 gap-4 relative">
+              <Button 
+                type="button" 
+                variant="destructive" 
+                size="sm" 
+                className="absolute -top-4 right-0"
+                onClick={() => removePartyRow(index)}
+              >
+                Remove
+              </Button>
+              {/* Customer */}
+              <div className="material-card material-elevation-1 overflow-hidden">
+                <div className="bg-[#00BCD4] px-5 py-2.5">
+                  <h3 className="text-white font-semibold text-sm">Customer</h3>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0">Customer</Label>
+                    <div className="flex-1">
+                      <select
+                        value={party.customer}
+                        onChange={(e) => updatePartyCustomer(index, e.target.value)}
+                        className={sel()}
+                      >
+                        <option value="">Select</option>
+                        {subledgerCompanies.map((c) => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0">Branch</Label>
+                    <div className="flex-1">
+                      <select
+                        value={party.customerBranch}
+                        onChange={(e) => {
+                          const selectedAddr = party.customerAddresses?.find(a => String(a.id) === e.target.value);
+                          updatePartyRow(index, "customerBranch", e.target.value);
+                          updatePartyRow(index, "customerAddress", selectedAddr?.address ?? "");
+                        }}
+                        className={sel()}
+                        disabled={!party.customer}
+                      >
+                        <option value="">Select Branch</option>
+                        {party.customerAddresses?.map(a => (
+                          <option key={a.id} value={String(a.id)}>{a.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0 pt-2">Address</Label>
+                    <Textarea value={party.customerAddress} onChange={(e) => updatePartyRow(index, "customerAddress", e.target.value)} rows={4} className="flex-1 resize-y" />
+                  </div>
+                </div>
+              </div>
+              {/* Shipper */}
+              <div className="material-card material-elevation-1 overflow-hidden">
+                <div className="bg-[#26A69A] px-5 py-2.5">
+                  <h3 className="text-white font-semibold text-sm">Shipper</h3>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0">Shipper</Label>
+                    <div className="flex-1">
+                      <select value={party.shipperBranch}
+                        onChange={(e) => {
+                          const a = allAddresses.find(x => String(x.id) === e.target.value);
+                          updatePartyRow(index, "shipperBranch", e.target.value);
+                          updatePartyRow(index, "shipperAddress", a?.address ?? "");
+                        }}
+                        className={sel()}>
+                        <option value="">Select</option>
+                        {allAddresses.map(a => <option key={a.id} value={String(a.id)}>{a.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0 pt-2">Address</Label>
+                    <Textarea value={party.shipperAddress} onChange={(e) => updatePartyRow(index, "shipperAddress", e.target.value)} rows={4} className="flex-1 resize-y" />
+                  </div>
+                </div>
+              </div>
+              {/* Carrier */}
+              <div className="material-card material-elevation-1 overflow-hidden">
+                <div className="bg-[#C8D400] px-5 py-2.5">
+                  <h3 className="text-white font-semibold text-sm">Carrier/Airline</h3>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0">Carrier</Label>
+                    <div className="flex-1">
+                      <select value={party.carrierBranch}
+                        onChange={(e) => {
+                          const a = allAddresses.find(x => String(x.id) === e.target.value);
+                          updatePartyRow(index, "carrierBranch", e.target.value);
+                          updatePartyRow(index, "carrierAddress", a?.address ?? "");
+                        }}
+                        className={sel()}>
+                        <option value="">Select</option>
+                        {allAddresses.map(a => <option key={a.id} value={String(a.id)}>{a.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0 pt-2">Address</Label>
+                    <Textarea value={party.carrierAddress} onChange={(e) => updatePartyRow(index, "carrierAddress", e.target.value)} rows={4} className="flex-1 resize-y" />
+                  </div>
+                </div>
+              </div>
+              {/* Consignee */}
+              <div className="material-card material-elevation-1 overflow-hidden">
+                <div className="bg-[#4CAF50] px-5 py-2.5">
+                  <h3 className="text-white font-semibold text-sm">Consignee</h3>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0">Consignee</Label>
+                    <div className="flex-1">
+                      <select value={party.consigneeBranch}
+                        onChange={(e) => {
+                          const a = allAddresses.find(x => String(x.id) === e.target.value);
+                          updatePartyRow(index, "consigneeBranch", e.target.value);
+                          updatePartyRow(index, "consigneeAddress", a?.address ?? "");
+                        }}
+                        className={sel()}>
+                        <option value="">Select</option>
+                        {allAddresses.map(a => <option key={a.id} value={String(a.id)}>{a.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0 pt-2">Address</Label>
+                    <Textarea value={party.consigneeAddress} onChange={(e) => updatePartyRow(index, "consigneeAddress", e.target.value)} rows={4} className="flex-1 resize-y" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
