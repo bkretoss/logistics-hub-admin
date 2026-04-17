@@ -1712,20 +1712,61 @@ const ViewOperation = () => {
   const [costCustomers, setCostCustomers] = useState<{ id: number; name: string }[]>([]);
   const VENDORS = ["Maersk Line", "TEAMGLOBAL LOGISTICS PVT LTD", "Emirates SkyCargo", "ONE Line"];
   const [costErrors, setCostErrors] = useState<Partial<Record<keyof typeof initCost, string>>>({});
+  const calcTax = (form: typeof initCost, prefix: 'sale' | 'cost') => {
+    const perUnit   = Number(form[`${prefix}PerUnit`  as keyof typeof initCost]) || 0;
+    const exRate    = Number(form[`${prefix}ExRate`   as keyof typeof initCost]) || 1;
+    const taxPct    = Number(form[`${prefix}TaxPct`   as keyof typeof initCost]) || 0;
+    const currency  = form[`${prefix}Currency` as keyof typeof initCost] as string;
+    const noOfUnit  = Number(form.noOfUnit) || 1;
+    const isINR     = currency.startsWith('INR');
+
+    const crcyAmt   = perUnit * noOfUnit;
+    const localAmt  = crcyAmt * exRate;
+    const taxableAmt    = isINR ? localAmt : 0;
+    const nonTaxableAmt = isINR ? 0 : localAmt;
+    const totalTaxAmt   = (localAmt * taxPct) / 100;
+    const cgst = isINR ? totalTaxAmt / 2 : 0;
+    const sgst = isINR ? totalTaxAmt / 2 : 0;
+    const igst = isINR ? 0 : totalTaxAmt;
+
+    const fmt = (v: number) => v > 0 ? v.toFixed(2) : '';
+    return {
+      [`${prefix}CrcyAmount`]:      fmt(crcyAmt),
+      [`${prefix}LocalAmount`]:     fmt(localAmt),
+      [`${prefix}TaxableAmount`]:   fmt(taxableAmt),
+      [`${prefix}NonTaxableAmount`]: isINR ? '0' : fmt(nonTaxableAmt),
+      [`${prefix}Cgst`]:            fmt(cgst),
+      [`${prefix}Sgst`]:            fmt(sgst),
+      [`${prefix}Igst`]:            isINR ? '0' : fmt(igst),
+      [`${prefix}TotalTax`]:        fmt(totalTaxAmt),
+    };
+  };
+
   const costChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setCostForm((prev) => ({ ...prev, [name]: value }));
+    setCostForm((prev) => {
+      const updated = { ...prev, [name]: value };
+      const saleFields = ['salePerUnit','saleExRate','saleTaxPct','saleCurrency','noOfUnit'];
+      const costFields = ['costPerUnit','costExRate','costTaxPct','costCurrency','noOfUnit'];
+      if (saleFields.includes(name)) Object.assign(updated, calcTax(updated, 'sale'));
+      if (costFields.includes(name)) Object.assign(updated, calcTax(updated, 'cost'));
+      return updated;
+    });
     if (costErrors[name as keyof typeof initCost]) setCostErrors(prev => ({ ...prev, [name]: '' }));
   };
-  const ci = (name: keyof typeof initCost, cls = "") => (
-    <div>
-      <input name={name} value={costForm[name]} onChange={costChange}
-        className={`w-full px-2 py-1 border rounded text-xs bg-background ${
-          costErrors[name] ? 'border-red-500' : 'border-input'
-        } ${cls}`} />
-      {costErrors[name] && <p className="text-xs text-red-500 mt-0.5">? {costErrors[name]}</p>}
-    </div>
-  );
+  const ci = (name: keyof typeof initCost, cls = "") => {
+    const calcFields = ['saleCrcyAmount','saleLocalAmount','saleTaxableAmount','saleNonTaxableAmount','saleCgst','saleSgst','saleIgst','saleTotalTax','costCrcyAmount','costLocalAmount','costTaxableAmount','costNonTaxableAmount','costCgst','costSgst','costIgst','costTotalTax'];
+    const isReadOnly = calcFields.includes(name);
+    return (
+      <div>
+        <input name={name} value={costForm[name]} onChange={costChange} readOnly={isReadOnly}
+          className={`w-full px-2 py-1 border rounded text-xs ${isReadOnly ? 'bg-muted cursor-not-allowed' : 'bg-background'} ${
+            costErrors[name] ? 'border-red-500' : 'border-input'
+          } ${cls}`} />
+        {costErrors[name] && <p className="text-xs text-red-500 mt-0.5">⚠ {costErrors[name]}</p>}
+      </div>
+    );
+  };
   const cs = (name: keyof typeof initCost, opts: string[], placeholder = "--Select--") => (
     <div>
       <select name={name} value={costForm[name]} onChange={costChange}
@@ -3258,7 +3299,14 @@ const ViewOperation = () => {
               <div className="border border-border rounded overflow-hidden">
                 <div className="bg-amber-400 px-3 py-2"><span className="text-white font-semibold text-xs">Cost Details</span></div>
                 <div className="p-3 grid grid-cols-4 gap-3">
-                  <div className="flex flex-col gap-1"><label className="font-semibold">Vendor</label>{cs('costVendor', VENDORS)}</div>
+                  <div className="flex flex-col gap-1"><label className="font-semibold">Vendor</label>
+                    <select name="costVendor" value={costForm.costVendor} onChange={costChange}
+                      className={`w-full px-2 py-1 border rounded text-xs bg-background ${costErrors.costVendor ? 'border-red-500' : 'border-input'}`}>
+                      <option value="">--Select--</option>
+                      {costCustomers.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
+                    {costErrors.costVendor && <p className="text-xs text-red-500 mt-0.5">? {costErrors.costVendor}</p>}
+                  </div>
                   <div className="flex flex-col gap-1"><label className="font-semibold">Dr/Cr</label>{cs('costDrCr', DR_CR_COST, '')}</div>
                   <div className="flex flex-col gap-1"><label className="font-semibold">Currency</label>{cs('costCurrency', CURRENCIES, '')}</div>
                   <div className="flex flex-col gap-1"><label className="font-semibold">Ex Rate</label>{ci('costExRate')}</div>
