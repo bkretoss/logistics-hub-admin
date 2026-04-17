@@ -12,6 +12,8 @@ interface Props {
   open: boolean;
   form: WorkingTeamForm;
   error: string;
+  isEditing?: boolean;
+  saving?: boolean;
   employeeOptions: string[];
   deptOptions: string[];
   onChange: (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement>) => void;
@@ -19,7 +21,7 @@ interface Props {
   onClose: () => void;
 }
 
-const WorkingTeamModal = ({ open, form, error, employeeOptions, deptOptions, onChange, onSave, onClose }: Props) => {
+const WorkingTeamModal = ({ open, form, error, isEditing, saving, employeeOptions, deptOptions, onChange, onSave, onClose }: Props) => {
   if (!open) return null;
 
   return (
@@ -74,7 +76,7 @@ const WorkingTeamModal = ({ open, form, error, employeeOptions, deptOptions, onC
               ))}
             </select>
 
-            <label className="ml-4 font-semibold text-xs shrink-0">Followup Required</label>
+            <label className="ml-4 font-semibold text-xs shrink-0">Followup</label>
             <div className="flex border border-input rounded overflow-hidden text-xs">
               <button
                 type="button"
@@ -109,8 +111,8 @@ const WorkingTeamModal = ({ open, form, error, employeeOptions, deptOptions, onC
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-3 border-t border-border">
           <Button size="sm" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button size="sm" className="bg-background border border-input text-foreground hover:bg-muted font-semibold px-6" onClick={onSave}>
-            Create
+          <Button size="sm" className="bg-background border border-input text-foreground hover:bg-muted font-semibold px-6" onClick={onSave} disabled={saving}>
+            {saving ? 'Saving...' : isEditing ? 'Update' : 'Create'}
           </Button>
         </div>
       </div>

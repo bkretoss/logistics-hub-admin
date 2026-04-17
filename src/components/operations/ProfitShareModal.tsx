@@ -25,6 +25,8 @@ interface Props {
   errors: ProfitShareErrors;
   jobNo: string;
   jobDate: string;
+  isEditing?: boolean;
+  saving?: boolean;
   typeOptions: string[];
   toNameOptions: string[];
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
@@ -38,6 +40,8 @@ const ProfitShareModal = ({
   errors, 
   jobNo, 
   jobDate, 
+  isEditing,
+  saving,
   typeOptions, 
   toNameOptions, 
   onChange, 
@@ -208,8 +212,8 @@ const ProfitShareModal = ({
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-3 border-t border-border">
           <Button size="sm" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button size="sm" className="bg-background border border-input text-foreground hover:bg-muted font-semibold px-6" onClick={onSave}>
-            Create
+          <Button size="sm" className="bg-background border border-input text-foreground hover:bg-muted font-semibold px-6" onClick={onSave} disabled={saving}>
+            {saving ? 'Saving...' : isEditing ? 'Update' : 'Create'}
           </Button>
         </div>
       </div>

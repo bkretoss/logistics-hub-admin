@@ -307,4 +307,22 @@ export const createCostingApi = (data: Record<string, unknown>) => api.post('/op
 export const updateCostingApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-costing/${id}`, data);
 export const deleteCostingApi = (id: number)          => api.delete(`/operation-costing/${id}`);
 
+// Operation Working Team APIs
+export const getWorkingTeamsApi   = (operationId: number) => api.get('/operation-working-team', { params: { operation_id: operationId, per_page: 100 } });
+export const createWorkingTeamApi = (data: Record<string, unknown>) => api.post('/operation-working-team', data);
+export const updateWorkingTeamApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-working-team/${id}`, data);
+export const deleteWorkingTeamApi = (id: number) => api.delete(`/operation-working-team/${id}`);
+
+// Operation Profit Share APIs
+export const getProfitSharesApi   = (operationId: number) => api.get('/operation-profit-share', { params: { operation_id: operationId, per_page: 100 } });
+export const createProfitShareApi = (data: Record<string, unknown>) => api.post('/operation-profit-share', data);
+export const updateProfitShareApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-profit-share/${id}`, data);
+export const deleteProfitShareApi = (id: number) => api.delete(`/operation-profit-share/${id}`);
+
+// Operation Status Update APIs
+export const getStatusUpdatesApi   = (operationId: number) => api.get('/operation-status-update', { params: { operation_id: operationId, per_page: 100 } });
+export const createStatusUpdateApi = (data: Record<string, unknown>) => api.post('/operation-status-update', data);
+export const updateStatusUpdateApi = (id: number, data: Record<string, unknown>) => api.put(`/operation-status-update/${id}`, data);
+export const deleteStatusUpdateApi = (id: number) => api.delete(`/operation-status-update/${id}`);
+
 export default api;

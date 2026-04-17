@@ -21,6 +21,9 @@ interface Props {
   form: StatusUpdateForm;
   updateToOptions: string[];
   positionOptions: string[];
+  isEditing?: boolean;
+  saving?: boolean;
+  positionError?: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   onSave: () => void;
   onClose: () => void;
@@ -30,7 +33,10 @@ const StatusUpdateModal = ({
   open, 
   form, 
   updateToOptions, 
-  positionOptions, 
+  positionOptions,
+  isEditing,
+  saving,
+  positionError,
   onChange, 
   onSave, 
   onClose 
@@ -88,12 +94,13 @@ const StatusUpdateModal = ({
               name="position"
               value={form.position}
               onChange={onChange}
-              className="w-full px-3 py-1.5 border border-input rounded text-xs bg-background"
+              className={`w-full px-3 py-1.5 border rounded text-xs bg-background ${positionError ? 'border-destructive' : 'border-input'}`}
             >
               {positionOptions.map((o) => (
                 <option key={o} value={o}>{o}</option>
               ))}
             </select>
+            {positionError && <p className="text-xs text-destructive mt-0.5">{positionError}</p>}
           </div>
 
           {/* Subject */}
@@ -208,8 +215,8 @@ const StatusUpdateModal = ({
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-3 border-t border-border shrink-0">
           <Button size="sm" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button size="sm" className="bg-background border border-input text-foreground hover:bg-muted font-semibold px-6" onClick={onSave}>
-            Save
+          <Button size="sm" className="bg-background border border-input text-foreground hover:bg-muted font-semibold px-6" onClick={onSave} disabled={saving}>
+            {saving ? 'Saving...' : isEditing ? 'Update' : 'Save'}
           </Button>
         </div>
       </div>

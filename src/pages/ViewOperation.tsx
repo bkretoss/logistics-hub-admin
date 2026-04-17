@@ -41,7 +41,7 @@ import { useOperations } from "./OperationsContext";
 import WorkingTeamModal from "@/components/operations/WorkingTeamModal";
 import ProfitShareModal from "@/components/operations/ProfitShareModal";
 import StatusUpdateModal from "@/components/operations/StatusUpdateModal";
-import { getOperationApi, createOperationApi, getOperationsApi, getRiderContainersApi, createRiderContainerApi, updateRiderContainerApi, deleteRiderContainerApi, getSubledgersApi, createSubledgerApi, updateSubledgerApi, deleteSubledgerApi, getDimensionsApi, createDimensionApi, updateDimensionApi, deleteDimensionApi, getCargoDetailsApi, createCargoDetailApi, updateCargoDetailApi, deleteCargoDetailApi, getCostingsApi, createCostingApi, updateCostingApi, deleteCostingApi, getShippingBillsApi, createShippingBillApi, updateShippingBillApi, deleteShippingBillApi, getHouseJobsApi, createHouseJobApi, updateHouseJobApi, deleteHouseJobApi, getRoutingsApi, createRoutingApi, updateRoutingApi, deleteRoutingApi, getMasterCompaniesApi, getMasterCompanyAddressesApi, getMasterPortsApi, getMasterPortApi, getMasterPortTerminalsApi } from "@/services/api";
+import { getOperationApi, createOperationApi, getOperationsApi, getRiderContainersApi, createRiderContainerApi, updateRiderContainerApi, deleteRiderContainerApi, getSubledgersApi, createSubledgerApi, updateSubledgerApi, deleteSubledgerApi, getDimensionsApi, createDimensionApi, updateDimensionApi, deleteDimensionApi, getCargoDetailsApi, createCargoDetailApi, updateCargoDetailApi, deleteCargoDetailApi, getCostingsApi, createCostingApi, updateCostingApi, deleteCostingApi, getShippingBillsApi, createShippingBillApi, updateShippingBillApi, deleteShippingBillApi, getHouseJobsApi, createHouseJobApi, updateHouseJobApi, deleteHouseJobApi, getRoutingsApi, createRoutingApi, updateRoutingApi, deleteRoutingApi, getMasterCompaniesApi, getMasterCompanyAddressesApi, getMasterPortsApi, getMasterPortApi, getMasterPortTerminalsApi, getWorkingTeamsApi, createWorkingTeamApi, updateWorkingTeamApi, deleteWorkingTeamApi, getProfitSharesApi, createProfitShareApi, updateProfitShareApi, deleteProfitShareApi, getStatusUpdatesApi, createStatusUpdateApi, updateStatusUpdateApi, deleteStatusUpdateApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 const CARRIER_OPTIONS = ["TEAMGLOBAL LOGISTICS PVT LTD", "Maersk Line", "Emirates SkyCargo", "ONE Line"];
@@ -276,47 +276,115 @@ const ViewOperation = () => {
     }
   };
 
-  // Status Update modal
-  const [statusOpen, setStatusOpen] = useState(false);
+  // Status Update CRUD
   const [isStatusUpdateOpen, setIsStatusUpdateOpen] = useState(false);
   const UPDATE_TO_OPTIONS = ["Email", "SMS", "WhatsApp", "Phone Call", "Letter", "Fax"];
-  const POSITION_OPTIONS = ["Opened", "In Transit", "Arrived", "Delivered", "Closed"];
+  const POSITION_OPTIONS = ["Opened", "Closed"];
   const initStatus = {
-    lineNo: "",
-    updateTo: "",
-    position: "Opened",
-    subject: "",
-    from: "",
-    to: "",
-    bcc: "",
-    cc: "",
-    header: "",
-    body: "",
-    footer: "",
-    notes: "",
+    lineNo: "", updateTo: "", position: "Opened",
+    subject: "", from: "", to: "", bcc: "", cc: "",
+    header: "", body: "", footer: "", notes: "",
   };
   const [statusForm, setStatusForm] = useState(initStatus);
-  const [statusRows, setStatusRows] = useState<(typeof initStatus)[]>([]);
-  const [statusEditIndex, setStatusEditIndex] = useState<number | null>(null);
-  const statusChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setStatusForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  const openStatusEdit = (index: number) => {
-    setStatusEditIndex(index);
-    setStatusForm({ ...statusRows[index] });
-    setStatusOpen(true);
+  const [statusPositionError, setStatusPositionError] = useState("");
+  const [statusList, setStatusList] = useState<any[]>([]);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusEditId, setStatusEditId] = useState<number | null>(null);
+  const [statusDeleteId, setStatusDeleteId] = useState<number | null>(null);
+
+  const loadStatusUpdates = async () => {
+    if (!id) return;
+    setStatusLoading(true);
+    try {
+      const res = await getStatusUpdatesApi(Number(id));
+      const raw: any[] = res.data?.data ?? [];
+      setStatusList([...raw].reverse()); // latest first
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load status updates.', variant: 'destructive' });
+    } finally { setStatusLoading(false); }
   };
-  const closeStatusModal = () => {
-    setStatusOpen(false);
+
+  const statusChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setStatusForm((prev) => ({ ...prev, [name]: value }));
+    if (name === 'position') setStatusPositionError('');
+  };
+
+  const openStatusCreate = () => {
+    setStatusEditId(null);
     setStatusForm(initStatus);
-    setStatusEditIndex(null);
+    setStatusPositionError('');
+    setIsStatusUpdateOpen(true);
   };
-  const saveStatus = () => {
-    if (statusEditIndex !== null) {
-      setStatusRows((prev) => prev.map((r, i) => (i === statusEditIndex ? statusForm : r)));
-    } else {
-      setStatusRows((prev) => [...prev, statusForm]);
+
+  const openStatusEdit = (row: any) => {
+    setStatusEditId(row.id);
+    setStatusForm({
+      lineNo:   row.line_no ?? '',
+      updateTo: row.update_to_type ?? '',
+      position: row.position ?? 'Opened',
+      subject:  row.subject ?? '',
+      from:     row.from ?? '',
+      to:       row.to ?? '',
+      bcc:      row.bcc ?? '',
+      cc:       row.cc ?? '',
+      header:   row.header ?? '',
+      body:     row.body ?? '',
+      footer:   row.footer ?? '',
+      notes:    row.notes ?? '',
+    });
+    setStatusPositionError('');
+    setIsStatusUpdateOpen(true);
+  };
+
+  const saveStatus = async () => {
+    if (!statusForm.position) { setStatusPositionError('Position is required.'); return; }
+    setStatusSaving(true);
+    try {
+      const payload = {
+        operation_id:   Number(id),
+        line_no:        statusForm.lineNo || null,
+        update_to_type: statusForm.updateTo || null,
+        position:       statusForm.position,
+        subject:        statusForm.subject || null,
+        from:           statusForm.from || null,
+        to:             statusForm.to || null,
+        bcc:            statusForm.bcc || null,
+        cc:             statusForm.cc || null,
+        header:         statusForm.header || null,
+        body:           statusForm.body || null,
+        footer:         statusForm.footer || null,
+        notes:          statusForm.notes || null,
+        status:         1,
+      };
+      if (statusEditId) {
+        await updateStatusUpdateApi(statusEditId, payload);
+        toast({ title: 'Success', description: 'Status update saved.', variant: 'success' });
+      } else {
+        await createStatusUpdateApi(payload);
+        toast({ title: 'Success', description: 'Status update created.', variant: 'success' });
+      }
+      setIsStatusUpdateOpen(false);
+      setStatusForm(initStatus);
+      setStatusPositionError('');
+      setStatusEditId(null);
+      loadStatusUpdates();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save status update.', variant: 'destructive' });
+    } finally { setStatusSaving(false); }
+  };
+
+  const handleStatusDelete = async () => {
+    if (statusDeleteId === null) return;
+    try {
+      await deleteStatusUpdateApi(statusDeleteId);
+      toast({ title: 'Success', description: 'Status update deleted.', variant: 'success' });
+      setStatusDeleteId(null);
+      loadStatusUpdates();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete status update.', variant: 'destructive' });
     }
-    closeStatusModal();
   };
 
   // Dimensions CRUD
@@ -1277,8 +1345,7 @@ const ViewOperation = () => {
     }
   };
 
-  // Profit Share modal
-  const [profitOpen, setProfitOpen] = useState(false);
+  // Profit Share CRUD
   const [isProfitShareOpen, setIsProfitShareOpen] = useState(false);
   const PS_TYPE_OPTIONS = ["Employee", "Agent", "Partner", "Branch", "Other"];
   const PS_TO_NAME_OPTIONS = ["MANAGEMENT", "SALES TEAM", "OPERATIONS", "ACCOUNTS"];
@@ -1293,58 +1360,206 @@ const ViewOperation = () => {
   };
   const [profitForm, setProfitForm] = useState(initProfit);
   const [profitErrors, setProfitErrors] = useState<Partial<typeof initProfit>>({});
-  const [profitRows, setProfitRows] = useState<(typeof initProfit)[]>([]);
+  const [profitList, setProfitList] = useState<any[]>([]);
+  const [profitLoading, setProfitLoading] = useState(false);
+  const [profitSaving, setProfitSaving] = useState(false);
+  const [profitEditId, setProfitEditId] = useState<number | null>(null);
+  const [profitDeleteId, setProfitDeleteId] = useState<number | null>(null);
+
+  const loadProfitShares = async () => {
+    if (!id) return;
+    setProfitLoading(true);
+    try {
+      const res = await getProfitSharesApi(Number(id));
+      setProfitList(res.data?.data ?? []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load profit shares.', variant: 'destructive' });
+    } finally { setProfitLoading(false); }
+  };
+
   const profitChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfitForm((prev) => ({ ...prev, [name]: value }));
     if (profitErrors[name as keyof typeof initProfit]) setProfitErrors((prev) => ({ ...prev, [name]: "" }));
   };
-  const saveProfit = () => {
+
+  const openProfitCreate = () => {
+    setProfitEditId(null);
+    setProfitForm(initProfit);
+    setProfitErrors({});
+    setIsProfitShareOpen(true);
+  };
+
+  const openProfitEdit = (row: any) => {
+    setProfitEditId(row.id);
+    setProfitForm({
+      type: row.type ?? '',
+      toName: row.to_name ?? '',
+      toNameDesc: row.to_name_description ?? '',
+      percentage: row.percentage != null ? String(row.percentage) : '',
+      profitAmount: row.profit_amount != null ? String(row.profit_amount) : '',
+      jobProfit: row.job_profit != null ? String(row.job_profit) : '',
+      note: row.note ?? '',
+    });
+    setProfitErrors({});
+    setIsProfitShareOpen(true);
+  };
+
+  const saveProfit = async () => {
     const errs: Partial<typeof initProfit> = {};
     if (!profitForm.type) errs.type = "Required";
     if (!profitForm.toName) errs.toName = "Required";
     if (!profitForm.percentage) errs.percentage = "Required";
+    else if (isNaN(Number(profitForm.percentage)) || Number(profitForm.percentage) < 0 || Number(profitForm.percentage) > 100)
+      errs.percentage = "Enter a valid percentage (0-100)";
     if (!profitForm.profitAmount) errs.profitAmount = "Required";
+    else if (isNaN(Number(profitForm.profitAmount)) || Number(profitForm.profitAmount) < 0)
+      errs.profitAmount = "Enter a valid amount";
     if (!profitForm.jobProfit) errs.jobProfit = "Required";
-    if (Object.keys(errs).length) {
-      setProfitErrors(errs);
-      return;
+    else if (isNaN(Number(profitForm.jobProfit)) || Number(profitForm.jobProfit) < 0)
+      errs.jobProfit = "Enter a valid amount";
+    
+    // Check total percentage doesn't exceed 100%
+    if (!errs.percentage) {
+      const currentPercentage = Number(profitForm.percentage);
+      const totalOthers = profitList
+        .filter(p => p.id !== profitEditId)
+        .reduce((sum, p) => sum + (Number(p.percentage) || 0), 0);
+      if (currentPercentage + totalOthers > 100) {
+        errs.percentage = `Total percentage cannot exceed 100%. Current total: ${(currentPercentage + totalOthers).toFixed(2)}%`;
+      }
     }
-    setProfitRows((prev) => [...prev, profitForm]);
-    setProfitForm(initProfit);
-    setProfitErrors({});
-    setProfitOpen(false);
+
+    if (Object.keys(errs).length) { setProfitErrors(errs); return; }
+    setProfitSaving(true);
+    try {
+      const payload = {
+        operation_id: Number(id),
+        type: profitForm.type,
+        to_name: profitForm.toName,
+        to_name_description: profitForm.toNameDesc || null,
+        percentage: Number(profitForm.percentage),
+        profit_amount: Number(profitForm.profitAmount),
+        job_profit: Number(profitForm.jobProfit),
+        note: profitForm.note || null,
+        status: 1,
+      };
+      if (profitEditId) {
+        await updateProfitShareApi(profitEditId, payload);
+        toast({ title: 'Success', description: 'Profit share updated.', variant: 'success' });
+      } else {
+        await createProfitShareApi(payload);
+        toast({ title: 'Success', description: 'Profit share added.', variant: 'success' });
+      }
+      setIsProfitShareOpen(false);
+      setProfitForm(initProfit);
+      setProfitErrors({});
+      setProfitEditId(null);
+      loadProfitShares();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save profit share.', variant: 'destructive' });
+    } finally { setProfitSaving(false); }
   };
 
-  // Working Team modal
+  const handleProfitDelete = async () => {
+    if (profitDeleteId === null) return;
+    try {
+      await deleteProfitShareApi(profitDeleteId);
+      toast({ title: 'Success', description: 'Profit share deleted.', variant: 'success' });
+      setProfitDeleteId(null);
+      loadProfitShares();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete profit share.', variant: 'destructive' });
+    }
+  };
+
+  // Working Team CRUD
   const [isWorkingTeamOpen, setIsWorkingTeamOpen] = useState(false);
-  const [teamOpen, setTeamOpen] = useState(false);
   const EMPLOYEE_OPTIONS = ["MANAGEMENT", "SALES TEAM", "OPERATIONS", "ACCOUNTS", "ADMIN"];
   const DEPT_OPTIONS = ["SALES", "OPERATIONS", "ACCOUNTS", "ADMIN", "HR", "IT"];
   const initTeam = { employee: "", department: "", followupRequired: "No", note: "" };
   const [teamForm, setTeamForm] = useState(initTeam);
   const [teamError, setTeamError] = useState("");
-  const [teamRows, setTeamRows] = useState([
-    {
-      employee: "MANAGEMENT",
-      department: "SALES",
-      followupRequired: "No",
-      followupDate: "",
-      followupNote: "",
-      note: "Auto Inserted",
-    },
-  ]);
-  const teamChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement>) =>
+  const [teamList, setTeamList] = useState<any[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamSaving, setTeamSaving] = useState(false);
+  const [teamEditId, setTeamEditId] = useState<number | null>(null);
+  const [teamDeleteId, setTeamDeleteId] = useState<number | null>(null);
+
+  const loadWorkingTeams = async () => {
+    if (!id) return;
+    setTeamLoading(true);
+    try {
+      const res = await getWorkingTeamsApi(Number(id));
+      setTeamList(res.data?.data ?? []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load working team.', variant: 'destructive' });
+    } finally { setTeamLoading(false); }
+  };
+
+  const teamChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement>) => {
     setTeamForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  const saveTeam = () => {
-    if (!teamForm.employee) {
-      setTeamError("Employee is required");
-      return;
-    }
-    setTeamRows((prev) => [...prev, { ...teamForm, followupDate: "", followupNote: "" }]);
+    if (e.target.name === 'employee') setTeamError('');
+  };
+
+  const openTeamCreate = () => {
+    setTeamEditId(null);
     setTeamForm(initTeam);
-    setTeamError("");
-    setTeamOpen(false);
+    setTeamError('');
+    setIsWorkingTeamOpen(true);
+  };
+
+  const openTeamEdit = (row: any) => {
+    setTeamEditId(row.id);
+    setTeamForm({
+      employee: row.employee_id ?? '',
+      department: row.department ?? '',
+      followupRequired: row.followup_required ?? 'No',
+      note: row.note ?? '',
+    });
+    setTeamError('');
+    setIsWorkingTeamOpen(true);
+  };
+
+  const saveTeam = async () => {
+    if (!teamForm.employee) { setTeamError('Employee is required'); return; }
+    setTeamSaving(true);
+    try {
+      const payload = {
+        operation_id: Number(id),
+        employee_id: teamForm.employee,
+        department: teamForm.department,
+        followup_required: teamForm.followupRequired,
+        note: teamForm.note,
+        status: 1,
+      };
+      if (teamEditId) {
+        await updateWorkingTeamApi(teamEditId, payload);
+        toast({ title: 'Success', description: 'Working team member updated.', variant: 'success' });
+      } else {
+        await createWorkingTeamApi(payload);
+        toast({ title: 'Success', description: 'Working team member added.', variant: 'success' });
+      }
+      setIsWorkingTeamOpen(false);
+      setTeamForm(initTeam);
+      setTeamError('');
+      setTeamEditId(null);
+      loadWorkingTeams();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save working team member.', variant: 'destructive' });
+    } finally { setTeamSaving(false); }
+  };
+
+  const handleTeamDelete = async () => {
+    if (teamDeleteId === null) return;
+    try {
+      await deleteWorkingTeamApi(teamDeleteId);
+      toast({ title: 'Success', description: 'Working team member deleted.', variant: 'success' });
+      setTeamDeleteId(null);
+      loadWorkingTeams();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete working team member.', variant: 'destructive' });
+    }
   };
   const [slOpen, setSlOpen] = useState(false);
   const SL_EMPTY = {
@@ -1781,13 +1996,13 @@ const ViewOperation = () => {
           <Button variant="outline" size="sm" onClick={() => navigate("/operations")}>
             Cancel
           </Button>
-          <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-black font-semibold">
+          {/* <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-black font-semibold">
             Reports
-          </Button>
+          </Button> */}
           <Button variant="outline" size="sm" onClick={() => navigate(`/operations/edit/${op.id}`)}>
             Edit
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/operations/new`)}>
             Create
           </Button>
         </div>
@@ -1805,8 +2020,8 @@ const ViewOperation = () => {
               if (tab === 'Cargo details') loadCargoDetails();
               if (tab === 'Shipping Bill / BOE') loadShippingBills();
               if (tab === "House's List") loadHouseJobs();
-              if (tab === 'Others') loadRoutings();
-              if (tab === 'Show All') { loadSubledgers(); loadDimensions(); loadCargoDetails(); loadShippingBills(); loadHouseJobs(); loadRoutings(); }
+              if (tab === 'Others') { loadRoutings(); loadWorkingTeams(); loadProfitShares(); loadStatusUpdates(); }
+              if (tab === 'Show All') { loadSubledgers(); loadDimensions(); loadCargoDetails(); loadShippingBills(); loadHouseJobs(); loadRoutings(); loadWorkingTeams(); loadProfitShares(); loadStatusUpdates(); }
             }}
             className={`px-4 py-2 font-medium border-b-2 transition-colors ${
               activeTab === tab
@@ -3408,7 +3623,7 @@ const ViewOperation = () => {
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs px-3 bg-white font-semibold"
-                  onClick={() => setIsWorkingTeamOpen(true)}
+                  onClick={openTeamCreate}
                 >
                   Add Working Team
                 </Button>
@@ -3417,7 +3632,7 @@ const ViewOperation = () => {
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="border-b border-border">
-                      {["Edit", "Employee", "Dept", "Followup Required", "Followup Date", "Followup Note", "Note"].map(
+                      {["Employee", "Dept", "Followup Required", "Note", "Action"].map(
                         (h) => (
                           <th
                             key={h}
@@ -3430,26 +3645,41 @@ const ViewOperation = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {teamRows.map((row, i) => (
-                      <tr key={i} className="border-b border-border hover:bg-muted/30">
-                        <td className="px-2 py-2">
-                          <button className="text-red-400 hover:text-red-600">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                        <td className="px-2 py-2 text-xs text-foreground">{row.employee}</td>
+                    {teamLoading ? (
+                      <tr><td colSpan={5} className="px-2 py-6 text-center text-xs text-muted-foreground">Loading...</td></tr>
+                    ) : teamList.length === 0 ? (
+                      <tr><td colSpan={5} className="px-2 py-6 text-center text-xs text-muted-foreground">No team members found.</td></tr>
+                    ) : teamList.map((row) => (
+                      <tr key={row.id} className="border-b border-border hover:bg-muted/30">
+                        <td className="px-2 py-2 text-xs text-foreground">{row.employee_name ?? row.employee_id}</td>
                         <td className="px-2 py-2 text-xs text-foreground">{row.department}</td>
-                        <td className="px-2 py-2 text-xs text-foreground">{row.followupRequired}</td>
-                        <td className="px-2 py-2 text-xs text-foreground">{row.followupDate}</td>
-                        <td className="px-2 py-2 text-xs text-foreground">{row.followupNote}</td>
+                        <td className="px-2 py-2">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                              (row.followup_required === 'Yes' || row.followup_required === 1 || row.followup_required === '1')
+                                ? 'bg-green-50 text-green-700 border-green-200'
+                                : 'bg-slate-50 text-slate-500 border-slate-200'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                (row.followup_required === 'Yes' || row.followup_required === 1 || row.followup_required === '1') ? 'bg-green-500' : 'bg-slate-400'
+                              }`} />
+                              {(row.followup_required === 'Yes' || row.followup_required === 1 || row.followup_required === '1') ? 'Yes' : 'No'}
+                            </span>
+                          </td>
                         <td className="px-2 py-2 text-xs text-foreground">{row.note}</td>
+                        <td className="px-2 py-2">
+                          <div className="flex items-center gap-1">
+                            <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openTeamEdit(row)}>
+                              <Pencil className="w-3.5 h-3.5 text-green-500" />
+                            </button>
+                            <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setTeamDeleteId(row.id)}>
+                              <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div className="flex justify-end mt-2 text-xs text-muted-foreground">
-                  {teamRows.length} - {teamRows.length}
-                </div>
               </div>
             </div>
             <div>
@@ -3459,52 +3689,47 @@ const ViewOperation = () => {
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs px-3 bg-white font-semibold"
-                  onClick={() => setIsProfitShareOpen(true)}
+                  onClick={openProfitCreate}
                 >
                   Add +
                 </Button>
               </div>
               <div className="p-4">
-                {profitRows.length === 0 ? (
-                  <div className="min-h-[80px]" />
+                {profitLoading ? (
+                  <div className="flex items-center justify-center h-16 text-muted-foreground text-sm">
+                    <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />Loading...
+                  </div>
+                ) : profitList.length === 0 ? (
+                  <div className="min-h-[80px] flex items-center justify-center text-xs text-muted-foreground">No profit share records found.</div>
                 ) : (
                   <table className="w-full text-sm border-collapse">
                     <thead>
                       <tr className="border-b border-border">
-                        {[
-                          "Edit",
-                          "Type",
-                          "To Name",
-                          "To Name (Desc)",
-                          "Percentage",
-                          "Profit Amount",
-                          "Job Profit",
-                          "Note",
-                        ].map((h) => (
-                          <th
-                            key={h}
-                            className="text-left px-2 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap"
-                          >
-                            {h}
-                          </th>
+                        {["Type", "To Name", "To Name (Desc)", "Percentage", "Profit Amount", "Job Profit", "Note", "Action"].map((h) => (
+                          <th key={h} className="text-left px-2 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {profitRows.map((row, i) => (
-                        <tr key={i} className="border-b border-border hover:bg-muted/30">
-                          <td className="px-2 py-2">
-                            <button className="text-red-400 hover:text-red-600">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
+                      {profitList.map((row) => (
+                        <tr key={row.id} className="border-b border-border hover:bg-muted/30">
                           <td className="px-2 py-2 text-xs text-foreground">{row.type}</td>
-                          <td className="px-2 py-2 text-xs text-foreground">{row.toName}</td>
-                          <td className="px-2 py-2 text-xs text-foreground">{row.toNameDesc}</td>
-                          <td className="px-2 py-2 text-xs text-foreground">{row.percentage}</td>
-                          <td className="px-2 py-2 text-xs text-foreground">{row.profitAmount}</td>
-                          <td className="px-2 py-2 text-xs text-foreground">{row.jobProfit}</td>
-                          <td className="px-2 py-2 text-xs text-foreground">{row.note}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.to_name}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.to_name_description}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.percentage}%</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.profit_amount}</td>
+                          <td className="px-2 py-2 text-xs text-foreground">{row.job_profit}</td>
+                          <td className="px-2 py-2 text-xs text-foreground max-w-[100px] truncate">{row.note}</td>
+                          <td className="px-2 py-2">
+                            <div className="flex items-center gap-1">
+                              <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openProfitEdit(row)}>
+                                <Pencil className="w-3.5 h-3.5 text-green-500" />
+                              </button>
+                              <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setProfitDeleteId(row.id)}>
+                                <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -3522,65 +3747,68 @@ const ViewOperation = () => {
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs px-3 bg-white font-semibold"
-                onClick={() => {
-                  setStatusEditIndex(null);
-                  setIsStatusUpdateOpen(true);
-                }}
+                onClick={openStatusCreate}
               >
                 Add +
               </Button>
             </div>
             <div className="p-4">
-              {statusRows.length === 0 ? (
-                <div className="min-h-[40px]" />
+              {statusLoading ? (
+                <div className="flex items-center justify-center h-16 text-muted-foreground text-sm">
+                  <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />Loading...
+                </div>
+              ) : statusList.length === 0 ? (
+                <div className="min-h-[40px] flex items-center justify-center text-xs text-muted-foreground">No status updates found.</div>
               ) : (
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="border-b border-border">
-                      {[
-                        "Edit",
-                        "Line No#",
-                        "Update To (Type)",
-                        "Position",
-                        "Subject",
-                        "From",
-                        "To",
-                        "Bcc",
-                        "Cc",
-                        "Header",
-                        "Body",
-                        "Footer",
-                        "Notes",
-                      ].map((h) => (
-                        <th
-                          key={h}
-                          className="text-left px-2 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap"
-                        >
-                          {h}
-                        </th>
+                      {["Line No#", "Update To (Type)", "Position", "Subject", "From", "To", "Bcc", "Cc", "Header", "Body", "Footer", "Notes", "Action"].map((h) => (
+                        <th key={h} className="text-left px-2 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {statusRows.map((row, i) => (
-                      <tr key={i} className="border-b border-border hover:bg-muted/30">
-                        <td className="px-2 py-2">
-                          <button className="text-red-400 hover:text-red-600" onClick={() => openStatusEdit(i)}>
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
+                    {statusList.map((row) => (
+                      <tr key={row.id} className="border-b border-border hover:bg-muted/30">
+                        <td className="px-2 py-2 text-xs text-foreground">{row.line_no}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">{row.update_to_type}</td>
+                        <td className="px-2 py-2 text-xs text-foreground">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                            row.position === 'Delivered' ? 'bg-green-50 text-green-700 border-green-200' :
+                            row.position === 'In Transit' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            row.position === 'Arrived' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            row.position === 'Closed' ? 'bg-red-50 text-red-700 border-red-200' :
+                            'bg-slate-50 text-slate-600 border-slate-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              row.position === 'Delivered' ? 'bg-green-500' :
+                              row.position === 'In Transit' ? 'bg-blue-500' :
+                              row.position === 'Arrived' ? 'bg-amber-500' :
+                              row.position === 'Closed' ? 'bg-red-500' : 'bg-slate-400'
+                            }`} />
+                            {row.position}
+                          </span>
                         </td>
-                        <td className="px-2 py-2 text-xs text-foreground">{row.lineNo}</td>
-                        <td className="px-2 py-2 text-xs text-foreground">{row.updateTo}</td>
-                        <td className="px-2 py-2 text-xs text-foreground">{row.position}</td>
                         <td className="px-2 py-2 text-xs text-foreground max-w-[120px] truncate">{row.subject}</td>
-                        <td className="px-2 py-2 text-xs text-foreground">{row.from}</td>
-                        <td className="px-2 py-2 text-xs text-foreground">{row.to}</td>
+                        <td className="px-2 py-2 text-xs text-foreground whitespace-nowrap">{row.from}</td>
+                        <td className="px-2 py-2 text-xs text-foreground whitespace-nowrap">{row.to}</td>
                         <td className="px-2 py-2 text-xs text-foreground">{row.bcc}</td>
                         <td className="px-2 py-2 text-xs text-foreground">{row.cc}</td>
                         <td className="px-2 py-2 text-xs text-foreground max-w-[100px] truncate">{row.header}</td>
                         <td className="px-2 py-2 text-xs text-foreground max-w-[100px] truncate">{row.body}</td>
                         <td className="px-2 py-2 text-xs text-foreground max-w-[100px] truncate">{row.footer}</td>
                         <td className="px-2 py-2 text-xs text-foreground max-w-[100px] truncate">{row.notes}</td>
+                        <td className="px-2 py-2">
+                          <div className="flex items-center gap-1">
+                            <button className="p-1 hover:bg-green-50 rounded" title="Edit" onClick={() => openStatusEdit(row)}>
+                              <Pencil className="w-3.5 h-3.5 text-green-500" />
+                            </button>
+                            <button className="p-1 hover:bg-red-50 rounded" title="Delete" onClick={() => setStatusDeleteId(row.id)}>
+                              <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -3854,6 +4082,14 @@ const ViewOperation = () => {
                   <input name="sNo" value={routingForm.sNo} readOnly className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-muted cursor-not-allowed" />
                 </div>
                 <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Position</label>
+                  <select name="position" value={routingForm.position} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
+                    {POSITION_OPTIONS_ROUTING.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-28 shrink-0"><span className="text-destructive mr-1">*</span>From Port Code</label>
                   <div className="flex-1">
                     <select name="fromPortCode" value={routingForm.fromPortCode} onChange={routingChange} className={`w-full px-2 py-1.5 border rounded text-xs bg-background ${routingErrors.fromPortCode ? 'border-destructive' : 'border-input'}`}>
@@ -3863,12 +4099,15 @@ const ViewOperation = () => {
                     {routingErrors.fromPortCode && <p className="text-xs text-destructive mt-0.5">? {routingErrors.fromPortCode}</p>}
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">From Terminal</label>
+                  <select name="fromTerminalId" value={routingForm.fromTerminalId} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" disabled={fromTerminalsLoading || !routingForm.fromPortCode}>
+                    <option value="">{fromTerminalsLoading ? 'Loading...' : '--Select--'}</option>
+                    {fromTerminals.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                {/* <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">From Port Name</label>
-                  <input name="fromPortName" value={routingForm.fromPortName} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
-                </div> */}
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-28 shrink-0"><span className="text-destructive mr-1">*</span>To Port Code</label>
                   <div className="flex-1">
@@ -3878,33 +4117,6 @@ const ViewOperation = () => {
                     </select>
                     {routingErrors.toPortCode && <p className="text-xs text-destructive mt-0.5">? {routingErrors.toPortCode}</p>}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Position</label>
-                  <select name="position" value={routingForm.position} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
-                    {POSITION_OPTIONS_ROUTING.map(p => <option key={p}>{p}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {/* <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">To Port Name</label>
-                  <input name="toPortName" value={routingForm.toPortName} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
-                </div> */}
-                {/* <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">Position</label>
-                  <select name="position" value={routingForm.position} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background">
-                    {POSITION_OPTIONS_ROUTING.map(p => <option key={p}>{p}</option>)}
-                  </select>
-                </div> */}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-foreground w-28 shrink-0">From Terminal</label>
-                  <select name="fromTerminalId" value={routingForm.fromTerminalId} onChange={routingChange} className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" disabled={fromTerminalsLoading || !routingForm.fromPortCode}>
-                    <option value="">{fromTerminalsLoading ? 'Loading...' : '--Select--'}</option>
-                    {fromTerminals.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
-                  </select>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-foreground w-28 shrink-0">To Terminal</label>
@@ -4512,12 +4724,34 @@ const ViewOperation = () => {
         open={isWorkingTeamOpen}
         form={teamForm}
         error={teamError}
+        isEditing={teamEditId !== null}
+        saving={teamSaving}
         employeeOptions={EMPLOYEE_OPTIONS}
         deptOptions={DEPT_OPTIONS}
         onChange={teamChange}
-        onSave={() => { saveTeam(); setIsWorkingTeamOpen(false); }}
-        onClose={() => { setIsWorkingTeamOpen(false); setTeamError(""); }}
+        onSave={saveTeam}
+        onClose={() => { setIsWorkingTeamOpen(false); setTeamError(''); setTeamEditId(null); setTeamForm(initTeam); }}
       />
+
+      {/* Working Team Delete Confirmation */}
+      {teamDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setTeamDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Team Member</h3>
+              <button onClick={() => setTeamDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this team member? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setTeamDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleTeamDelete}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Profit Share Modal */}
       <ProfitShareModal
@@ -4526,21 +4760,34 @@ const ViewOperation = () => {
         errors={profitErrors}
         jobNo={op?.document ?? ""}
         jobDate={op?.job_date ?? ""}
+        isEditing={profitEditId !== null}
+        saving={profitSaving}
         typeOptions={PS_TYPE_OPTIONS}
         toNameOptions={PS_TO_NAME_OPTIONS}
         onChange={profitChange}
-        onSave={() => {
-          const errsBefore = Object.keys(profitErrors).length;
-          saveProfit();
-          // saveProfit sets errors internally; only close if form was valid
-          // We check by re-reading form state after save attempt via a flag approach
-          // Instead, duplicate the validation check here
-          if (profitForm.type && profitForm.toName && profitForm.percentage && profitForm.profitAmount && profitForm.jobProfit) {
-            setIsProfitShareOpen(false);
-          }
-        }}
-        onClose={() => { setIsProfitShareOpen(false); setProfitErrors({}); setProfitForm(initProfit); }}
+        onSave={saveProfit}
+        onClose={() => { setIsProfitShareOpen(false); setProfitErrors({}); setProfitForm(initProfit); setProfitEditId(null); }}
       />
+
+      {/* Profit Share Delete Confirmation */}
+      {profitDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setProfitDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Profit Share</h3>
+              <button onClick={() => setProfitDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this profit share record? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setProfitDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleProfitDelete}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status Update Modal */}
       <StatusUpdateModal
@@ -4548,10 +4795,33 @@ const ViewOperation = () => {
         form={statusForm}
         updateToOptions={UPDATE_TO_OPTIONS}
         positionOptions={POSITION_OPTIONS}
+        isEditing={statusEditId !== null}
+        saving={statusSaving}
+        positionError={statusPositionError}
         onChange={statusChange}
-        onSave={() => { saveStatus(); setIsStatusUpdateOpen(false); }}
-        onClose={() => { setIsStatusUpdateOpen(false); setStatusForm(initStatus); setStatusEditIndex(null); }}
+        onSave={saveStatus}
+        onClose={() => { setIsStatusUpdateOpen(false); setStatusForm(initStatus); setStatusPositionError(''); setStatusEditId(null); }}
       />
+
+      {/* Status Update Delete Confirmation */}
+      {statusDeleteId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setStatusDeleteId(null)} />
+          <div className="relative bg-background rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="text-lg font-bold text-primary">Delete Status Update</h3>
+              <button onClick={() => setStatusDeleteId(null)} className="p-2 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to delete this status update? This action cannot be undone.</p>
+            </div>
+            <div className="flex justify-end gap-3 px-5 py-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setStatusDeleteId(null)}>Cancel</Button>
+              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white" onClick={handleStatusDelete}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Shipping Bill Delete Confirmation */}
       {sbDeleteId !== null && (
