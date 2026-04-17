@@ -269,8 +269,9 @@ const NewCustomer = () => {
   }, []);
 
   const loadAddresses = (companyId?: number) => {
+    if (!companyId) return;
     setAddressLoading(true);
-    getMasterCompanyAddressesApi(companyId ?? 0).then(res => {
+    getMasterCompanyAddressesApi(companyId).then(res => {
       const raw: any[] = res.data?.data ?? res.data ?? [];
       const mapped: AddressRow[] = raw.map(r => ({
         id: r.id,
@@ -304,12 +305,27 @@ const NewCustomer = () => {
   };
 
   useEffect(() => {
-    loadAddresses(id ? Number(id) : undefined);
+    if (id) {
+      loadAddresses(Number(id));
+    } else {
+      try {
+        const storedAddr = localStorage.getItem('newCompanyAddresses');
+        const storedCOAs = localStorage.getItem('newCompanyCOAs');
+        const storedDocs = localStorage.getItem('newCompanyDocuments');
+        setForm(prev => ({
+          ...prev,
+          ...(storedAddr ? { addresses: JSON.parse(storedAddr) } : {}),
+          ...(storedCOAs ? { coas: JSON.parse(storedCOAs) } : {}),
+          ...(storedDocs ? { documents: JSON.parse(storedDocs) } : {}),
+        }));
+      } catch {}
+    }
   }, [id]);
 
   const [coaLoading, setCoaLoading] = useState(false);
 
   const loadCOAs = (cid?: number) => {
+    if (!cid) return;
     setCoaLoading(true);
     getMasterCompanyCOAsApi(cid).then(res => {
       const raw: any[] = res.data?.data ?? res.data ?? [];
@@ -336,7 +352,7 @@ const NewCustomer = () => {
   };
 
   useEffect(() => {
-    loadCOAs(id ? Number(id) : undefined);
+    if (id) loadCOAs(Number(id));
   }, [id]);
 
   const buildCOAPayload = (coa: COARow, cid: number) => ({
@@ -361,6 +377,7 @@ const NewCustomer = () => {
   const [docLoading, setDocLoading] = useState(false);
 
   const loadDocuments = (cid?: number) => {
+    if (!cid) return;
     setDocLoading(true);
     getMasterCompanyDocumentsApi(cid).then(res => {
       const raw: any[] = res.data?.data ?? res.data ?? [];
@@ -385,7 +402,7 @@ const NewCustomer = () => {
   };
 
   useEffect(() => {
-    loadDocuments(id ? Number(id) : undefined);
+    if (id) loadDocuments(Number(id));
   }, [id]);
 
   const buildDocumentFormData = (doc: DocumentRow, cid: number): FormData => {
@@ -438,6 +455,7 @@ const NewCustomer = () => {
     if (name === "name") return !value.trim() ? "Name is required" : "";
     if (name === "actualName") return !value.trim() ? "Actual Name is required" : "";
     if (name === "categories") return !value.trim() ? "Categories is required" : "";
+    if (name === "expireBondDate") return !value.trim() ? "Expire Bond Date is required" : "";
     return "";
   };
 
@@ -539,7 +557,12 @@ const NewCustomer = () => {
         }
       } else {
         // Company not saved yet — store locally, will be submitted on Save
-        setForm(prev => ({ ...prev, addresses: [...prev.addresses, { ...addressDraft, id: Date.now() }] }));
+        const newAddr = { ...addressDraft, id: Date.now() };
+        setForm(prev => {
+          const updated = [...prev.addresses, newAddr];
+          localStorage.setItem('newCompanyAddresses', JSON.stringify(updated));
+          return { ...prev, addresses: updated };
+        });
         toast({ title: "Address added", description: "Address will be saved when you click Save.", variant: "success" });
       }
     } else if (addressModalMode === "edit") {
@@ -554,10 +577,11 @@ const NewCustomer = () => {
           return;
         }
       } else {
-        setForm(prev => ({
-          ...prev,
-          addresses: prev.addresses.map(a => a.id === addressDraft.id ? addressDraft : a),
-        }));
+        setForm(prev => {
+          const updated = prev.addresses.map(a => a.id === addressDraft.id ? addressDraft : a);
+          if (!companyId) localStorage.setItem('newCompanyAddresses', JSON.stringify(updated));
+          return { ...prev, addresses: updated };
+        });
       }
     }
 
@@ -571,14 +595,18 @@ const NewCustomer = () => {
       try {
         await deleteMasterCompanyAddressApi(addr.savedId);
         toast({ title: "Success", description: "Address deleted.", variant: "success" });
-        loadAddresses(companyId ?? undefined);
+        if (companyId) loadAddresses(companyId);
       } catch {
         toast({ title: "Error", description: "Failed to delete address.", variant: "destructive" });
         setDeleteConfirmId(null);
         return;
       }
     } else {
-      setForm(prev => ({ ...prev, addresses: prev.addresses.filter(a => a.id !== deleteConfirmId) }));
+      setForm(prev => {
+        const updated = prev.addresses.filter(a => a.id !== deleteConfirmId);
+        if (!companyId) localStorage.setItem('newCompanyAddresses', JSON.stringify(updated));
+        return { ...prev, addresses: updated };
+      });
     }
     setDeleteConfirmId(null);
   };
@@ -639,7 +667,12 @@ const NewCustomer = () => {
           return;
         }
       } else {
-        setForm(prev => ({ ...prev, coas: [...prev.coas, { ...coaDraft, id: Date.now() }] }));
+        const newCOA = { ...coaDraft, id: Date.now() };
+        setForm(prev => {
+          const updated = [...prev.coas, newCOA];
+          localStorage.setItem('newCompanyCOAs', JSON.stringify(updated));
+          return { ...prev, coas: updated };
+        });
         toast({ title: "COA added", description: "COA will be saved when you click Save.", variant: "success" });
       }
     } else {
@@ -654,10 +687,11 @@ const NewCustomer = () => {
           return;
         }
       } else {
-        setForm(prev => ({
-          ...prev,
-          coas: prev.coas.map(c => c.id === coaDraft.id ? coaDraft : c),
-        }));
+        setForm(prev => {
+          const updated = prev.coas.map(c => c.id === coaDraft.id ? coaDraft : c);
+          if (!companyId) localStorage.setItem('newCompanyCOAs', JSON.stringify(updated));
+          return { ...prev, coas: updated };
+        });
       }
     }
     setCOAModal(false);
@@ -677,7 +711,11 @@ const NewCustomer = () => {
         return;
       }
     } else {
-      setForm(prev => ({ ...prev, coas: prev.coas.filter(c => c.id !== deleteCOAConfirmId) }));
+      setForm(prev => {
+        const updated = prev.coas.filter(c => c.id !== deleteCOAConfirmId);
+        if (!companyId) localStorage.setItem('newCompanyCOAs', JSON.stringify(updated));
+        return { ...prev, coas: updated };
+      });
     }
     setDeleteCOAConfirmId(null);
   };
@@ -724,7 +762,12 @@ const NewCustomer = () => {
           return;
         }
       } else {
-        setForm(prev => ({ ...prev, documents: [...prev.documents, { ...docDraft, id: Date.now() }] }));
+        const newDoc = { ...docDraft, id: Date.now() };
+        setForm(prev => {
+          const updated = [...prev.documents, newDoc];
+          localStorage.setItem('newCompanyDocuments', JSON.stringify(updated));
+          return { ...prev, documents: updated };
+        });
         toast({ title: "Document added", description: "Document will be saved when you click Save.", variant: "success" });
       }
     } else {
@@ -739,7 +782,11 @@ const NewCustomer = () => {
           return;
         }
       } else {
-        setForm(prev => ({ ...prev, documents: prev.documents.map(d => d.id === docDraft.id ? docDraft : d) }));
+        setForm(prev => {
+          const updated = prev.documents.map(d => d.id === docDraft.id ? docDraft : d);
+          if (!companyId) localStorage.setItem('newCompanyDocuments', JSON.stringify(updated));
+          return { ...prev, documents: updated };
+        });
       }
     }
     setDocModal(false);
@@ -759,14 +806,18 @@ const NewCustomer = () => {
         return;
       }
     } else {
-      setForm(prev => ({ ...prev, documents: prev.documents.filter(d => d.id !== deleteDocConfirmId) }));
+      setForm(prev => {
+        const updated = prev.documents.filter(d => d.id !== deleteDocConfirmId);
+        if (!companyId) localStorage.setItem('newCompanyDocuments', JSON.stringify(updated));
+        return { ...prev, documents: updated };
+      });
     }
     setDeleteDocConfirmId(null);
   };
 
   const validate = () => {
     const e: Partial<Record<keyof CustomerFormData, string>> = {};
-    (["name", "actualName", "categories"] as (keyof CustomerFormData)[]).forEach((k) => {
+    (["name", "actualName", "categories", "expireBondDate"] as (keyof CustomerFormData)[]).forEach((k) => {
       const msg = validateField(k, form[k] as string);
       if (msg) e[k] = msg;
     });
@@ -829,6 +880,9 @@ const NewCustomer = () => {
       );
 
       toast({ title: "Success", description: isEdit ? "Company updated successfully." : "Company created successfully.", variant: "success" });
+      localStorage.removeItem('newCompanyAddresses');
+      localStorage.removeItem('newCompanyCOAs');
+      localStorage.removeItem('newCompanyDocuments');
       navigate("/setting/company-master");
     } catch (err: any) {
       const msg: string = err?.response?.data?.message ?? "";
@@ -956,14 +1010,15 @@ const NewCustomer = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {textField("Bond", "bond")}
           <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">Expire Bond Date</label>
+            <label className="text-sm font-medium text-foreground">Expire Bond Date <span className="text-red-500">*</span></label>
             <input
               type="date"
               name="expireBondDate"
               value={form.expireBondDate}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className={`w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${errors.expireBondDate ? "border-red-400" : "border-input"}`}
             />
+            {errors.expireBondDate && <p className="text-xs text-red-500">{errors.expireBondDate}</p>}
           </div>
           <div />
         </div>
@@ -1015,67 +1070,64 @@ const NewCustomer = () => {
               </div>
             </div>
 
-            {/* Table - only in edit mode */}
-            {isEdit && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Address</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Phone No</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Fax No</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Mobile No</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Email ID</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">City</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Country</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Contact Person</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Person Designation</th>
-                      <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Address</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Phone No</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Fax No</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Mobile No</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Email ID</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">City</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Country</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Contact Person</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Person Designation</th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {addressLoading ? (
+                    <tr>
+                      <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading addresses...</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {addressLoading ? (
-                      <tr>
-                        <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading addresses...</td>
+                  ) : form.addresses.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">No data found</td>
+                    </tr>
+                  ) : (
+                    form.addresses.map((addr) => (
+                      <tr key={addr.id} className="border-b hover:bg-gray-50">
+                        <td className="px-3 py-2">{addr.addressType || "—"}</td>
+                        <td className="px-3 py-2 max-w-[150px] truncate">{addr.address || "—"}</td>
+                        <td className="px-3 py-2">{addr.phoneNo || "—"}</td>
+                        <td className="px-3 py-2">{addr.faxNo || "—"}</td>
+                        <td className="px-3 py-2">{addr.mobileNo || "—"}</td>
+                        <td className="px-3 py-2">{addr.emailId || "—"}</td>
+                        <td className="px-3 py-2">{addr.city || "—"}</td>
+                        <td className="px-3 py-2">{addr.country || "—"}</td>
+                        <td className="px-3 py-2">{addr.contactPerson || "—"}</td>
+                        <td className="px-3 py-2">{addr.personDesignation || "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => openViewAddressModal(addr)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View Address">
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => openEditAddressModal(addr)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit Address">
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setDeleteConfirmId(addr.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete Address">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
-                    ) : form.addresses.length === 0 ? (
-                      <tr>
-                        <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground text-sm">No addresses added yet.</td>
-                      </tr>
-                    ) : (
-                      form.addresses.map((addr) => (
-                        <tr key={addr.id} className="border-b hover:bg-gray-50">
-                          <td className="px-3 py-2">{addr.addressType || "—"}</td>
-                          <td className="px-3 py-2 max-w-[150px] truncate">{addr.address || "—"}</td>
-                          <td className="px-3 py-2">{addr.phoneNo || "—"}</td>
-                          <td className="px-3 py-2">{addr.faxNo || "—"}</td>
-                          <td className="px-3 py-2">{addr.mobileNo || "—"}</td>
-                          <td className="px-3 py-2">{addr.emailId || "—"}</td>
-                          <td className="px-3 py-2">{addr.city || "—"}</td>
-                          <td className="px-3 py-2">{addr.country || "—"}</td>
-                          <td className="px-3 py-2">{addr.contactPerson || "—"}</td>
-                          <td className="px-3 py-2">{addr.personDesignation || "—"}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex items-center justify-center gap-2">
-                              <button onClick={() => openViewAddressModal(addr)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View Address">
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => openEditAddressModal(addr)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit Address">
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => setDeleteConfirmId(addr.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete Address">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -1094,52 +1146,50 @@ const NewCustomer = () => {
                 </Button>
               </div>
             </div>
-            {isEdit && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                      <th className="px-3 py-2 text-left font-medium text-gray-600 w-10">#</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Company COA</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Payment Mode</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Credit Approver</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">O/S Collector</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Currency</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Approved Credit Amount</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Alert Credit Amount</th>
-                      <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {coaLoading ? (
-                      <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading COA records...</td></tr>
-                    ) : form.coas.length === 0 ? (
-                      <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">No COA records added yet.</td></tr>
-                    ) : (
-                      form.coas.map((coa, idx) => (
-                        <tr key={coa.id} className="border-b hover:bg-gray-50">
-                          <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
-                          <td className="px-3 py-2">{coa.customerCOA || "—"}</td>
-                          <td className="px-3 py-2">{coa.paymentMode || "—"}</td>
-                          <td className="px-3 py-2">{coa.creditApprover || "—"}</td>
-                          <td className="px-3 py-2">{coa.osCollector || "—"}</td>
-                          <td className="px-3 py-2">{coa.currency || "—"}</td>
-                          <td className="px-3 py-2">{coa.approvedCreditAmount || "—"}</td>
-                          <td className="px-3 py-2">{coa.alertCreditAmount || "—"}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex items-center justify-center gap-2">
-                              <button onClick={() => setViewingCOA(coa)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View COA"><Eye className="w-4 h-4" /></button>
-                              <button onClick={() => openEditCOAModal(coa)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit COA"><Edit2 className="w-4 h-4" /></button>
-                              <button onClick={() => setDeleteCOAConfirmId(coa.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete COA"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="px-3 py-2 text-left font-medium text-gray-600 w-10">#</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Company COA</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Payment Mode</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Credit Approver</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">O/S Collector</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Currency</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Approved Credit Amount</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Alert Credit Amount</th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {coaLoading ? (
+                    <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading COA records...</td></tr>
+                  ) : form.coas.length === 0 ? (
+                    <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">No data found</td></tr>
+                  ) : (
+                    form.coas.map((coa, idx) => (
+                      <tr key={coa.id} className="border-b hover:bg-gray-50">
+                        <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
+                        <td className="px-3 py-2">{coa.customerCOA || "—"}</td>
+                        <td className="px-3 py-2">{coa.paymentMode || "—"}</td>
+                        <td className="px-3 py-2">{coa.creditApprover || "—"}</td>
+                        <td className="px-3 py-2">{coa.osCollector || "—"}</td>
+                        <td className="px-3 py-2">{coa.currency || "—"}</td>
+                        <td className="px-3 py-2">{coa.approvedCreditAmount || "—"}</td>
+                        <td className="px-3 py-2">{coa.alertCreditAmount || "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => setViewingCOA(coa)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View COA"><Eye className="w-4 h-4" /></button>
+                            <button onClick={() => openEditCOAModal(coa)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit COA"><Edit2 className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteCOAConfirmId(coa.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete COA"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -1158,52 +1208,50 @@ const NewCustomer = () => {
                 </Button>
               </div>
             </div>
-            {isEdit && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Line No</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Document Type</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Document No</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Place</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Issued By</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Date</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Expiry Date</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Note</th>
-                      <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {docLoading ? (
-                      <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading documents...</td></tr>
-                    ) : form.documents.length === 0 ? (
-                      <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">No documents added yet.</td></tr>
-                    ) : (
-                      form.documents.map((doc) => (
-                        <tr key={doc.id} className="border-b hover:bg-gray-50">
-                          <td className="px-3 py-2">{doc.lineNo || "—"}</td>
-                          <td className="px-3 py-2">{doc.documentType || "—"}</td>
-                          <td className="px-3 py-2">{doc.documentNo || "—"}</td>
-                          <td className="px-3 py-2">{doc.issuedPlace || "—"}</td>
-                          <td className="px-3 py-2">{doc.issuedBy || "—"}</td>
-                          <td className="px-3 py-2">{doc.issuedDate || "—"}</td>
-                          <td className="px-3 py-2">{doc.expiryDate || "—"}</td>
-                          <td className="px-3 py-2">{doc.note || "—"}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex items-center justify-center gap-2">
-                              <button onClick={() => setViewingDoc(doc)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View Document"><Eye className="w-4 h-4" /></button>
-                              <button onClick={() => openEditDocModal(doc)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit Document"><Edit2 className="w-4 h-4" /></button>
-                              <button onClick={() => setDeleteDocConfirmId(doc.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete Document"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Line No</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Document Type</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Document No</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Place</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Issued By</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Issued Date</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Expiry Date</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600">Note</th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-600">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {docLoading ? (
+                    <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">Loading documents...</td></tr>
+                  ) : form.documents.length === 0 ? (
+                    <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground text-sm">No data found</td></tr>
+                  ) : (
+                    form.documents.map((doc) => (
+                      <tr key={doc.id} className="border-b hover:bg-gray-50">
+                        <td className="px-3 py-2">{doc.lineNo || "—"}</td>
+                        <td className="px-3 py-2">{doc.documentType || "—"}</td>
+                        <td className="px-3 py-2">{doc.documentNo || "—"}</td>
+                        <td className="px-3 py-2">{doc.issuedPlace || "—"}</td>
+                        <td className="px-3 py-2">{doc.issuedBy || "—"}</td>
+                        <td className="px-3 py-2">{doc.issuedDate || "—"}</td>
+                        <td className="px-3 py-2">{doc.expiryDate || "—"}</td>
+                        <td className="px-3 py-2">{doc.note || "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => setViewingDoc(doc)} className="text-blue-500 hover:text-blue-700 transition-colors" title="View Document"><Eye className="w-4 h-4" /></button>
+                            <button onClick={() => openEditDocModal(doc)} className="text-green-500 hover:text-green-700 transition-colors" title="Edit Document"><Edit2 className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteDocConfirmId(doc.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete Document"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -1213,7 +1261,7 @@ const NewCustomer = () => {
         <Button
           type="button"
           className="bg-red-400 text-black hover:bg-red-350"
-          onClick={() => navigate("/setting/company-master")}
+          onClick={() => { if (!isEdit) { localStorage.removeItem('newCompanyAddresses'); localStorage.removeItem('newCompanyCOAs'); localStorage.removeItem('newCompanyDocuments'); } navigate("/setting/company-master"); }}
         >
           Cancel
         </Button>

@@ -1079,12 +1079,7 @@ const NewOperation = () => {
                   name="document"
                   value={formData.document}
                   onChange={(e) => {
-                    setFormData({
-                      ...initialForm,
-                      document: e.target.value,
-                      jobDate: formData.jobDate,
-                    });
-                    setErrors({} as Partial<Record<keyof OperationFormData, string>>);
+                    setFormData(prev => ({ ...prev, document: e.target.value }));
                   }}
                   className={sel()}
                 >

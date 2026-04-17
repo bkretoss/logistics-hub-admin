@@ -2036,7 +2036,7 @@ const ViewOperation = () => {
             </button>
             {" � "}
             <span>
-              Job No# - ( {op.document || "�"} ~ {op.job_date} )
+              Job No# - ( {op.document || " "} ~ {op.job_date} )
             </span>
           </p>
         </div>
@@ -2152,7 +2152,7 @@ const ViewOperation = () => {
                 <Field label="Vessel Status" value="" />
               </div>
 
-              {/* Column 3 � Source From and To */}
+              {/* Column 3  Source From and To */}
               <div className="col-span-1">
                 <div className="border border-border rounded overflow-hidden">
                   <div className="bg-[#00BCD4] px-4 py-2">
@@ -2188,13 +2188,13 @@ const ViewOperation = () => {
             </div>
             {/* Body */}
             <div className="px-6 py-5 space-y-5">
-              {/* Row 1: From Job No + New Job Date � same line */}
+              {/* Row 1: From Job No + New Job Date  same line */}
               <div className="grid grid-cols-2 gap-4 items-center">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-semibold text-foreground whitespace-nowrap shrink-0">
                     From Job No
                   </label>
-                  <Input value={op?.document || '�'} readOnly className="bg-muted text-sm min-w-0" />
+                  <Input value={op?.document || ' '} readOnly className="bg-muted text-sm min-w-0" />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-semibold text-foreground whitespace-nowrap shrink-0">
@@ -2245,7 +2245,7 @@ const ViewOperation = () => {
         </div>
       )}
 
-      {/* Rider Container Modal � full CRUD */}
+      {/* Rider Container Modal full CRUD */}
       {riderOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setRiderOpen(false)} />
@@ -2445,7 +2445,7 @@ const ViewOperation = () => {
                     className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background" />
                 </div>
 
-                {/* Commodity Desc � full width */}
+                {/* Commodity Desc  full width */}
                 <div className="col-span-2 flex items-start gap-2">
                   <label className="w-32 shrink-0 text-right text-xs font-semibold pt-1">Commodity Desc</label>
                   <textarea name="commodity_desc" value={riderForm.commodity_desc} onChange={riderChange} rows={3}
@@ -2585,7 +2585,7 @@ const ViewOperation = () => {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {['S.No#','L�W�H','Measurement','No of Pcs','Package Type','G.Weight','V.Weight','Net Weight','Volume','COO','Commodity Type','Commodity Code','Notes','Action'].map(h => (
+                    {['S.No#','L W H','Measurement','No of Pcs','Package Type','G.Weight','V.Weight','Net Weight','Volume','COO','Commodity Type','Commodity Code','Notes','Action'].map(h => (
                       <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -2594,7 +2594,7 @@ const ViewOperation = () => {
                   {dimList.map((row) => (
                     <tr key={row.id} className="border-b border-border hover:bg-muted/30">
                       <td className="px-3 py-2 text-xs text-foreground">{row.s_no}</td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{[row.length, row.width, row.height].filter(Boolean).join(' � ')}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{[row.length, row.width, row.height].filter(Boolean).join('  ')}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.lxwxh_measurement}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.no_of_pcs}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{row.package_type}</td>
@@ -2659,7 +2659,7 @@ const ViewOperation = () => {
 
               <div className="grid grid-cols-4 gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className="font-semibold">L�W�H Measurement</label>
+                  <label className="font-semibold">L W H Measurement</label>
                   <input name="lxwxhMeasurement" value={dimForm.lxwxhMeasurement} onChange={dimChange} placeholder="e.g. CM" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -3613,7 +3613,7 @@ const ViewOperation = () => {
             <div className="bg-[#00BCD4] px-6 py-2.5 flex items-center justify-between">
               <span className="text-white font-semibold text-sm">Routing (Vessel Movement)</span>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white">Get Schedule</Button>
+                {/* <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white">Get Schedule</Button> */}
                 <Button size="sm" variant="outline" className="h-7 text-xs px-3 bg-white font-semibold" onClick={openRoutingCreate}>
                   Routing +
                 </Button>
@@ -3897,7 +3897,7 @@ const ViewOperation = () => {
                 <tbody>
                   <tr className="border-b border-border hover:bg-muted/30">
                     <td className="px-3 py-2 text-xs text-foreground">New Record</td>
-                    <td className="px-3 py-2 text-xs text-foreground">info@relay-logistics.com</td>
+                    <td className="px-3 py-2 text-xs text-foreground">admin@admin.com</td>
                     <td className="px-3 py-2 text-xs text-foreground">{op.document || "RLPL/AE/J0303"}</td>
                     <td className="px-3 py-2 text-xs text-foreground">-</td>
                     <td className="px-3 py-2 text-xs text-foreground">-</td>
@@ -4065,53 +4065,39 @@ const ViewOperation = () => {
                   </thead>
                   <tbody>
                     <tr className="border-b border-border hover:bg-muted/30">
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.customer || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground" style={{ maxWidth: "180px" }}>{op.customer_address || op.branch || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.shipper || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{op.shipper_address || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.consignee || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{op.consignee_address || "-"}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        ARCHEAN INDUSTRIES PRIVATE LIMITED
+                        {Array.isArray(op.notify_list) ? (op.notify_list[0]?.name || op.notify_list.map((n: any) => n?.name || n).filter(Boolean).join(", ") || "-") : (op.notify_list || "-")}
                       </td>
-                      <td className="px-3 py-2 text-xs text-foreground" style={{ maxWidth: "180px" }}>
-                        NO.2,NORTH CRESCENT ROAD, T.NAGAR,CHENNAI 600017 INDIA...
+                      <td className="px-3 py-2 text-xs text-foreground">
+                        {Array.isArray(op.notify_list) ? (op.notify_list[0]?.branch || op.notify_list[0]?.address || "-") : "-"}
                       </td>
-                      <td className="px-3 py-2 text-xs text-foreground">--</td>
-                      <td className="px-3 py-2 text-xs text-foreground">--</td>
-                      <td className="px-3 py-2 text-xs text-foreground">--</td>
-                      <td className="px-3 py-2 text-xs text-foreground">--</td>
-                      <td className="px-3 py-2 text-xs text-foreground">...</td>
-                      <td className="px-3 py-2 text-xs text-foreground">...</td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground">a</td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground">JSD</td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        SIKORSKY HELIPORT-STRATFORD, CT
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        SIKORSKY HELIPORT-STRATFORD, CT
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground">JSD</td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.place_of_delivery || ""}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.pol_etd || "25-MAR-26"}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.pod_eta || "26-MAR-26"}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.freight_pp_cc ? op.freight_pp_cc.toUpperCase() : "COLLECT"}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.flight_name || ""}</td>
-                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
-                        {op.flight_number || "111"}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
-                      <td className="px-3 py-2 text-xs text-foreground"></td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.bl_no || op.document || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.carrier_scac_code || op.carrier || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.mbl_no || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.place_of_receipt || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.place_of_receipt || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.pol || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{portOptions.find(p => p.code === op.pol)?.name || op.pol || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{portOptions.find(p => p.code === op.pod)?.name || op.pod || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.pod || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.place_of_delivery || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.pol_etd || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.pod_eta || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.freight_pp_cc ? op.freight_pp_cc.toUpperCase() : "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.service_type || op.incoterms || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{siRows.length > 0 ? (siRows.reduce((sum: number, r: any) => sum + (Number(r.no_of_pcs) || 0), 0) || "-") : "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{siRows.length > 0 ? (siRows.map((r: any) => r.g_weight ? (r.g_weight + " " + (r.g_weight_unit || "")).trim() : null).filter(Boolean).join(", ") || "-") : "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{riderList.length > 0 ? riderList.length : (siRows.length > 0 ? siRows.length : "-")}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.flight_name || op.vessel_name || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.flight_number || op.vessel_no || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{op.note || "-"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{riderList.length > 0 ? ([...new Set(riderList.map((r: any) => r.container_type).filter(Boolean))].join(", ") || "-") : (siRows.length > 0 ? ([...new Set(siRows.map((r: any) => r.commodity_type).filter(Boolean))].join(", ") || "-") : "-")}</td>
                     </tr>
                   </tbody>
                 </table>
