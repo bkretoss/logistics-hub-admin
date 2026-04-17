@@ -918,7 +918,7 @@ const ViewOperation = () => {
     placeOfReceipt: "", placeOfDelivery: "", incoTerm: "",
     hawbNo: "", hawbDate: "", hawbMarkNo: "", freightTerm: "Collect", notes: "",
     customer: "", customer_id: "", customerAddress: "", shipper: "", shipperAddress: "",
-    consignee: "", consigneeAddress: "", notify1: "", notify1Address: "",
+    consignee: "", consigneeAddress: "", notify1: "", notify1Address: "", notify2: "", notify2Address: "",
   };
   const [houseForm, setHouseForm] = useState(initHouse);
   const [houseErrors, setHouseErrors] = useState<Partial<Record<keyof typeof initHouse, string>>>({});
@@ -929,6 +929,7 @@ const ViewOperation = () => {
   const [shipperAddresses, setShipperAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
   const [consigneeAddresses, setConsigneeAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
   const [notify1Addresses, setNotify1Addresses] = useState<{ id: number; label: string; address: string }[]>([]);
+  const [notify2Addresses, setNotify2Addresses] = useState<{ id: number; label: string; address: string }[]>([]);
 
   const fetchEntityAddresses = async (companyId: number, setAddresses: React.Dispatch<React.SetStateAction<any[]>>) => {
     setAddresses([]);
@@ -1003,6 +1004,7 @@ const ViewOperation = () => {
     setShipperAddresses([]);
     setConsigneeAddresses([]);
     setNotify1Addresses([]);
+    setNotify2Addresses([]);
     loadHouseCompanies();
     setHouseOpen(true);
   };
@@ -1016,6 +1018,7 @@ const ViewOperation = () => {
     setShipperAddresses([]);
     setConsigneeAddresses([]);
     setNotify1Addresses([]);
+    setNotify2Addresses([]);
     setHouseForm({
       placeOfReceipt:  row.place_of_receipt ?? '',
       placeOfDelivery: row.place_of_delivery ?? '',
@@ -1034,6 +1037,8 @@ const ViewOperation = () => {
       consigneeAddress: row.consignee_address ?? '',
       notify1:         row.notify1 ?? '',
       notify1Address:  row.notify1_address ?? '',
+      notify2:         row.notify2 ?? '',
+      notify2Address:  row.notify2_address ?? '',
     });
     setHouseErrors({});
     setHouseOpen(true);
@@ -1074,6 +1079,8 @@ const ViewOperation = () => {
         consignee_address: houseForm.consigneeAddress || null,
         notify1:          houseForm.notify1 || null,
         notify1_address:  houseForm.notify1Address || null,
+        notify2:          houseForm.notify2 || null,
+        notify2_address:  houseForm.notify2Address || null,
         status:           1,
       };
       if (houseEditId) {
@@ -3554,7 +3561,7 @@ const ViewOperation = () => {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    {["HAWB No","HAWB Date","HAWB Mark No","Place of Receipt","Place of Delivery","INCO Term","Freight Term","Customer","Shipper","Consignee","Notify1","Notes","Action"].map((h) => (
+                    {["HAWB No","HAWB Date","HAWB Mark No","Place of Receipt","Place of Delivery","INCO Term","Freight Term","Customer","Shipper","Consignee","Notify1","Notify2","Notes","Action"].map((h) => (
                       <th key={h} className="text-left px-3 py-2 font-semibold text-cyan-600 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -3573,6 +3580,7 @@ const ViewOperation = () => {
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.shipper}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.consignee}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.notify1}</td>
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{row.notify2}</td>
                       <td className="px-3 py-2 text-xs text-foreground max-w-[120px] truncate">{row.notes}</td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
@@ -4585,6 +4593,56 @@ const ViewOperation = () => {
                           </select>
                         )}
                         <textarea name="notify1Address" value={houseForm.notify1Address} onChange={houseChange} rows={3}
+                          className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="border border-border rounded overflow-hidden">
+                  <div className="bg-amber-500 px-3 py-2"><h4 className="text-white font-semibold text-xs">Notify2</h4></div>
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0">Notify2</label>
+                      <select
+                        name="notify2"
+                        value={houseForm.notify2}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const comp = houseCompanies.find(c => c.name === val);
+                          setHouseForm(prev => ({ ...prev, notify2: val }));
+                          if (comp) fetchEntityAddresses(comp.id, setNotify2Addresses);
+                          else setNotify2Addresses([]);
+                        }}
+                        className="flex-1 px-2 py-1.5 border border-input rounded text-xs bg-background"
+                      >
+                        <option value="">--Select Notify2--</option>
+                        {houseCompaniesLoading ? (
+                          <option value="" disabled>Loading...</option>
+                        ) : (
+                          houseCompanies.map(c => (
+                            <option key={c.id} value={c.name}>{c.name}</option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <label className="text-xs font-semibold text-foreground w-20 shrink-0 pt-1">Address</label>
+                      <div className="flex flex-col gap-2 flex-1">
+                        {notify2Addresses.length > 0 && (
+                          <select
+                            className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background"
+                            onChange={(e) => {
+                              const addr = notify2Addresses.find(a => a.id === Number(e.target.value));
+                              if (addr) setHouseForm(prev => ({ ...prev, notify2Address: addr.address }));
+                            }}
+                          >
+                            <option value="">--Select Preset Address--</option>
+                            {notify2Addresses.map((a) => (
+                              <option key={a.id} value={a.id}>{a.label}</option>
+                            ))}
+                          </select>
+                        )}
+                        <textarea name="notify2Address" value={houseForm.notify2Address} onChange={houseChange} rows={3}
                           className="w-full px-2 py-1.5 border border-input rounded text-xs bg-background resize-y" />
                       </div>
                     </div>

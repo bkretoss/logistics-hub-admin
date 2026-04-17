@@ -524,10 +524,10 @@ const NewOperation = () => {
           shipperBranch:    d.shipper_branch    ?? '',
           shipperAddress:   d.shipper_address   ?? '',
           carrier:          d.carrier           ?? '',
-          carrierBranch:    d.carrier_branch    ?? '',
+          carrierBranch:    d.carrier           ?? '',
           carrierAddress:   d.carrier_address   ?? '',
           consignee:        d.consignee         ?? '',
-          consigneeBranch:  d.consignee_branch  ?? '',
+          consigneeBranch:  '',
           consigneeAddress: d.consignee_address ?? '',
           notify1:          d.notify1           ?? '',
           deliveryAgentName:d.delivery_agent_name ?? '',
@@ -580,6 +580,19 @@ const NewOperation = () => {
              }
            });
         }
+        // Pre-fill notify_list from API
+        if (d.notify_list && Array.isArray(d.notify_list)) {
+          setNotifyList(d.notify_list.slice(0, 2).map((n: any) => ({
+            notify_id: n.notify_branch_id ? String(n.notify_branch_id) : '',
+            notify_address: n.notify_address ?? '',
+          })));
+        } else {
+          // fallback: read flat fields
+          const nl: { notify_id: string; notify_address: string }[] = [];
+          if (d.notify_1_branch) nl.push({ notify_id: String(d.notify_1_branch), notify_address: '' });
+          if (d.notify_2_branch) nl.push({ notify_id: String(d.notify_2_branch), notify_address: '' });
+          if (nl.length) setNotifyList(nl);
+        }
       })
       .catch(() => toast({ title: 'Error', description: 'Failed to load operation.', variant: 'destructive' }))
       .finally(() => setLoadingEdit(false));
@@ -615,6 +628,46 @@ const NewOperation = () => {
   const [allAddresses, setAllAddresses] = useState<{ id: number; label: string; address: string }[]>([]);
 
   const [parties, setParties] = useState<PartyRow[]>([]);
+
+  // ── Notify List ──────────────────────────────────────────────────────────
+  const [notifyList, setNotifyList] = useState<{ notify_id: string; notify_address: string }[]>([]);
+
+  const addNotify = () => {
+    if (notifyList.length >= 2) return;
+    setNotifyList(prev => [...prev, { notify_id: '', notify_address: '' }]);
+  };
+
+  const removeNotify = (idx: number) => setNotifyList(prev => prev.filter((_, i) => i !== idx));
+
+  const updateNotifyCompany = (idx: number, companyName: string) => {
+    const matched = subledgerCompanies.find(c => c.name === companyName);
+    setNotifyList(prev => {
+      const next = [...prev];
+      next[idx] = { notify_id: companyName, notify_branch_id: '', notify_address: '', notifyAddresses: [] };
+      return next;
+    });
+    if (matched) {
+      getMasterCompanyAddressesApi(matched.id).then(res => {
+        const addrs = mapAddresses(res.data?.data ?? res.data ?? []);
+        setNotifyList(prev => {
+          const next = [...prev];
+          if (next[idx]) next[idx] = { ...next[idx], notifyAddresses: addrs };
+          return next;
+        });
+      }).catch(() => {});
+    }
+  };
+
+  const updateNotifyBranch = (idx: number, branchId: string) => {
+    setNotifyList(prev => {
+      const next = [...prev];
+      if (next[idx]) {
+        const addr = next[idx].notifyAddresses.find(a => String(a.id) === branchId);
+        next[idx] = { ...next[idx], notify_branch_id: branchId, notify_address: addr?.address ?? '' };
+      }
+      return next;
+    });
+  };
 
   const addPartyRow = () => {
     setParties([...parties, {
@@ -697,7 +750,14 @@ const NewOperation = () => {
       setBranches(raw.filter((r: any) => r.status === 1 || r.status === '1' || r.status === 'active').map((r: any) => ({ id: r.id, name: r.name })));
     }).catch(() => {});
     getMasterCompanyAddressesApi().then(res => {
-      setAllAddresses(mapAddresses(res.data?.data ?? res.data ?? []));
+      const mapped = mapAddresses(res.data?.data ?? res.data ?? []);
+      setAllAddresses(mapped);
+      // Re-hydrate notify addresses after allAddresses loads
+      setNotifyList(prev => prev.map(n =>
+        n.notify_id && !n.notify_address
+          ? { ...n, notify_address: mapped.find(a => String(a.id) === n.notify_id)?.address ?? '' }
+          : n
+      ));
     }).catch(() => {});
     getCountriesApi().then(res => {
       const raw: any[] = res.data?.data ?? res.data ?? [];
@@ -796,16 +856,17 @@ const NewOperation = () => {
         customer:          formData.customer,
         customer_branch:   Number(formData.customerBranch) > 0 ? formData.customerBranch : "",
         customer_address:  formData.customerAddress,
-        shipper:           formData.shipper,
-        shipper_branch:    formData.shipperBranch,
+        shipper:           formData.shipper || undefined,
         shipper_address:   formData.shipperAddress,
-        carrier:           formData.carrier || undefined,
-        carrier_branch:    formData.carrierBranch || undefined,
+        carrier:           formData.carrierBranch || undefined,
         carrier_address:   formData.carrierAddress || undefined,
-        consignee:         formData.consignee,
-        consignee_branch:  formData.consigneeBranch,
+        consignee:         formData.consignee || undefined,
         consignee_address: formData.consigneeAddress,
         status:            formData.status,
+        notify_list: notifyList.map(n => ({
+          notify_id: n.notify_id || null,
+          notify_branch_id: n.notify_id || null,
+        })),
         parties: parties.map(p => ({
           customer: p.customer,
           customer_branch: Number(p.customerBranch) > 0 ? p.customerBranch : "",
@@ -1281,10 +1342,6 @@ const NewOperation = () => {
         <div className="bg-white px-6 py-3 border-b border-border flex items-center justify-between">
           <h2 className="text-lg font-bold text-primary">Parties</h2>
           <div className="flex gap-2">
-            <Button type="button" className="material-button text-black gap-2" variant="outline" onClick={addPartyRow}>
-              <Plus className="w-4 h-4" />
-              Add More
-            </Button>
             <Button type="button" className="material-button text-black gap-2" onClick={() => setSubledgerOpen(true)}>
               <Plus className="w-4 h-4" />
               Add New Party
@@ -1393,10 +1450,10 @@ const NewOperation = () => {
                 <div className="flex items-center gap-4">
                   <Label htmlFor="shipper" className="text-sm font-semibold w-24 shrink-0">Shipper</Label>
                   <div className="flex-1">
-                    <select id="shipper" name="shipper" value={formData.shipperBranch}
+                    <select id="shipper" name="shipper" value={formData.shipper}
                       onChange={(e) => {
                         const a = allAddresses.find(x => String(x.id) === e.target.value);
-                        setFormData(prev => ({ ...prev, shipperBranch: e.target.value, shipperAddress: a?.address ?? "" }));
+                        setFormData(prev => ({ ...prev, shipper: e.target.value, shipperBranch: a?.label ?? "", shipperAddress: a?.address ?? "" }));
                       }}
                       className={sel()}>
                       <option value="">Select</option>
@@ -1423,7 +1480,7 @@ const NewOperation = () => {
                     <select id="carrier" name="carrier" value={formData.carrierBranch}
                       onChange={(e) => {
                         const a = allAddresses.find(x => String(x.id) === e.target.value);
-                        setFormData(prev => ({ ...prev, carrierBranch: e.target.value, carrierAddress: a?.address ?? "" }));
+                        setFormData(prev => ({ ...prev, carrierBranch: e.target.value, carrier: e.target.value, carrierAddress: a?.address ?? "" }));
                         if (errors.carrier) setErrors(prev => ({ ...prev, carrier: "" }));
                       }}
                       className={sel(errors.carrier)}>
@@ -1449,10 +1506,10 @@ const NewOperation = () => {
                 <div className="flex items-center gap-4">
                   <Label htmlFor="consignee" className="text-sm font-semibold w-24 shrink-0">Consignee</Label>
                   <div className="flex-1">
-                    <select id="consignee" name="consignee" value={formData.consigneeBranch}
+                    <select id="consignee" name="consignee" value={formData.consignee}
                       onChange={(e) => {
                         const a = allAddresses.find(x => String(x.id) === e.target.value);
-                        setFormData(prev => ({ ...prev, consigneeBranch: e.target.value, consigneeAddress: a?.address ?? "" }));
+                        setFormData(prev => ({ ...prev, consignee: e.target.value, consigneeAddress: a?.address ?? "" }));
                       }}
                       className={sel()}>
                       <option value="">Select</option>
@@ -1561,7 +1618,7 @@ const NewOperation = () => {
                   <div className="flex items-center gap-4">
                     <Label className="text-sm font-semibold w-24 shrink-0">Carrier</Label>
                     <div className="flex-1">
-                      <select value={party.carrierBranch}
+                      <select value={party.carrier}
                         onChange={(e) => {
                           const a = allAddresses.find(x => String(x.id) === e.target.value);
                           updatePartyRow(index, "carrierBranch", e.target.value);
@@ -1608,6 +1665,73 @@ const NewOperation = () => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* ── Notify Section ── */}
+      <div className="material-card material-elevation-1 overflow-hidden">
+        <div className="bg-white px-6 py-3 border-b border-border flex items-center justify-between">
+          <h2 className="text-lg font-bold text-primary">Notify</h2>
+          {notifyList.length < 2 && (
+            <Button type="button" className="material-button text-black gap-2" variant="outline" onClick={addNotify}>
+              <Plus className="w-4 h-4" />
+              Add Notify
+            </Button>
+          )}
+        </div>
+        <div className="p-6">
+          {notifyList.length === 0 && (
+            <p className="text-sm text-muted-foreground">No notify parties added.</p>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {notifyList.map((notify, idx) => (
+              <div key={idx} className="material-card material-elevation-1 overflow-hidden relative">
+                <div className="bg-[#FF7043] px-5 py-2.5 flex items-center justify-between">
+                  <h3 className="text-white font-semibold text-sm">Notify {idx + 1}</h3>
+                  <button type="button" onClick={() => removeNotify(idx)} className="text-white hover:text-red-200">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0">Notify</Label>
+                    <div className="flex-1">
+                      <select
+                        value={notify.notify_id}
+                        onChange={e => {
+                          const a = allAddresses.find(x => String(x.id) === e.target.value);
+                          setNotifyList(prev => {
+                            const next = [...prev];
+                            if (next[idx]) next[idx] = { notify_id: e.target.value, notify_address: a?.address ?? '' };
+                            return next;
+                          });
+                        }}
+                        className={sel()}
+                      >
+                        <option value="">Select</option>
+                        {allAddresses.map(a => (
+                          <option key={a.id} value={String(a.id)}>{a.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-semibold w-24 shrink-0 pt-2">Address</Label>
+                    <Textarea
+                      value={notify.notify_address}
+                      onChange={e => setNotifyList(prev => {
+                        const next = [...prev];
+                        if (next[idx]) next[idx] = { ...next[idx], notify_address: e.target.value };
+                        return next;
+                      })}
+                      rows={4}
+                      className="flex-1 resize-y"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
