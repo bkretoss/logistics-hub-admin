@@ -2509,7 +2509,8 @@ const ViewOperation = () => {
             <h2 className="text-lg font-bold text-primary">Party</h2>
             <Button
               size="sm"
-              className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold"
+              variant="outline"
+              className="h-7 text-xs px-3 bg-white font-semibold"
               onClick={openSlCreate}
             >
               Add New Party
@@ -3171,7 +3172,8 @@ const ViewOperation = () => {
               </Button>
               <Button
                 size="sm"
-                className="h-7 text-xs px-3 bg-slate-400 hover:bg-slate-500 text-white border-0"
+                variant="outline"
+                className="h-7 text-xs px-3 bg-white font-semibold"
                 onClick={openCostCreate}
               >
                 Add Costing
@@ -4030,7 +4032,7 @@ const ViewOperation = () => {
                         "Shipper Address",
                         "Consignee Name",
                         "Consignee Address",
-                        // "Notify Name",
+                        "Notify Name",
                         "Notify Address",
                         "BL No",
                         "Carrier SCAC Code",
@@ -4071,9 +4073,9 @@ const ViewOperation = () => {
                       <td className="px-3 py-2 text-xs text-foreground">{op.shipper_address || "-"}</td>
                       <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">{op.consignee || "-"}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{op.consignee_address || "-"}</td>
-                      {/* <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
+                      <td className="px-3 py-2 text-xs text-foreground whitespace-nowrap">
                         {Array.isArray(op.notify_list) ? (op.notify_list[0]?.name || op.notify_list.map((n: any) => n?.name || n).filter(Boolean).join(", ") || "-") : (op.notify_list || "-")}
-                      </td> */}
+                      </td>
                       <td className="px-3 py-2 text-xs text-foreground">
                         {Array.isArray(op.notify_list) ? (op.notify_list[0]?.branch || op.notify_list[0]?.address || "-") : "-"}
                       </td>

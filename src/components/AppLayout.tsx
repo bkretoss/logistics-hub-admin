@@ -69,22 +69,21 @@ const menuItems: MenuItem[] = [
   {
     title: "Setting",
     icon: Settings,
-    children: [
-      { title: "Company Master", icon: Users, path: "/setting/company-master" },
-    ],
+    children: [],
   },
 
   {
     title: "Master",
     icon: Package,
     children: [
+      { title: "Company Master", icon: Users, path: "/setting/company-master" },
       // { title: "Branch",              icon: Database,  path: "/master/branch"            },
-      { title: "Cargo Type",          icon: Package,   path: "/master/cargo-type"        },
-      { title: "City",                icon: Users,     path: "/master/city"              },
+      // { title: "Cargo Type",          icon: Package,   path: "/master/cargo-type"        }, // const ma thi value levani
+      // { title: "City",                icon: Users,     path: "/master/city"              },
       // { title: "COA",                 icon: Users,     path: "/master/coa"               },
       // { title: "Commodity",           icon: Package,   path: "/master/commodity"         },
-      { title: "Company",             icon: Package,   path: "/master/company"           },
-      { title: "Country",             icon: DollarSign, path: "/master/country"          },
+      // { title: "Company",             icon: Package,   path: "/master/company"           },
+      // { title: "Country",             icon: DollarSign, path: "/master/country"          },
       { title: "Department",          icon: Users,     path: "/master/department"        },
       { title: "Designation",         icon: Users,     path: "/master/designation"       },
       // { title: "Incoterm",            icon: FileText,  path: "/master/incoterm"          },
@@ -94,10 +93,10 @@ const menuItems: MenuItem[] = [
       // { title: "Sales Agent",         icon: Users,     path: "/master/sales-agent"       },
       // { title: "Sales Team",          icon: Users,     path: "/hr/employee-master"       },
       { title: "Service Mode",        icon: Truck,     path: "/master/service-mode"      },
-      { title: "Shipment Type",       icon: Package,   path: "/master/shipment-type"     },
+      // { title: "Shipment Type",       icon: Package,   path: "/master/shipment-type"     }, // const ma thi value levani
       // { title: "Shipping Provider",   icon: Truck,     path: "/master/shipping-provider" },
-      { title: "State",               icon: Users,     path: "/master/state"             },
-      { title: "Transport Mode Type", icon: Truck,     path: "/master/transport-mode"    },
+      // { title: "State",               icon: Users,     path: "/master/state"             }, 
+      // { title: "Transport Mode Type", icon: Truck,     path: "/master/transport-mode"    }, // const ma thi value levani
       // { title: "User Master List",    icon: Users,     path: "/admin/user-master"         },
     ],
   },
