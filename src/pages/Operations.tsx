@@ -414,7 +414,7 @@ const Operations = () => {
                 <tr>
                   {['DOCUMENT','DATE','STATUS','PP/CC','CUSTOMER','PLACE OF RECEIPT','POL','POD',
                     'PLACE OF DELIVERY','ETD','ETA','SERVICE TYPE',
-                    'SHIPPER','CONSIGNEE','CARRIER','NOTE','ACTIONS'].map(h => (
+                    'NOTE','ACTIONS'].map(h => (
                     <th key={h} className="text-left p-4 text-xs font-semibold text-muted-foreground tracking-wide whitespace-nowrap">
                       {h}
                     </th>
@@ -423,7 +423,7 @@ const Operations = () => {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={17} className="p-8 text-center text-muted-foreground text-sm">Loading...</td></tr>
+                  <tr><td colSpan={14} className="p-8 text-center text-muted-foreground text-sm">Loading...</td></tr>
                 ) : paginated.map(op => (
                   <tr key={op.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                     <td className="p-4 text-sm font-medium text-foreground whitespace-nowrap">{op.document || '—'}</td>
@@ -443,9 +443,6 @@ const Operations = () => {
                     <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{fmt(op.pol_etd)}</td>
                     <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{fmt(op.pod_eta)}</td>
                     <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.service_type || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{op.shipper || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap max-w-[140px] truncate">{op.consignee || '—'}</td>
-                    <td className="p-4 text-sm text-muted-foreground whitespace-nowrap max-w-[140px] truncate">{op.carrier || '—'}</td>
                     <td className="p-4 text-sm text-muted-foreground max-w-[120px] truncate">{op.note || '—'}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
@@ -464,7 +461,7 @@ const Operations = () => {
                 ))}
                 {!loading && paginated.length === 0 && (
                   <tr>
-                    <td colSpan={17} className="p-8 text-center text-muted-foreground text-sm">No operations found.</td>
+                    <td colSpan={14} className="p-8 text-center text-muted-foreground text-sm">No operations found.</td>
                   </tr>
                 )}
               </tbody>
