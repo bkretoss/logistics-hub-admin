@@ -2739,13 +2739,13 @@ const ViewOperation = () => {
                 </div>
                 <div className="flex flex-col gap-1 col-span-2">
                   <label className="font-semibold">Commodity Description</label>
-                  <textarea name="commodityDesc" value={dimForm.commodityDesc} onChange={dimChange} placeholder="Enter description" className="w-full px-2 py-1 border border-input rounded text-xs resize-none bg-background" rows={2} />
+                  <textarea name="commodityDesc" value={dimForm.commodityDesc} onChange={dimChange} placeholder="Enter description" className="w-full px-2 py-1 border border-input rounded text-xs  bg-background" rows={2} />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
                 <label className="font-semibold">Notes</label>
-                <textarea name="notes" value={dimForm.notes} onChange={dimChange} placeholder="Enter notes" className="w-full px-2 py-1 border border-input rounded text-xs resize-none bg-background" rows={2} />
+                <textarea name="notes" value={dimForm.notes} onChange={dimChange} placeholder="Enter notes" className="w-full px-2 py-1 border border-input rounded text-xs  bg-background" rows={2} />
               </div>
             </div>
             <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
@@ -2974,7 +2974,7 @@ const ViewOperation = () => {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="font-semibold">Commodity Description</label>
-                    <textarea name="commodityDesc" value={siForm.commodityDesc} onChange={siChange} placeholder="Enter description" className="w-full px-2 py-1 border border-input rounded text-xs resize-none bg-background" rows={1} />
+                    <textarea name="commodityDesc" value={siForm.commodityDesc} onChange={siChange} placeholder="Enter description" className="w-full px-2 py-1 border border-input rounded text-xs  bg-background" rows={1} />
                   </div>
                 </div>
               </div>
@@ -3074,7 +3074,7 @@ const ViewOperation = () => {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="font-semibold">Notes</label>
-                    <textarea name="notes" value={siForm.notes} onChange={siChange} placeholder="Enter notes" className="w-full px-2 py-1 border border-input rounded text-xs resize-none bg-background" rows={1} />
+                    <textarea name="notes" value={siForm.notes} onChange={siChange} placeholder="Enter notes" className="w-full px-2 py-1 border border-input rounded text-xs  bg-background" rows={1} />
                   </div>
                 </div>
               </div>
@@ -3262,13 +3262,13 @@ const ViewOperation = () => {
                 <div className="flex flex-col gap-1"><label className="font-semibold">S.No#</label><input name="sNo" value={costForm.sNo} readOnly className="w-full px-2 py-1 border border-input rounded text-xs bg-muted cursor-not-allowed" /></div>
                 <div className="flex flex-col gap-1"><label className="font-semibold"><span className="text-destructive mr-1">*</span>Charge</label>{cs('charge', CHARGES)}</div>
                 <div className="flex flex-col gap-1"><label className="font-semibold"><span className="text-destructive mr-1">*</span>Freight PP/CC</label>{cs('freightPpCc', ['Prepaid','Collect'])}</div>
-                <div className="flex flex-col gap-1"><label className="font-semibold">Description</label>{ci('description')}</div>
+                <div className="flex flex-col gap-1"><label className="font-semibold"><span className="text-destructive mr-1">*</span>Unit</label>{cs('unit', UNITS)}</div>
               </div>
               <div className="grid grid-cols-4 gap-3">
-                <div className="flex flex-col gap-1"><label className="font-semibold"><span className="text-destructive mr-1">*</span>Unit</label>{cs('unit', UNITS)}</div>
                 <div className="flex flex-col gap-1"><label className="font-semibold">No of Unit</label>{ci('noOfUnit')}</div>
                 <div className="flex flex-col gap-1"><label className="font-semibold"><span className="text-destructive mr-1">*</span>SAC Code</label>{ci('sacCode')}</div>
-                <div className="flex flex-col gap-1"><label className="font-semibold">Note</label>{ci('note')}</div>
+                <div className="flex flex-col gap-1"><label className="font-semibold">Note</label><textarea name="note" value={costForm.note} onChange={costChange} rows={2} className="w-full px-2 py-1 border border-input rounded text-xs bg-background " /></div>
+                <div className="flex flex-col gap-1"><label className="font-semibold">Description</label><textarea name="description" value={costForm.description} onChange={costChange} rows={2} className="w-full px-2 py-1 border border-input rounded text-xs bg-background " /></div>
               </div>
 
               {/* Sale Section */}
@@ -3399,6 +3399,17 @@ const ViewOperation = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Mobile</label>
+                  <input name="mobile" value={slForm.mobile} onChange={slChange} placeholder="Enter mobile" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold">Email</label>
+                  <input name="emailId" value={slForm.emailId} onChange={slChange} placeholder="Enter email" className={`w-full px-2 py-1 border rounded text-xs ${slErrors.emailId ? 'border-red-500' : 'border-input'} bg-background`} />
+                  {slErrors.emailId && <span className="text-red-500 text-xs">{slErrors.emailId}</span>}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
                   <label className="font-semibold">SCAC Code</label>
                   <input name="scacCode" value={slForm.scacCode} onChange={slChange} placeholder="Enter SCAC code" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
                 </div>
@@ -3406,11 +3417,6 @@ const ViewOperation = () => {
                   <label className="font-semibold">Country</label>
                   <input name="country" value={slForm.country} onChange={slChange} placeholder="Enter country" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
                 </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="font-semibold"><span className="text-destructive mr-1">*</span>Address</label>
-                <textarea name="address" value={slForm.address} onChange={slChange} placeholder="Enter full address" className={`w-full px-2 py-1 border rounded text-xs resize-none ${slErrors.address ? 'border-red-500' : 'border-input'} bg-background`} rows={2} />
-                {slErrors.address && <span className="text-red-500 text-xs">{slErrors.address}</span>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
@@ -3436,16 +3442,10 @@ const ViewOperation = () => {
                   <input name="phone" value={slForm.phone} onChange={slChange} placeholder="Enter phone" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="font-semibold">Mobile</label>
-                  <input name="mobile" value={slForm.mobile} onChange={slChange} placeholder="Enter mobile" className="w-full px-2 py-1 border border-input rounded text-xs bg-background" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="font-semibold">Email</label>
-                  <input name="emailId" value={slForm.emailId} onChange={slChange} placeholder="Enter email" className={`w-full px-2 py-1 border rounded text-xs ${slErrors.emailId ? 'border-red-500' : 'border-input'} bg-background`} />
-                  {slErrors.emailId && <span className="text-red-500 text-xs">{slErrors.emailId}</span>}
-                </div>
+              <div className="flex flex-col gap-1">
+                <label className="font-semibold"><span className="text-destructive mr-1">*</span>Address</label>
+                <textarea name="address" value={slForm.address} onChange={slChange} placeholder="Enter full address" className={`w-full px-2 py-1 border rounded text-xs ${slErrors.address ? 'border-red-500' : 'border-input'} bg-background`} rows={2} />
+                {slErrors.address && <span className="text-red-500 text-xs">{slErrors.address}</span>}
               </div>
             </div>
             <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">

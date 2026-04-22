@@ -1274,11 +1274,11 @@ const NewCustomer = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-3 rounded-t-lg">
-              <h2 className="text-white font-semibold text-base">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">
                 {addressModalMode === "add" ? "Add Company Address" : "Edit Customer Address"}
-              </h2>
-              <button onClick={() => setAddressModal(false)} className="text-white hover:text-gray-200">
+              </h3>
+              <button onClick={() => setAddressModal(false)} className="p-1 hover:bg-muted rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1579,9 +1579,9 @@ const NewCustomer = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-3 rounded-t-lg">
-              <h2 className="text-white font-semibold text-base">COMPANY COA</h2>
-              <button onClick={() => setCOAModal(false)} className="text-white hover:text-gray-200">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">Company COA</h3>
+              <button onClick={() => setCOAModal(false)} className="p-1 hover:bg-muted rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1715,9 +1715,9 @@ const NewCustomer = () => {
       {docModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between bg-[#1a9fd4] px-4 py-3 rounded-t-lg">
-              <h2 className="text-white font-semibold text-base">Customer Document Upload</h2>
-              <button onClick={() => setDocModal(false)} className="text-white hover:text-gray-200"><X className="w-5 h-5" /></button>
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+              <h3 className="text-lg font-bold text-primary">Customer Document Upload</h3>
+              <button onClick={() => setDocModal(false)} className="p-1 hover:bg-muted rounded"><X className="w-5 h-5" /></button>
             </div>
             <div className="overflow-y-auto p-5 space-y-4 flex-1">
               {/* Line No | Position */}

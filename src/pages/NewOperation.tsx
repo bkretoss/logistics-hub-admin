@@ -1351,46 +1351,44 @@ const NewOperation = () => {
                 <h3 className="text-white font-semibold text-sm">Customer</h3>
               </div>
               <div className="p-5 space-y-4">
-                {/* Customer and Branch in same row */}
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="customer" className="text-sm font-semibold w-24 shrink-0">
-                    Customer<span className="text-destructive mr-1"> *</span>
-                  </Label>
-                  <div className="flex-1">
-                    <select
-                      id="customer"
-                      name="customer"
-                      value={formData.customer}
-                      onChange={(e) => {
-                        const customerName = e.target.value;
-                        setFormData((prev) => ({
-                          ...prev,
-                          customer: customerName,
-                          customerBranch: "",
-                          customerAddress: "",
-                        }));
-                        if (errors.customer) setErrors((prev) => ({ ...prev, customer: "" }));
-                        setCustomerAddresses([]);
-                        const matched = subledgerCompanies.find(c => c.name === customerName);
-                        if (matched) fetchCustomerAddresses(matched.id, customerName);
-                      }}
-                      className={sel(errors.customer)}
-                    >
-                      <option value="">Select</option>
-                      {subledgerCompanies.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.customer && <p className="text-xs text-destructive mt-1">{errors.customer}</p>}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-4">
+                    <Label htmlFor="customer" className="text-sm font-semibold w-24 shrink-0">
+                      Customer<span className="text-destructive"> *</span>
+                    </Label>
+                    <div className="flex-1 min-w-0">
+                      <select
+                        id="customer"
+                        name="customer"
+                        value={formData.customer}
+                        onChange={(e) => {
+                          const customerName = e.target.value;
+                          setFormData((prev) => ({
+                            ...prev,
+                            customer: customerName,
+                            customerBranch: "",
+                            customerAddress: "",
+                          }));
+                          if (errors.customer) setErrors((prev) => ({ ...prev, customer: "" }));
+                          setCustomerAddresses([]);
+                          const matched = subledgerCompanies.find(c => c.name === customerName);
+                          if (matched) fetchCustomerAddresses(matched.id, customerName);
+                        }}
+                        className={sel(errors.customer)}
+                      >
+                        <option value="">Select</option>
+                        {subledgerCompanies.map((c) => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                      {errors.customer && <p className="text-xs text-destructive mt-1">{errors.customer}</p>}
+                    </div>
                   </div>
-                  {/* Branch - Always Visible */}
                   <div className="flex items-center gap-4">
                     <Label htmlFor="customerBranch" className="text-sm font-semibold w-24 shrink-0">
                       Branch
                     </Label>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <select
                         id="customerBranch"
                         name="customerBranch"
@@ -1406,11 +1404,9 @@ const NewOperation = () => {
                         className={sel()}
                         disabled={!formData.customer}
                       >
-                        <option value="">{customerAddressesLoading ? "Loading branches..." : "Select Branch"}</option>
+                        <option value="">{customerAddressesLoading ? "Loading..." : "Select Branch"}</option>
                         {customerAddresses.map(a => (
-                          <option key={a.id} value={String(a.id)}>
-                            {a.label}
-                          </option>
+                          <option key={a.id} value={String(a.id)}>{a.label}</option>
                         ))}
                       </select>
                       {branchesError.customer && (
@@ -1761,7 +1757,7 @@ const NewOperation = () => {
                   </select>
                 </div>
               </div>
-              {/* Row 2: Actual Name | Website */}
+              {/* Row 2: Actual Name | Website | IEC Code */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Actual Name <span className="text-destructive">*</span></Label>
@@ -1772,7 +1768,10 @@ const NewOperation = () => {
                   <Label className="text-sm font-medium">Website</Label>
                   <Input name="website" value={subledger.website} onChange={handleSubledgerChange} />
                 </div>
-                <div />
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">IEC Code</Label>
+                  <Input name="iecCode" value={subledger.iecCode} onChange={handleSubledgerChange} />
+                </div>
               </div>
               {/* Row 3: Customer Logo | User Name | Password */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1799,7 +1798,7 @@ const NewOperation = () => {
                   <Input type="password" name="password" value={subledger.password} onChange={handleSubledgerChange} />
                 </div>
               </div>
-              {/* Row 4: SCAC Code | Interest Calculation | Notes */}
+              {/* Row 4: SCAC Code | Interest Calculation | IATA Code */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">SCAC Code</Label>
@@ -1813,28 +1812,22 @@ const NewOperation = () => {
                   </select>
                 </div>
                 <div className="space-y-1">
+                  <Label className="text-sm font-medium">IATA Code</Label>
+                  <Input name="iataCode" value={subledger.iataCode} onChange={handleSubledgerChange} />
+                </div>
+              </div>
+              {/* Row 5: Notes | Address */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                <div className="space-y-1">
                   <Label className="text-sm font-medium">Notes</Label>
                   <textarea name="notes" value={subledger.notes} onChange={handleSubledgerChange} rows={4}
                     className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-y" />
                 </div>
-              </div>
-              {/* Row 5: IEC Code | IATA Code */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">IEC Code</Label>
-                  <Input name="iecCode" value={subledger.iecCode} onChange={handleSubledgerChange} />
+                  <Label className="text-sm font-medium">Address</Label>
+                  <textarea name="address" value={subledger.address} onChange={handleSubledgerChange} rows={4}
+                    className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-y" />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">IATA Code</Label>
-                  <Input name="iataCode" value={subledger.iataCode} onChange={handleSubledgerChange} />
-                </div>
-                <div />
-              </div>
-              {/* Address */}
-              <div className="space-y-1">
-                <Label className="text-sm font-medium">Address</Label>
-                <textarea name="address" value={subledger.address} onChange={handleSubledgerChange} rows={3}
-                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background resize-y" />
               </div>
               {/* Country | State */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1883,9 +1876,11 @@ const NewOperation = () => {
                 </div>
               </div>
               {/* Branch Name */}
-              <div className="space-y-1">
-                <Label className="text-sm font-medium">Branch Name</Label>
-                <Input name="branchName" value={subledger.branchName} onChange={handleSubledgerChange} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Branch Name</Label>
+                  <Input name="branchName" value={subledger.branchName} onChange={handleSubledgerChange} />
+                </div>
               </div>
             </div>
             {/* Footer */}
